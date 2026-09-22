@@ -115,6 +115,8 @@ export class RuntimeState {
 
   // ---- timers / lifecycle ----
   panelTimer = 0;
+  /** Delays the scheduler's start until the page settled (LIFE-1). */
+  settleTimer = 0;
   schedulerTimer: IntervalHandle | 0 = 0;
   keepAlive: KeepAliveState = { ctx: null, state: 'off', listening: false };
   drawRaf = 0;

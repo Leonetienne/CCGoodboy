@@ -176,7 +176,11 @@ export class Bootstrap {
     clock.init();
     keepAlive.init();
 
-    runtime.schedulerTimer = clock.every(() => scheduler.tick(), 25);
+    // LIFE-1: the UI, overlay and paw appear at once, but the bot only starts working once the
+    // page settled: Game.ready flips before minigame scripts such as the Grimoire are loaded.
+    runtime.settleTimer = window.setTimeout(() => {
+      if (!runtime.destroyed) runtime.schedulerTimer = clock.every(() => scheduler.tick(), 25);
+    }, GAME_SETTLE_MS);
 
     runtime.panelTimer = window.setInterval(() => this.uiRoot!.panelUpdater.update(), 200);
 
@@ -217,6 +221,7 @@ export class Bootstrap {
     window.removeEventListener('mousemove', this.trackUserMouse, true);
     window.removeEventListener('click', this.trackUserClick, true);
 
+    clearTimeout(runtime.settleTimer);
     clock.stop(runtime.schedulerTimer || null);
     keepAlive.stop();
     clock.terminateWorker();
@@ -240,11 +245,11 @@ export class Bootstrap {
   }
 }
 
-/** How long to wait after the game reports ready before the bot starts (LIFE-1). */
+/** How long after start-up the bot waits before it starts working (LIFE-1). */
 export const GAME_SETTLE_MS = 1000;
 
 /** Polls every 500ms until the game object, its shimmer list and the big cookie exist, then
- * starts the bot GAME_SETTLE_MS later. */
+ * starts the bot (which only starts working GAME_SETTLE_MS later, LIFE-1). */
 export function waitForGame(bootstrap: Bootstrap): void {
   const Game = window.Game;
 
@@ -253,7 +258,5 @@ export function waitForGame(bootstrap: Bootstrap): void {
     return;
   }
 
-  // Game.ready flips before everything is loaded (minigame scripts such as the Grimoire come
-  // in asynchronously), so let the page settle before doing anything (LIFE-1).
-  setTimeout(() => bootstrap.start(), GAME_SETTLE_MS);
+  bootstrap.start();
 }
