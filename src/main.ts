@@ -19,6 +19,8 @@ import { BackgroundClock } from './input/background-clock';
 import { CursorController } from './input/cursor-controller';
 import { ClickTiming, hasGoodGolden } from './input/human-click';
 import { KeepAliveController } from './input/keep-alive';
+import { CursorManager } from './cursor/cursor-manager';
+import { JOB_PRIORITY } from './cursor/types';
 import { Bootstrap, waitForGame } from './lifecycle/bootstrap';
 import { Scheduler } from './scheduler/scheduler';
 import { LogStore } from './stats/log';
@@ -45,6 +47,7 @@ const keepAlive = new KeepAliveController(runtime, data);
 const isGoodGoldenReady = () => hasGoodGolden(goldenCookieModel);
 const cursorController = new CursorController(runtime, data, hurryMode, clock, isGoodGoldenReady);
 const clickTiming = new ClickTiming(runtime, data, hurryMode, clock, isGoodGoldenReady);
+const cursorManager = new CursorManager(runtime, data, game, hurryMode, clock, cursorController, clickTiming);
 const goldenQueue = new GoldenQueue(runtime);
 
 const incomeTracker = new IncomeTracker(runtime, game);
@@ -52,7 +55,7 @@ const incomeTracker = new IncomeTracker(runtime, game);
 const autoHammer = new AutoHammer(runtime, data, game, log);
 const hammerActive = () => autoHammer.hammerActive();
 
-const fthof = new FthofActions(runtime, game, clickTiming, cursorController, stats, log, isGoodGoldenReady);
+const fthof = new FthofActions(runtime, game, stats, log, isGoodGoldenReady);
 const fthofOrRefillPending = () => fthof.fthofOrRefillPending();
 
 const autoPlay = new AutoPlayEngine(
@@ -61,8 +64,6 @@ const autoPlay = new AutoPlayEngine(
   game,
   log,
   stats,
-  cursorController,
-  clock,
   incomeTracker,
   isGoodGoldenReady,
   () => hurryMode.cookieStormActive(),
@@ -71,18 +72,15 @@ const autoPlay = new AutoPlayEngine(
 );
 const autoShopReady = () => autoPlay.shopReady();
 
-const pendingWork = new PendingWork(game, isGoodGoldenReady, hammerActive, fthofOrRefillPending, autoShopReady);
+const pendingWork = new PendingWork(game, isGoodGoldenReady, hammerActive, fthofOrRefillPending, autoShopReady, cursorManager);
 
-const clickGolden = new ClickGoldenTask(runtime, game, clickTiming, cursorController, stats, log, () =>
+const clickGolden = new ClickGoldenTask(runtime, game, stats, log, () =>
   danceEligible(data, game, () => hurryMode.cookieChainActive(), () => pendingWork.isPending()),
 );
 
 const clickBigCookie = new ClickBigCookieTask(
-  runtime,
   data,
   game,
-  clickTiming,
-  cursorController,
   log,
   hammerActive,
   isGoodGoldenReady,
@@ -91,19 +89,17 @@ const clickBigCookie = new ClickBigCookieTask(
 );
 
 const happyDance = new HappyDance(
-  runtime,
   data,
   game,
-  clock,
   () => hurryMode.cookieChainActive(),
-  () => pendingWork.isPending(),
+  () => pendingWork.isPendingAbove(JOB_PRIORITY.HAPPY_DANCE),
 );
 
-const idleBehavior = new IdleBehavior(runtime, data, cursorController, clickTiming, clock, pendingWork);
+const idleBehavior = new IdleBehavior(pendingWork);
 
 const stateMachine = new BotStateMachine(runtime);
 
-const scheduler = new Scheduler(runtime, game, log, buffLock, goldenCookieModel, goldenQueue, stateMachine, {
+const scheduler = new Scheduler(runtime, game, log, buffLock, goldenCookieModel, goldenQueue, stateMachine, cursorManager, {
   runtime,
   data,
   game,

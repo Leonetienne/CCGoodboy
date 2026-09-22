@@ -4,15 +4,16 @@ import type { BuffLockTracker } from '../game/buffs-lock';
 import type { IGameAdapter } from '../game/game-adapter';
 import type { GoldenCookieModel } from '../game/golden-cookie-model';
 import type { GoldenQueue } from '../hunting/golden-queue';
+import type { CursorManager } from '../cursor/cursor-manager';
 import type { LogStore } from '../stats/log';
-import { selectTask, type PriorityDeps } from './priority';
+import { selectJobRequest, type PriorityDeps } from './priority';
 
 export type SchedulerDeps = Omit<PriorityDeps, 'queue' | 'buffs'>;
 
-/** The heart of the bot; runs every 25ms (see lifecycle/bootstrap.ts). If nothing is running
- * it picks ONE task by priority (see priority.ts) and runs it to completion before picking
- * another. Also logs each wrath cookie once. When a task ends, the paw ponders where it
- * stopped (idleStay). A task that throws is logged and never stops the bot. */
+/** The decision tick of the bot; runs every 25ms (see lifecycle/bootstrap.ts). It classifies
+ * shimmers, logs each wrath cookie once, builds the golden queue, and enqueues ONE job by
+ * priority (see priority.ts). The CursorManager owns execution from there: dedup keys prevent
+ * duplicate jobs while one is queued/running, and higher-priority jobs preempt lower ones. */
 export class Scheduler {
   constructor(
     private readonly runtime: RuntimeState,
@@ -22,11 +23,12 @@ export class Scheduler {
     private readonly goldenCookieModel: GoldenCookieModel,
     private readonly goldenQueue: GoldenQueue,
     private readonly stateMachine: BotStateMachine,
+    private readonly cursorManager: CursorManager,
     private readonly deps: SchedulerDeps,
   ) {}
 
   tick(): void {
-    if (this.runtime.destroyed || !this.runtime.running || this.runtime.actionInProgress || !this.game.isPresent() || !this.game.isReady()) {
+    if (this.runtime.destroyed || !this.runtime.running || !this.game.isPresent() || !this.game.isReady()) {
       return;
     }
 
@@ -55,38 +57,18 @@ export class Scheduler {
     }
 
     const queue = this.goldenQueue.build(shimmers.good);
-    const task = selectTask({ ...this.deps, queue, buffs });
+    const job = selectJobRequest({ ...this.deps, queue, buffs });
 
     // The dance is only for the moment right after the catch.
-    if (task?.name !== 'happy-dance') {
+    if (!job || job.key !== 'happy-dance') {
       this.runtime.danceQueued = false;
     }
 
-    if (!task) {
+    if (!job) {
       this.stateMachine.transitionTo('idle', 'none');
       return;
     }
 
-    this.runtime.actionInProgress = true;
-
-    Promise.resolve()
-      .then(task.run)
-      .catch((err: unknown) => {
-        console.error('[CC Good Boy] action failed:', err);
-        this.log.log('error', String(err && (err as Error).message ? (err as Error).message : err));
-      })
-      .finally(() => {
-        this.runtime.actionInProgress = false;
-
-        // After real work, ponder right where it stopped.
-        if (task.name !== 'idle-wander') {
-          this.runtime.idleStay = true;
-          this.runtime.nextIdleAt = Math.max(this.runtime.nextIdleAt, Date.now() + 250);
-        }
-
-        if (this.runtime.running) {
-          this.stateMachine.transitionTo('idle', 'none');
-        }
-      });
+    this.cursorManager.enqueue(job.action, { priority: job.priority, key: job.key, dueAt: job.dueAt });
   }
 }

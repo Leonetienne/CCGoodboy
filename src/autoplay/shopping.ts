@@ -3,8 +3,7 @@ import type { PersistedData } from '../core/persisted-data';
 import type { RuntimeState } from '../core/runtime-state';
 import { visibleRect } from '../game/dom-geometry';
 import type { IGameAdapter } from '../game/game-adapter';
-import type { BackgroundClock } from '../input/background-clock';
-import type { CursorController } from '../input/cursor-controller';
+import { JOB_PRIORITY, type CursorAction, type CursorJobContext, type JobRequest } from '../cursor/types';
 import type { LogStore } from '../stats/log';
 import type { StatsRecorder } from '../stats/stats';
 import { autoCollect, type PurchaseCandidate } from './collector';
@@ -99,8 +98,6 @@ export class AutoPlayEngine {
     private readonly game: IGameAdapter,
     private readonly log: LogStore,
     private readonly stats: StatsRecorder,
-    private readonly cursorController: CursorController,
-    private readonly clock: BackgroundClock,
     private readonly incomeTracker: IncomeTracker,
     private readonly hasGoodGolden: () => boolean,
     private readonly cookieStormActive: () => boolean,
@@ -277,66 +274,77 @@ export class AutoPlayEngine {
     this.data.scheduleSave();
   }
 
-  /** Shopping task: re-plan, let the paw visit the store item (if it is visible; a visual
+  /** Shopping job: re-plan, let the paw visit the store item (if it is visible; a visual
    * press only, no click is sent to the store), re-check that nothing more important came up,
    * then buy through autoBuy(). Records stats, logs "auto buy" with the numbers behind the
    * decision, and blocks re-planning for a moment after a failed attempt so it can never
-   * spin. */
-  async shop(): Promise<void> {
+   * spin. The returned action runs the whole flow inside cursor_at_position; the scheduler
+   * only enqueues it. */
+  shopJob(): JobRequest | null {
     const plan = this.evaluate(true);
     const c = plan && plan.buy;
 
     if (!c) {
       this.runtime.autoBlockUntil = Date.now() + 1500;
-      return;
+      return null;
     }
-
-    this.runtime.currentAction = 'auto-shop';
-    this.runtime.currentTarget = `buying ${c.name}`;
 
     const el = autoStoreElement(this.game, c);
     const r = el ? visibleRect(el) : null;
+    const cx = r ? r.left + r.width / 2 : this.runtime.cursor.x;
+    const cy = r ? r.top + r.height / 2 : this.runtime.cursor.y;
+    const engine = this;
 
-    if (r) {
-      const ok = await this.cursorController.moveCursorTo(r.left + r.width / 2, r.top + r.height / 2, true, {
-        abortIf: () => this.shoppingInterrupted(),
-      });
+    const action: CursorAction = {
+      label: `buy ${c.name}`,
+      target: r ? { x: cx, y: cy } : null,
+      waitClickGap: false,
+      preClickPause: false,
+      hud: { action: 'auto-shop', target: `buying ${c.name}` },
+      abortIf: () => engine.shoppingInterrupted(),
+      async cursor_at_position(ctx: CursorJobContext): Promise<void> {
+        if (r) {
+          await ctx.clock.sleep(90);
+        }
 
-      if (!ok) return;
+        // visual press only
+        ctx.runtime.pulseAt = performance.now();
 
-      await this.clock.sleep(90);
-    }
+        await ctx.clock.sleep(70);
 
-    if (this.shoppingInterrupted()) return;
+        if (engine.shoppingInterrupted()) return;
 
-    // visual press only
-    this.runtime.pulseAt = performance.now();
+        // things may have changed while the paw was on its way
+        const fresh = engine.evaluate(true);
 
-    await this.clock.sleep(70);
+        if (engine.shoppingInterrupted() || !fresh.buy || fresh.buy.name !== c.name) {
+          return;
+        }
 
-    // things may have changed while the paw was on its way
-    const fresh = this.evaluate(true);
+        if (autoBuy(engine.game, fresh.buy)) {
+          engine.runtime.lastAutoBuyAt = Date.now();
+          engine.runtime.autoNextEvalAt = 0;
 
-    if (this.shoppingInterrupted() || !fresh.buy || fresh.buy.name !== c.name) {
-      return;
-    }
+          engine.stats.recordAutoBuy();
 
-    if (autoBuy(this.game, fresh.buy)) {
-      this.runtime.lastAutoBuyAt = Date.now();
-      this.runtime.autoNextEvalAt = 0;
+          engine.log.log('auto buy', fresh.buy.name, {
+            type: fresh.buy.type,
+            cost: Math.round(fresh.buy.cost),
+            dCps: fresh.buy.dCps,
+            payback: fresh.row && fresh.row.payback,
+            impact: fresh.row && fresh.row.impact,
+            why: fresh.why,
+          });
+        } else {
+          engine.runtime.autoBlockUntil = Date.now() + 3000;
+        }
+      },
+    };
 
-      this.stats.recordAutoBuy();
-
-      this.log.log('auto buy', fresh.buy.name, {
-        type: fresh.buy.type,
-        cost: Math.round(fresh.buy.cost),
-        dCps: fresh.buy.dCps,
-        payback: fresh.row && fresh.row.payback,
-        impact: fresh.row && fresh.row.impact,
-        why: fresh.why,
-      });
-    } else {
-      this.runtime.autoBlockUntil = Date.now() + 3000;
-    }
+    return {
+      action,
+      priority: JOB_PRIORITY.AUTO_SHOP,
+      key: `auto-shop:${c.name}`,
+    };
   }
 }

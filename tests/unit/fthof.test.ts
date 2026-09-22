@@ -3,10 +3,10 @@ import { RuntimeState } from '../../src/core/runtime-state';
 import { FthofActions } from '../../src/hunting/fthof';
 import { FakeGameAdapter } from './fakes/fake-game-adapter';
 
-// fthofOrRefillPending only touches `game` and `runtime`; the other collaborators (cursor
-// controller, click timing, stats, log) are irrelevant to it and never invoked here.
+// fthofOrRefillPending only touches `game` and `runtime`; the other collaborators (stats,
+// log) are irrelevant to it and never invoked here.
 function makeFthofActions(game: FakeGameAdapter, runtime: RuntimeState): FthofActions {
-  return new FthofActions(runtime, game, null as never, null as never, null as never, null as never, () => false);
+  return new FthofActions(runtime, game, null as never, null as never, () => false);
 }
 
 function withGrimoire(game: FakeGameAdapter, magic: number) {

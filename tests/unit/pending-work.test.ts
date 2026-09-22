@@ -2,9 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { PendingWork } from '../../src/idle/pending-work';
 import { FakeGameAdapter } from './fakes/fake-game-adapter';
 
+interface FakeCursorManager {
+  hasJobsAbove(priority: number): boolean;
+}
+
 function makePendingWork(
   game: FakeGameAdapter,
   overrides: Partial<{ hasGoodGolden: boolean; hammerActive: boolean; fthofOrRefillPending: boolean; autoShopReady: boolean }> = {},
+  cursorManager: FakeCursorManager = { hasJobsAbove: () => false },
 ) {
   return new PendingWork(
     game,
@@ -12,6 +17,7 @@ function makePendingWork(
     () => overrides.hammerActive ?? false,
     () => overrides.fthofOrRefillPending ?? false,
     () => overrides.autoShopReady ?? false,
+    cursorManager as never,
   );
 }
 
@@ -44,5 +50,12 @@ describe('PendingWork', () => {
     expect(makePendingWork(game).isPending()).toBe(false);
     expect(makePendingWork(game, { fthofOrRefillPending: true }).isPending()).toBe(true);
     expect(makePendingWork(game, { autoShopReady: true }).isPending()).toBe(true);
+  });
+
+  it('isPendingAbove adds queued/running jobs above the given priority', () => {
+    const game = new FakeGameAdapter();
+
+    expect(makePendingWork(game, {}, { hasJobsAbove: (p) => p > 5 }).isPendingAbove(7)).toBe(true);
+    expect(makePendingWork(game, {}, { hasJobsAbove: () => false }).isPendingAbove(7)).toBe(false);
   });
 });

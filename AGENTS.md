@@ -505,38 +505,40 @@ gainLumps) — still guarded, still the only path to those `Game.*` calls.
 | Area | Path | Contents |
 |---|---|---|
 | Core state | `src/core/` | `constants.ts` (VERSION, clamp helpers), `persisted-data.ts`, `runtime-state.ts`, `state-machine.ts` |
-| Game facade | `src/game/` | `game-adapter.ts` (IGameAdapter + GameAdapter), `types.ts` (GameShimmer/RawBuff/CpsBuff/GrimoireMinigame/GameBuilding/GameUpgrade), `golden-cookie-model.ts` (fade curve, shimmer classification, GC-2/GC-3), `hurry-mode.ts` (HURRY-\*), `buffs-lock.ts` (LOCK_A, FT-6), `grimoire.ts` (FTHOF spell/cost lookup), `dom-geometry.ts` (visibleRect/looseRect/clippedByAncestor — shared by every overlay box, GC-2/BUY-3) |
-| Hunting (tasks) | `src/hunting/` | `click-golden.ts` (GC-4), `click-big-cookie.ts` (CF-\*), `golden-queue.ts` (route caching, wraps route-planner), `fthof.ts` (FT-\*), `happy-dance.ts` (DANCE-\*), `hitbox-overlay.ts` (GC-2) |
+| Game facade | `src/game/` | `game-adapter.ts` (IGameAdapter + GameAdapter), `types.ts` (GameShimmer/RawBuff/CpsBuff/GrimoireMinigame/GameBuilding/GameUpgrade), `golden-cookie-model.ts` (fade curve, shimmer classification, GC-2/GC-3), `hurry-mode.ts` (HURRY-\*), `buffs-lock.ts` (LOCK_A, FT-6), `grimoire.ts` (FTHOF spell/cost lookup), `grimoire-dom.ts` (real/dock Grimoire controls — FT-7), `dom-geometry.ts` (visibleRect/looseRect/clippedByAncestor — shared by every overlay box, GC-2/BUY-3) |
+| Cursor (queue) | `src/cursor/` | `types.ts` (`JOB_PRIORITY`, `CursorAction`, `CursorJob`, `CursorJobContext`, `CursorMover`, `CursorClickTiming`, `JobRequest`), `cursor-manager.ts` (owns the priority queue + all cursor motion: click gap → travel → pre-click pause → `cursor_at_position`, dedup by key, preemption, single cursor writer) |
+| Actions | `src/actions/` | `click-element.ts` (ClickElementAction/MoveAction/VisualPressAction), `golden-cookie.ts` (GoldenCookieAction, `effectPrettyName`), `hammer.ts` (HammerAction + big-cookie point helpers, CF-\*), `fthof.ts` (FthofAction/RefillAction), `dance.ts` (DanceAction + `danceEligible`/`anyGoldenPresent`/`getDanceMs`), `ponder.ts` (PonderAction), `idle.ts` (IdleWanderAction + `IDLE_SPOTS`/`pickIdleSpot`) |
+| Hunting (modules) | `src/hunting/` | `click-golden.ts` (golden hunter: `jobFor` → GoldenCookieAction), `click-big-cookie.ts` (hammer module: `job` → HammerAction), `golden-queue.ts` (route caching, wraps route-planner), `fthof.ts` (FthofActions: `fthofOrRefillPending` + `castJob`/`refillJob`), `happy-dance.ts` (HappyDance: `job` → DanceAction), `hitbox-overlay.ts` (GC-2) |
 | Routing | `src/routing/route-planner.ts` | `exactRoute` (Held-Karp DP, <= 11 cookies), `heuristicRoute` (nearest-neighbor + 2-opt/Or-opt + restarts), `planRoute` (GC-5) |
-| Idle | `src/idle/` | `idle-behavior.ts` (IDLE-\*), `pending-work.ts` (the shared "is anything more important pending?" predicate used by idle/dance/hammer/auto-shop to yield) |
-| Input synthesis | `src/input/` | `dispatch.ts` (dispatchMouse/dispatchMove — MOUSE-\*), `human-click.ts` (ClickTiming: delays, waitUntil, humanClick), `cursor-controller.ts` (CursorController: PAW-4 arc/spline/warp math, moveCursorTo/glideCursor), `background-clock.ts` (BackgroundClock: BG-1/BG-2 worker timer), `keep-alive.ts` (BG-3) |
-| Auto play | `src/autoplay/` | `valuation-tables.ts` (AUTO_BLOCKED_\*, AUTO_GOLDEN_UPGRADES, AUTO_KITTEN_POWER, AUTO_FINGER_STEPS, AUTO_BUILDING_CAPS — AUTO-2 data), `building-valuation.ts` + `upgrade-classifier.ts` (AUTO-3 gain math per candidate type), `collector.ts` (`autoCollect`: gathers candidates + ctx, AUTO-7 safety gates), `strategy.ts` (`autoDecide`: the pure insignificant/good/postpone/save decision, AUTO-4 — flagship unit-test target), `shopping.ts` (`AutoPlayEngine`: evaluate/shop/statusText, AUTO-1/8/9/10/12), `auto-hammer.ts` (AUTO-11), `income-tracker.ts` (smoothed clicking income for AUTO-3's `income`), `buy-value-overlay.ts` (BUY-\*) |
-| Scheduler | `src/scheduler/` | `priority.ts` (`selectTask`: the SCHED-1 cascade as pure data), `scheduler.ts` (`Scheduler.tick()`: wrath logging, queue build, actionInProgress guard, SCHED-2..4), `overlay-loop.ts` (`OverlayLoop`: the requestAnimationFrame draw loop — hitboxes, buy-value overlay, paw) |
+| Idle | `src/idle/` | `idle-behavior.ts` (IdleBehavior module: `idleJob` → IdleWanderAction), `pending-work.ts` (conditions + queue state via `CursorManager.hasJobsAbove` — the shared "is anything more important pending?" predicate) |
+| Input synthesis | `src/input/` | `dispatch.ts` (dispatchMouse/dispatchMove — MOUSE-\*), `human-click.ts` (ClickTiming: delays, waitUntil, humanClick), `cursor-controller.ts` (CursorController: low-level PAW-4 arc/spline/warp travel, moveCursorTo/glideCursor — the only file that writes `runtime.cursor.x/y`), `background-clock.ts` (BackgroundClock: BG-1/BG-2 worker timer), `keep-alive.ts` (BG-3) |
+| Auto play | `src/autoplay/` | `valuation-tables.ts` (AUTO_BLOCKED_\*, AUTO_GOLDEN_UPGRADES, AUTO_KITTEN_POWER, AUTO_FINGER_STEPS, AUTO_BUILDING_CAPS — AUTO-2 data), `building-valuation.ts` + `upgrade-classifier.ts` (AUTO-3 gain math per candidate type), `collector.ts` (`autoCollect`: gathers candidates + ctx, AUTO-7 safety gates), `strategy.ts` (`autoDecide`: the pure insignificant/good/postpone/save decision, AUTO-4 — flagship unit-test target), `shopping.ts` (`AutoPlayEngine`: evaluate/shopJob/statusText, AUTO-1/8/9/10/12), `auto-hammer.ts` (AUTO-11), `income-tracker.ts` (smoothed clicking income for AUTO-3's `income`), `buy-value-overlay.ts` (BUY-\*) |
+| Scheduler | `src/scheduler/` | `priority.ts` (`selectJobRequest`: the SCHED-1 cascade as pure data), `scheduler.ts` (`Scheduler.tick()`: wrath logging, queue build, enqueues ONE job via CursorManager), `overlay-loop.ts` (`OverlayLoop`: the requestAnimationFrame draw loop — hitboxes, buy-value overlay, paw) |
 | Rendering | `src/rendering/` | `paw-cursor.ts` (`PawCursor`: PAW-1..3, sprite rasterizing, click pulse, fallback drawn paw), `overlay-canvas.ts` (resize/DPR handling) |
 | Stats | `src/stats/` | `log.ts` (`LogStore`), `stats.ts` (`StatsRecorder`: GC-6/AUTO-10 counters + hourly buckets) |
 | UI | `src/ui/` | `root.ts` (`UiRoot`: composes every panel, wires ~25 event listeners — was `createUi()`), `styles.ts` (UI-7 theme), `format.ts` (escapeHtml/formatNum/moodText/targetText), `gui-frames/` (panel DOM template, drag-to-move, the 200ms `PanelUpdater`), `settings/` (`normalize-setting.ts` clamps, `settings-panel.ts` UI-4 staged save), `stats-window/` (`chart-engine.ts` canvas chart drawing, `graphs-panel.ts` UI-5, `logs-panel.ts` UI-6 filter/export), `debug/debug-tools.ts` (DBG-\*) |
 | Lifecycle | `src/lifecycle/bootstrap.ts` | `Bootstrap` (start/destroy, API-1, MOUSE-1 real-mouse sync, `waitForGame` polling) |
 | Assets | `src/assets/*.svg` | The two paw sprites (PAW-2), imported as raw text via an esbuild `.svg` loader |
 
-### 6.5 Task model (unchanged behavior, now typed)
+### 6.5 Job model (modules → actions → jobs → queue)
 
-A "task" is still `{ name, run: () => Promise<unknown> }`. `Scheduler.tick()`
-(src/scheduler/scheduler.ts) does what `schedulerTick()` used to: checks
-`runtime.actionInProgress`, refreshes the buff-lock tracker, classifies
-live shimmers, builds the golden queue, calls `selectTask()` (SCHED-1),
-runs the chosen task's `run()` as a promise, and clears
-`actionInProgress` + re-arms `nextIdleAt` in `.finally()` (SCHED-2..4).
+A **job** is `{ action, priority, key, dueAt }`; an **action** is an object
+with a `cursor_at_position(ctx)` callback. `Scheduler.tick()`
+(`src/scheduler/scheduler.ts`) refreshes the buff-lock tracker, classifies
+live shimmers, logs wrath, builds the golden queue, calls
+`selectJobRequest()` (SCHED-1), and enqueues the returned job into the
+`CursorManager` (`src/cursor/cursor-manager.ts`). The manager owns the
+priority queue and ALL cursor motion: it runs each job as click gap →
+travel (config/hurry speed) → pre-click pause → `cursor_at_position`, with
+dedup by key and preemption of lower-priority jobs.
 
-Tasks are async functions built from small awaitable steps — same idea as
-before, now methods on typed classes: `ClickTiming.waitUntil()`,
-`CursorController.moveCursorTo()`/`glideCursor()`, `ClickTiming.humanClick()`,
-`IdleBehavior.ponder()`, `HappyDance.run()`.
-
-Abort predicates still work the same way: `waitUntil()`/`moveCursorTo()`
-accept an `abortIf` callback (or an explicit `stop()` closure, as in
-`ClickBigCookieTask`), so a lower-priority task gives way to a
-higher-priority one within a frame — this is what makes SCHED-2 true
-without a real preemptive scheduler.
+Actions use the ctx primitives for anything they still need to do by hand:
+`ctx.clickTiming.waitUntil()/waitForClickGap()/waitPreClick()/humanClick()`,
+`ctx.cursor.moveCursorTo()/glideCursor()/setPosition()`,
+`ctx.clock.nextFrame()`, and `ctx.abortRequested()` to yield to a
+higher-priority job within a frame (SCHED-2). The low-level
+`CursorController` (`src/input/cursor-controller.ts`) remains the only file
+that writes `runtime.cursor.x/y`.
 
 ## 7. State machine
 
@@ -551,38 +553,40 @@ target)`) instead of scattering direct field writes across every task.
 
 | State | Meaning | Set by |
 |---|---|---|
-| `idle` | scheduler found no task this tick (SCHED-1's tier 7 fell through with `idleWander` off, or genuinely nothing to do) | `Scheduler.tick()` |
-| `idle-play` | idle wandering/pondering/drifting/visiting (IDLE-\*) | `IdleBehavior` |
-| `bored-click` | idle "bored" clicks on the big cookie (part of IDLE-2) | `IdleBehavior.idleBoredClick()` |
-| `hammer` | hammer mode clicking outside a real frenzy (CF-4) | `ClickBigCookieTask.run()` |
-| `click-frenzy` | clicking during a real Click Frenzy (CF-1..5) | `ClickBigCookieTask.run()` |
-| `golden-cookie` | chasing/clicking a good golden cookie (GC-4) | `ClickGoldenTask.run()` |
-| `fthof` | casting Force the Hand of Fate (FT-1) | `FthofActions.castFthof()` |
-| `grimoire-refill` | spending a sugar lump on mana (FT-3) | `FthofActions.refillGrimoire()` |
-| `auto-shop` | visiting/buying a store item (AUTO-9) | `AutoPlayEngine.shop()` |
-| `happy-dance` | post-catch celebration (DANCE-\*) | `HappyDance.run()` |
+| `idle` | scheduler found no job this tick (SCHED-1's tier 7 fell through with `idleWander` off, or genuinely nothing to do) | `Scheduler.tick()` |
+| `idle-play` | idle wandering/pondering/drifting/visiting (IDLE-\*) | `IdleWanderAction` / `PonderAction` |
+| `bored-click` | idle "bored" clicks on the big cookie (part of IDLE-2) | `IdleWanderAction` |
+| `hammer` | hammer mode clicking outside a real frenzy (CF-4) | `HammerAction` |
+| `click-frenzy` | clicking during a real Click Frenzy (CF-1..5) | `HammerAction` |
+| `golden-cookie` | chasing/clicking a good golden cookie (GC-4) | `GoldenCookieAction` |
+| `fthof` | casting Force the Hand of Fate (FT-1) | `FthofAction` |
+| `grimoire-refill` | spending a sugar lump on mana (FT-3) | `RefillAction` |
+| `auto-shop` | visiting/buying a store item (AUTO-9) | auto-shop `CursorAction` from `AutoPlayEngine.shopJob()` |
+| `happy-dance` | post-catch celebration (DANCE-\*) | `DanceAction` |
 
 `currentTarget` is free-text shown in the "Chasing" row (`targetText()`
 maps a few well-known values like `"none"`/`"good golden cookie"`/`"big
 cookie"` to friendlier text; everything else — e.g. `"sniffing a
 building"`, `"buying Cursor"` — is passed through as-is).
 
-Transitions are driven entirely by `selectTask()` (SCHED-1's priority
-cascade, `src/scheduler/priority.ts`) choosing the next task each tick;
-`Scheduler.tick()` sets `idle` when `selectTask()` returns nothing, and
-each task sets its own state near the top of its `run()`/async method
-before doing anything else. There is no separate transition table to keep
-in sync — the priority order in `selectTask()` *is* the state machine's
-transition policy; **this table exists so you don't have to reconstruct it
-by reading every task file.**
+Transitions are driven entirely by `selectJobRequest()` (SCHED-1's
+priority cascade, `src/scheduler/priority.ts`) choosing the next job each
+tick; `Scheduler.tick()` sets `idle` when `selectJobRequest()` returns
+nothing, and each action sets its own HUD state (its `hud` property, or by
+hand during its loop) before doing anything else. There is no separate
+transition table to keep in sync — the priority order in
+`selectJobRequest()` *is* the state machine's transition policy; **this
+table exists so you don't have to reconstruct it by reading every action
+file.**
 
 ## 8. Testing
 
 Three layers, each catching a different class of bug:
 
-1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 147 tests
-   across 23 files. Pure functions (route planner, `autoDecide`, the chart
-   engine, `normalizeSetting`) are tested directly with plain data. Classes
+1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 175 tests
+   across 26 files. Pure functions (route planner, `autoDecide`, the chart
+   engine, `normalizeSetting`) are tested directly with plain data; the
+   cursor queue/actions have their own fake mover/timing tests. Classes
    that depend on the game are tested against `FakeGameAdapter`
    (`tests/unit/fakes/fake-game-adapter.ts`), which implements
    `IGameAdapter` with test-controlled values — no real Cookie Clicker
@@ -621,10 +625,10 @@ an assertion — hence the visual suite instead.
 
 ## 9. Extension notes
 
-- **Adding a new hunting/idle/auto-play task**: give it its own file under
-  the matching directory, a class with constructor-injected dependencies
-  (so it's fakeable in a unit test), wire it into `src/main.ts`'s
-  composition root, and add it to `selectTask()`
+- **Adding a new hunting/idle/auto-play action**: give the action its own
+  file under `src/actions/` (or reuse a generic one), have the module
+  produce a `JobRequest` (`action` + `priority` + `key`), wire it into
+  `src/main.ts`'s composition root, and add it to `selectJobRequest()`
   (`src/scheduler/priority.ts`) at the right priority tier. Add its state
   name to the table in §7 and to `moodText()`/`targetText()`
   (`src/ui/format.ts`) if the HUD should describe it specially.
@@ -701,6 +705,16 @@ runs and confirm the "+N" number follows your cursor, not the paw's).
 
 ## 12. Changelog
 
+- **4.1.0** Cursor architecture refactor: modules now produce **actions**
+  and enqueue them as **jobs** into a new `CursorManager`
+  (`src/cursor/`) that owns the priority queue and ALL cursor motion
+  (click gap → travel → pre-click pause → `cursor_at_position`, dedup by
+  key, preemption by `JOB_PRIORITY`). Golden/FTHOF/refill/auto-shop/hammer/
+  dance/idle choreography moved into action classes under `src/actions/`;
+  the scheduler is now a producer (`selectJobRequest`) instead of running
+  opaque task workflows, and `CursorController` is again the only writer of
+  `runtime.cursor.x/y` (enforced by a unit test). Behavior unchanged —
+  every requirement in this document still holds; 175 unit tests green.
 - **4.0.0** Refactor: the single 11k-line monolith
   (`legacy/cc-bot.original.js`) split into ~50 TypeScript modules under
   `src/` (see §6), bundled by esbuild via a Docker-only build pipeline

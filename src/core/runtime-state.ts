@@ -42,7 +42,6 @@ export interface RoutePlan {
 export class RuntimeState {
   // ---- scheduling ----
   running = true;
-  actionInProgress = false;
   currentAction = 'idle';
   currentTarget = 'none';
 

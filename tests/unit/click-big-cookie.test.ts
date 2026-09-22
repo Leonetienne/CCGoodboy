@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { PersistedData } from '../../src/core/persisted-data';
-import { getHammerStepPx, nextBigCookiePoint, randomPointInBigCookie } from '../../src/hunting/click-big-cookie';
+import { getHammerStepPx, nextBigCookiePoint, randomPointInBigCookie } from '../../src/actions/hammer';
 
 function mountBigCookie(rect: { left: number; top: number; width: number; height: number }) {
   const el = document.createElement('div');

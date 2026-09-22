@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { effectPrettyName } from '../../src/hunting/click-golden';
+import { effectPrettyName } from '../../src/actions/golden-cookie';
 
 describe('effectPrettyName', () => {
   it('maps known internal effect keys to their display name', () => {

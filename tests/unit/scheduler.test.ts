@@ -6,44 +6,65 @@ import { BuffLockTracker } from '../../src/game/buffs-lock';
 import { GoldenCookieModel } from '../../src/game/golden-cookie-model';
 import { HurryMode } from '../../src/game/hurry-mode';
 import { GoldenQueue } from '../../src/hunting/golden-queue';
-import { Scheduler, type SchedulerDeps } from '../../src/scheduler/scheduler';
-import { LogStore } from '../../src/stats/log';
-import { FakeGameAdapter } from './fakes/fake-game-adapter';
 import type { ClickBigCookieTask } from '../../src/hunting/click-big-cookie';
 import type { ClickGoldenTask } from '../../src/hunting/click-golden';
 import type { FthofActions } from '../../src/hunting/fthof';
 import type { HappyDance } from '../../src/hunting/happy-dance';
 import type { IdleBehavior } from '../../src/idle/idle-behavior';
 import type { AutoPlayEngine } from '../../src/autoplay/shopping';
+import { JOB_PRIORITY, type CursorAction, type CursorJob, type EnqueueOpts } from '../../src/cursor/types';
+import { Scheduler, type SchedulerDeps } from '../../src/scheduler/scheduler';
+import { LogStore } from '../../src/stats/log';
+import { FakeGameAdapter } from './fakes/fake-game-adapter';
 
-function makeScheduler(game: FakeGameAdapter, idleWanderImpl: () => Promise<void>) {
-  const runtime = new RuntimeState();
-  const data = new PersistedData();
+class FakeCursorManager {
+  enqueued: Array<{ action: CursorAction; opts: EnqueueOpts }> = [];
+
+  enqueue(action: CursorAction, opts: EnqueueOpts = {}): CursorJob {
+    this.enqueued.push({ action, opts });
+    return { id: 1, action, priority: opts.priority ?? JOB_PRIORITY.IDLE, label: action.label, key: opts.key, dueAt: opts.dueAt ?? 0, state: 'queued', done: Promise.resolve('done') };
+  }
+}
+
+function makeScheduler(game: FakeGameAdapter, overrides: Partial<SchedulerDeps> = {}) {
+  const runtime = overrides.runtime ?? new RuntimeState();
+  const data = overrides.data ?? new PersistedData();
   const log = new LogStore(data);
   const hurryMode = new HurryMode(game, data);
   const buffLock = new BuffLockTracker(game, runtime, log);
   const goldenModel = new GoldenCookieModel(game, data, hurryMode, runtime);
   const goldenQueue = new GoldenQueue(runtime);
   const stateMachine = new BotStateMachine(runtime);
-
-  const idleBehavior = { idleWander: idleWanderImpl } as unknown as IdleBehavior;
+  const cursorManager = new FakeCursorManager();
 
   const deps: SchedulerDeps = {
     runtime,
     data,
     game,
-    clickGolden: {} as unknown as ClickGoldenTask,
-    clickBigCookie: {} as unknown as ClickBigCookieTask,
-    fthof: {} as unknown as FthofActions,
+    clickGolden: {
+      jobFor: vi.fn().mockReturnValue({ action: { label: 'golden' }, priority: JOB_PRIORITY.GOLDEN, key: 'golden:1' }),
+    } as unknown as ClickGoldenTask,
+    clickBigCookie: {
+      job: vi.fn().mockReturnValue({ action: { label: 'hammer' }, priority: JOB_PRIORITY.HAMMER, key: 'hammer' }),
+    } as unknown as ClickBigCookieTask,
+    fthof: {
+      castJob: vi.fn().mockReturnValue({ action: { label: 'fthof' }, priority: JOB_PRIORITY.FTHOF, key: 'fthof' }),
+      refillJob: vi.fn().mockReturnValue({ action: { label: 'refill' }, priority: JOB_PRIORITY.REFILL, key: 'refill' }),
+    } as unknown as FthofActions,
     autoPlay: { shopReady: () => false } as unknown as AutoPlayEngine,
-    happyDance: {} as unknown as HappyDance,
-    idleBehavior,
+    happyDance: {
+      job: vi.fn().mockReturnValue({ action: { label: 'dance' }, priority: JOB_PRIORITY.HAPPY_DANCE, key: 'happy-dance' }),
+    } as unknown as HappyDance,
+    idleBehavior: {
+      idleJob: vi.fn().mockReturnValue({ action: { label: 'idle' }, priority: JOB_PRIORITY.IDLE, key: 'idle-wander' }),
+    } as unknown as IdleBehavior,
     hammerActive: () => false,
+    ...overrides,
   };
 
-  const scheduler = new Scheduler(runtime, game, log, buffLock, goldenModel, goldenQueue, stateMachine, deps);
+  const scheduler = new Scheduler(runtime, game, log, buffLock, goldenModel, goldenQueue, stateMachine, cursorManager as never, deps);
 
-  return { scheduler, runtime, log };
+  return { scheduler, runtime, cursorManager };
 }
 
 describe('Scheduler.tick', () => {
@@ -52,78 +73,51 @@ describe('Scheduler.tick', () => {
   it('does nothing when the game is not ready', () => {
     const game = new FakeGameAdapter();
     game.ready = false;
-    const { scheduler, runtime } = makeScheduler(game, vi.fn());
+    const { scheduler, cursorManager } = makeScheduler(game);
 
     scheduler.tick();
-    expect(runtime.actionInProgress).toBe(false);
+    expect(cursorManager.enqueued).toHaveLength(0);
   });
 
-  it('does nothing while a task is already in progress (reentrancy guard)', () => {
+  it('enqueues the selected job (idle wander by default)', () => {
     const game = new FakeGameAdapter();
-    const idleWander = vi.fn().mockResolvedValue(undefined);
-    const { scheduler, runtime } = makeScheduler(game, idleWander);
-    runtime.actionInProgress = true;
-
-    scheduler.tick();
-    expect(idleWander).not.toHaveBeenCalled();
-  });
-
-  it('runs the selected task and resets to idle once it settles', async () => {
-    const game = new FakeGameAdapter();
-    const idleWander = vi.fn().mockResolvedValue(undefined);
-    const { scheduler, runtime } = makeScheduler(game, idleWander);
-
-    scheduler.tick();
-    expect(runtime.actionInProgress).toBe(true);
-
-    await vi.waitFor(() => expect(runtime.actionInProgress).toBe(false));
-
-    expect(idleWander).toHaveBeenCalledOnce();
-    expect(runtime.idleStay).toBe(false); // idle-wander itself never sets idleStay
-    expect(runtime.currentAction).toBe('idle');
-    expect(runtime.currentTarget).toBe('none');
-  });
-
-  it('sets idleStay after a non-idle task, logs an error, and keeps running when a task throws', async () => {
-    const game = new FakeGameAdapter();
-    game.buffNames.add('Click frenzy');
-
     const runtime = new RuntimeState();
-    runtime.nextBigClickAt = Date.now(); // due now, so click-frenzy gets picked
+    runtime.nextIdleAt = Date.now() - 1;
+
+    const { scheduler, cursorManager } = makeScheduler(game, { runtime });
+
+    scheduler.tick();
+
+    expect(cursorManager.enqueued).toHaveLength(1);
+    expect(cursorManager.enqueued[0]!.opts.key).toBe('idle-wander');
+    expect(cursorManager.enqueued[0]!.opts.priority).toBe(JOB_PRIORITY.IDLE);
+  });
+
+  it('clears danceQueued when the selected job is not the happy dance', () => {
+    const game = new FakeGameAdapter();
+    const runtime = new RuntimeState();
+    runtime.danceQueued = true;
+    runtime.nextBigClickAt = Date.now() - 1;
+
+    const { scheduler } = makeScheduler(game, { runtime, hammerActive: () => true });
+
+    scheduler.tick();
+    expect(runtime.danceQueued).toBe(false);
+  });
+
+  it('keeps danceQueued when the happy dance itself is selected', () => {
+    const game = new FakeGameAdapter();
+    const runtime = new RuntimeState();
+    runtime.danceQueued = true;
 
     const data = new PersistedData();
-    const log = new LogStore(data);
-    const hurryMode = new HurryMode(game, data);
-    const buffLock = new BuffLockTracker(game, runtime, log);
-    const goldenModel = new GoldenCookieModel(game, data, hurryMode, runtime);
-    const goldenQueue = new GoldenQueue(runtime);
-    const stateMachine = new BotStateMachine(runtime);
+    data.config.idleWander = false;
 
-    const failingClickBigCookie = { run: vi.fn().mockRejectedValue(new Error('boom')) } as unknown as ClickBigCookieTask;
-
-    const loggedEntries: string[] = [];
-    log.onLog((e) => loggedEntries.push(e.action));
-
-    const deps: SchedulerDeps = {
-      runtime,
-      data,
-      game,
-      clickGolden: {} as unknown as ClickGoldenTask,
-      clickBigCookie: failingClickBigCookie,
-      fthof: {} as unknown as FthofActions,
-      autoPlay: { shopReady: () => false } as unknown as AutoPlayEngine,
-      happyDance: {} as unknown as HappyDance,
-      idleBehavior: {} as unknown as IdleBehavior,
-      hammerActive: () => false,
-    };
-
-    const scheduler = new Scheduler(runtime, game, log, buffLock, goldenModel, goldenQueue, stateMachine, deps);
+    const { scheduler, cursorManager } = makeScheduler(game, { runtime, data });
 
     scheduler.tick();
-    await vi.waitFor(() => expect(runtime.actionInProgress).toBe(false));
 
-    expect(loggedEntries).toContain('error');
-    expect(runtime.idleStay).toBe(true); // click-frenzy is not idle-wander, so it settles here
-    expect(runtime.running).toBe(true); // a throwing task never stops the bot
+    expect(runtime.danceQueued).toBe(true);
+    expect(cursorManager.enqueued[0]!.opts.key).toBe('happy-dance');
   });
 });
