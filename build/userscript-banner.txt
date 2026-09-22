@@ -1,0 +1,10 @@
+// ==UserScript==
+// @name         CC Good Boy
+// @namespace    openai-cookie-clicker-smart-bot
+// @version      {{VERSION}}
+// @description  CC Good Boy: a cute little golden-cookie hunter with Click Frenzy clicking, FTHOF combos, sugar-lump refills, debug HUD, logs and charts uwu
+// @match        https://orteil.dashnet.org/cookieclicker/*
+// @match        http://orteil.dashnet.org/cookieclicker/*
+// @grant        none
+// @run-at       document-idle
+// ==/UserScript==
