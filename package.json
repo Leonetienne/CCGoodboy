@@ -1,6 +1,6 @@
 {
   "name": "cc-good-boy",
-  "version": "3.11.1",
+  "version": "4.0.0",
   "private": true,
   "description": "Cookie Clicker golden-cookie hunter Tampermonkey userscript",
   "type": "module",
@@ -10,6 +10,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "test:visual": "node tests/visual/run.mjs",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

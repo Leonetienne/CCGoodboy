@@ -31,6 +31,24 @@ Requires Docker (`docker info` must succeed). Each target builds the image
 if needed, bind-mounts the repo into the container, and uses a named
 volume for `node_modules` so it doesn't get shadowed by the bind mount.
 
+## Visual test suite (manual, human-judged)
+
+```bash
+./run-vis-tests.sh
+```
+
+Opens a real, visible Chromium window per scenario (defined in
+`tests/visual/scenarios.mjs`): loads Cookie Clicker with a freshly-wiped save,
+injects the freshly built bot, shows a banner describing what to watch for,
+triggers the scenario, then waits for **you** to click PASS or FAIL in the
+page. Nothing about pass/fail is automated or AI-judged. Results are printed
+and saved to `tests/visual/results/`.
+
+Unlike the build, this runs on the host and needs Node + Playwright's
+Chromium installed locally (the script installs both on first run if
+missing) — that's a deliberate exception, since a human has to actually
+watch the window.
+
 ## Layout
 
 - `src/` — the TypeScript source, one module per concern (see AGENTS.md's
