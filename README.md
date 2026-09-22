@@ -1,6 +1,6 @@
 # CC Good Boy
 
-![CC Good Boy's paw chasing a golden cookie](https://raw.githubusercontent.com/Leonetienne/CCGoodboy/main/docs/screenshots/hero.png)
+![The paw heading for a golden cookie during a Frenzy](https://raw.githubusercontent.com/Leonetienne/CCGoodboy/main/github-assets/hero.png)
 
 A little paw that lives on your Cookie Clicker tab and catches golden cookies
 while you're away. Leave it running overnight, come back to a fatter bank.
@@ -31,7 +31,7 @@ and the part that's been around the longest.
   anyone.
 - **Harvests your sugar lumps** as soon as they're ripe.
 
-![The CC Good Boy panel](https://raw.githubusercontent.com/Leonetienne/CCGoodboy/main/docs/screenshots/hud.png)
+![A Cookie Storm, every cookie boxed, numbered and lined up for the paw](https://raw.githubusercontent.com/Leonetienne/CCGoodboy/main/github-assets/cookie-storm.png)
 
 ### Optional: full auto play
 
@@ -50,16 +50,12 @@ default and remembers your choice.
 Not sure you trust it with your cookies? Turn on **dry run** and it'll only
 write down what it *would* have bought.
 
-![Auto play shopping, with the "how good is a buy" scores](https://raw.githubusercontent.com/Leonetienne/CCGoodboy/main/docs/screenshots/auto-play.png)
-
 ### "How good is a buy" scores
 
 Even with auto play off, every building and upgrade in the store gets a
 coloured box and a score from 0 to 100. Green is the best deal on offer right
 now, red is the worst. Handy if you'd rather do the buying yourself and just
 want a second opinion.
-
-![Store items with their "how good is a buy" scores](https://raw.githubusercontent.com/Leonetienne/CCGoodboy/main/docs/screenshots/buy-overlay.png)
 
 ### When there's nothing to do
 
@@ -70,8 +66,6 @@ it's shy and runs off if your mouse gets too close; other days it doesn't care.
 Click near it when it's in a good mood and see what happens.
 
 None of this gets in your way. You can keep using your own mouse as normal.
-
-![The paw idling around the screen](https://raw.githubusercontent.com/Leonetienne/CCGoodboy/main/docs/screenshots/idle.png)
 
 ---
 
@@ -100,6 +94,8 @@ speaker icon shows up on the tab, that's normal. You won't hear anything.
 
 The panel can be dragged by its title bar and minimised. From there:
 
+![The CC Good Boy panel open with its stats and settings](https://raw.githubusercontent.com/Leonetienne/CCGoodboy/main/github-assets/menu-open.png)
+
 | Button | What it's for |
 |---|---|
 | **Pause / Resume** | Stops and starts everything. |
@@ -110,8 +106,6 @@ The panel can be dragged by its title bar and minimised. From there:
 | **Debug tools** | Cheats for testing. See below. |
 | **Settings** | How patient, fast and fussy the paw is, what it shows on screen, and how auto play shops. Nothing changes until you hit **Save**. |
 
-![Graphs and logs](https://raw.githubusercontent.com/Leonetienne/CCGoodboy/main/docs/screenshots/graphs-logs.png)
-
 ### Debug tools
 
 These spawn golden cookies of any kind, hand you a quadrillion cookies, fill
@@ -120,8 +114,6 @@ so on. They exist so you can watch the bot react without waiting hours for the
 right cookie to show up.
 
 **They change your save.** Use them on a test save. Seriously.
-
-![The debug tools panel](https://raw.githubusercontent.com/Leonetienne/CCGoodboy/main/docs/screenshots/debug-tools.png)
 
 ---
 

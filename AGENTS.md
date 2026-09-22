@@ -415,10 +415,11 @@ action log (UI-6); nothing here is stored.
 - **DATA-3** Stored config is merged over the defaults, so new settings
   appear with their defaults after an update.
 - **LIFE-1** Start-up: the bot waits until `Game.ready`, the shimmers
-  array and `#bigCookie` exist (polled every 500ms), then another
-  `GAME_SETTLE_MS` (1000ms) before starting, since minigames such as the
-  Grimoire load asynchronously after `Game.ready`
-  (`waitForGame()`, `src/lifecycle/bootstrap.ts`).
+  array and `#bigCookie` exist (polled every 500ms), then starts at once
+  (panel, overlay, paw, API), but its scheduler — and with it every
+  behavior — only starts `GAME_SETTLE_MS` (1000ms) later, since minigames
+  such as the Grimoire load asynchronously after `Game.ready`
+  (`waitForGame()`/`Bootstrap.start()`, `src/lifecycle/bootstrap.ts`).
 - **API-1** `window.__CCSmartGoldenComboBot = { version, pause(),
   resume(), state (runtime), clickFrenzySec(), data, save(), destroy() }`.
 
@@ -1012,6 +1013,13 @@ mouse while the bot runs and confirm the "+N" number follows your cursor,
 not the paw's).
 
 ## 12. Changelog
+
+- **5.0.0** Major version bump; no behavior change since 4.10.14.
+
+- **4.10.14** The start-up delay from 4.10.8 no longer delays the panel:
+  the UI, overlay and paw appear as soon as the game is ready, and only
+  the scheduler (all behavior) starts 1s later (LIFE-1,
+  `runtime.settleTimer`).
 
 - **4.10.13** Graphs (UI-5): most golden cookie lines came out the same
   yellow, because each colour was a hash of the effect name. Every effect
