@@ -19,6 +19,8 @@ export class FakeGameAdapter implements IGameAdapter {
   lumps = 0;
   askLumpsPref = 0;
   lumpRipe = false;
+  lumpsOn = false;
+  onMenu = '';
   buildings: GameBuilding[] = [];
   buildingsByName: Record<string, GameBuilding> = {};
   upgrades: GameUpgrade[] = [];
@@ -133,6 +135,14 @@ export class FakeGameAdapter implements IGameAdapter {
 
   isLumpRipe(): boolean {
     return this.lumpRipe;
+  }
+
+  lumpsUnlocked(): boolean {
+    return this.lumpsOn;
+  }
+
+  getOnMenu(): string {
+    return this.onMenu;
   }
 
   getBuildings(): GameBuilding[] {

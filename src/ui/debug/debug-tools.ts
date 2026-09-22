@@ -1,3 +1,4 @@
+import type { GrimoireUnlocker } from '../../autoplay/grimoire-unlock';
 import type { RuntimeState } from '../../core/runtime-state';
 import type { IGameAdapter } from '../../game/game-adapter';
 import type { LogStore } from '../../stats/log';
@@ -17,6 +18,7 @@ export class DebugTools {
   constructor(
     private readonly runtime: RuntimeState,
     private readonly game: IGameAdapter,
+    private readonly buildingsNav: Pick<GrimoireUnlocker, 'debugShowBuildingsView' | 'debugScrollToWizardTowers'>,
   ) {
     this.tools = [
       { label: 'Spawn random Golden Cookie', run: () => this.spawnGolden('random golden cookie', {}) },
@@ -42,6 +44,8 @@ export class DebugTools {
       { label: 'Clear LOCK_A (bot refill lock)', run: () => this.clearLockA() },
       { label: 'Give 10 Sugar Lumps', run: () => this.giveLumps(10) },
       { label: 'Ripen growing sugar lump', run: () => this.ripenLump() },
+      { label: 'Show buildings view (paw: Options, Stats, Stats)', run: () => this.buildingsNav.debugShowBuildingsView() },
+      { label: 'Scroll to Wizard towers (paw)', run: () => this.buildingsNav.debugScrollToWizardTowers() },
     ];
   }
 

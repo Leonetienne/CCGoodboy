@@ -17,6 +17,8 @@ export interface Config {
   retentionDays: number;
   logLimit: number;
   showBuyValue: boolean;
+  frameOpacity: number;
+  overlayOpacity: number;
   keepAlive: boolean;
   autoPlay: boolean;
   autoDryRun: boolean;
@@ -90,6 +92,8 @@ export const DEFAULTS: PersistedState = {
     retentionDays: 30,
     logLimit: 10000,
     showBuyValue: true,
+    frameOpacity: 0.95,
+    overlayOpacity: 1,
     keepAlive: true,
     autoPlay: false,
     autoDryRun: false,

@@ -23,6 +23,9 @@ export interface IGameAdapter {
   getAskLumpsPref(): number;
   setAskLumpsPref(value: number): void;
   isLumpRipe(): boolean;
+  lumpsUnlocked(): boolean;
+  /** The open menu screen ('prefs', 'stats', 'log', ...), '' while the buildings are shown. */
+  getOnMenu(): string;
 
   // ---- auto play raw accessors (business logic lives in autoplay/, not here) ----
   getBuildings(): GameBuilding[];
@@ -218,6 +221,20 @@ export class GameAdapter implements IGameAdapter {
 
     const age = Date.now() - lumpT;
     return age >= ripeAge && age < overripeAge;
+  }
+
+  lumpsUnlocked(): boolean {
+    try {
+      const Game = window.Game;
+      return !!(Game && typeof Game.canLumps === 'function' && Game.canLumps());
+    } catch (_e) {
+      return false;
+    }
+  }
+
+  getOnMenu(): string {
+    const Game = window.Game;
+    return Game && typeof Game.onMenu === 'string' ? Game.onMenu : '';
   }
 
   getBuildings(): GameBuilding[] {

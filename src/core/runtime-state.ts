@@ -75,6 +75,10 @@ export class RuntimeState {
   autoWouldLog = new Map<string, number>();
   buyValueCache: { decision: Decision } | null = null;
   buyValueAt = 0;
+  /** Remaining clicks of the Options, Stats, Stats "back to the buildings view" recipe. */
+  buildingsViewSteps: Array<'prefsButton' | 'statsButton'> = [];
+  buildingsViewStartedAt = 0;
+  grimoireUnlockBlockUntil = 0;
   autoHammerState: AutoHammerState = {
     on: false,
     wanted: null,

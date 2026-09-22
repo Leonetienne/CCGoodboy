@@ -116,6 +116,16 @@ function panelBodyHtml(version: string): string {
             <span>Log entries to keep</span>
             <input data-setting="logLimit" type="number" min="100" max="50000" step="100">
         </div>
+        <div class="ccsb-setting ccsb-setting-range">
+            <span>Frame opacity (0.1-1)</span>
+            <input data-setting="frameOpacity" type="range" min="0.1" max="1" step="0.05">
+            <span class="ccsb-setting-range-val" data-for="frameOpacity">95%</span>
+        </div>
+        <div class="ccsb-setting ccsb-setting-range">
+            <span>Overlay opacity (0.1-1)</span>
+            <input data-setting="overlayOpacity" type="range" min="0.1" max="1" step="0.05">
+            <span class="ccsb-setting-range-val" data-for="overlayOpacity">100%</span>
+        </div>
 
         <label style="display:flex;gap:6px;align-items:center;margin-top:5px">
             <input id="ccsb-visuals" type="checkbox">

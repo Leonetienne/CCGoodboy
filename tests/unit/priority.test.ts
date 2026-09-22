@@ -13,6 +13,7 @@ import { selectJobRequest, type PriorityDeps } from '../../src/scheduler/priorit
 import type { GameShimmer } from '../../src/game/types';
 import { FakeGameAdapter } from './fakes/fake-game-adapter';
 import type { AutoPlayEngine } from '../../src/autoplay/shopping';
+import type { GrimoireUnlocker } from '../../src/autoplay/grimoire-unlock';
 
 function makeDeps(overrides: Partial<PriorityDeps> = {}): PriorityDeps {
   const runtime = overrides.runtime ?? new RuntimeState();
@@ -45,6 +46,11 @@ function makeDeps(overrides: Partial<PriorityDeps> = {}): PriorityDeps {
     harvestJob: vi.fn().mockReturnValue({ action: { label: 'lump-harvest' }, priority: JOB_PRIORITY.LUMP_HARVEST, key: 'lump-harvest' }),
   } as unknown as LumpHarvestActions;
 
+  const grimoireUnlock = {
+    pending: () => false,
+    job: vi.fn().mockReturnValue({ action: { label: 'grimoire-unlock' }, priority: JOB_PRIORITY.AUTO_SHOP, key: 'grimoire-unlock:level' }),
+  } as unknown as GrimoireUnlocker;
+
   const autoPlay = {
     shopReady: () => false,
     shopJob: vi.fn().mockReturnValue({ action: { label: 'auto-shop' }, priority: JOB_PRIORITY.AUTO_SHOP, key: 'auto-shop:x' }),
@@ -68,6 +74,7 @@ function makeDeps(overrides: Partial<PriorityDeps> = {}): PriorityDeps {
     clickBigCookie,
     fthof,
     lumpHarvest,
+    grimoireUnlock,
     autoPlay,
     happyDance,
     idleBehavior,
@@ -170,6 +177,29 @@ describe('selectJobRequest', () => {
     const job = selectJobRequest(makeDeps({ lumpHarvest, autoPlay }));
     expect(job?.key).toBe('lump-harvest');
     expect(job?.priority).toBe(JOB_PRIORITY.LUMP_HARVEST);
+  });
+
+  it('picks the Grimoire unlock before auto-shop, below a ripe sugar lump', () => {
+    const grimoireUnlock = {
+      pending: () => true,
+      job: vi.fn().mockReturnValue({ action: { label: 'grimoire-unlock' }, priority: JOB_PRIORITY.AUTO_SHOP, key: 'grimoire-unlock:level' }),
+    } as unknown as GrimoireUnlocker;
+    const autoPlay = { shopReady: () => true, shopJob: vi.fn() } as unknown as AutoPlayEngine;
+
+    expect(selectJobRequest(makeDeps({ grimoireUnlock, autoPlay }))?.key).toBe('grimoire-unlock:level');
+    expect(autoPlay.shopJob).not.toHaveBeenCalled();
+
+    const lumpHarvest = {
+      pending: () => true,
+      harvestJob: vi.fn().mockReturnValue({ action: { label: 'lump-harvest' }, priority: JOB_PRIORITY.LUMP_HARVEST, key: 'lump-harvest' }),
+    } as unknown as LumpHarvestActions;
+    expect(selectJobRequest(makeDeps({ grimoireUnlock, lumpHarvest, autoPlay }))?.key).toBe('lump-harvest');
+  });
+
+  it('falls through to auto-shop when the Grimoire unlock has no step to hand out', () => {
+    const grimoireUnlock = { pending: () => true, job: () => null } as unknown as GrimoireUnlocker;
+    const autoPlay = { shopReady: () => true, shopJob: vi.fn().mockReturnValue({ action: { label: 'auto-shop' }, priority: JOB_PRIORITY.AUTO_SHOP, key: 'auto-shop:x' }) } as unknown as AutoPlayEngine;
+    expect(selectJobRequest(makeDeps({ grimoireUnlock, autoPlay }))?.key).toBe('auto-shop:x');
   });
 
   it('falls back to auto-shop when nothing else is due', () => {

@@ -72,6 +72,12 @@ export function normalizeSetting(key: string, raw: string): number {
     case 'logLimit':
       return clampInt(value, 100, 50000, 10000);
 
+    case 'frameOpacity':
+      return Number.isFinite(value) && raw !== '' ? clamp(value, 0.1, 1) : 0.95;
+
+    case 'overlayOpacity':
+      return Number.isFinite(value) && raw !== '' ? clamp(value, 0.1, 1) : 1;
+
     default:
       return value;
   }

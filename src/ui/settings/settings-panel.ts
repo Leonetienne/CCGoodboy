@@ -3,6 +3,16 @@ import type { RuntimeState } from '../../core/runtime-state';
 import type { KeepAliveController } from '../../input/keep-alive';
 import { normalizeSetting } from './normalize-setting';
 
+/** Updates the live percentage readout next to a range-type setting input, if the markup has
+ * one (`.ccsb-setting-range-val[data-for=key]`). Purely cosmetic — does not touch config. */
+export function updateRangeReadout(panel: ParentNode, key: string, value: number): void {
+  const val = panel.querySelector(`.ccsb-setting-range-val[data-for="${key}"]`);
+
+  if (val) {
+    val.textContent = `${Math.round(value * 100)}%`;
+  }
+}
+
 /** Staged settings commit: validate/clamp every field, apply to data.config, store immediately,
  * and notify listeners (the panel redraws its charts if the graphs window happens to be open,
  * via onSaved). */
@@ -39,6 +49,10 @@ export class SettingsPanel {
 
       (this.data.config as unknown as Record<string, number>)[key] = value;
       input.value = String(value);
+
+      if (input.type === 'range') {
+        updateRangeReadout(this.panel, key, value);
+      }
     }
 
     this.data.config.visuals = (document.getElementById('ccsb-visuals') as HTMLInputElement).checked;

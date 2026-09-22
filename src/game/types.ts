@@ -44,6 +44,8 @@ export interface GameBuilding {
   locked?: boolean;
   price?: number;
   amount?: number;
+  /** Building level (bought with sugar lumps); Wizard tower level >= 1 unlocks the Grimoire. */
+  level?: number;
   storedCps?: number;
   storedTotalCps?: number;
   id?: number;

@@ -12,6 +12,7 @@ import type { FthofActions } from '../../src/hunting/fthof';
 import type { HappyDance } from '../../src/hunting/happy-dance';
 import type { LumpHarvestActions } from '../../src/hunting/lump-harvest';
 import type { IdleBehavior } from '../../src/idle/idle-behavior';
+import type { GrimoireUnlocker } from '../../src/autoplay/grimoire-unlock';
 import type { AutoPlayEngine } from '../../src/autoplay/shopping';
 import { JOB_PRIORITY, type CursorAction, type CursorJob, type EnqueueOpts } from '../../src/cursor/types';
 import { Scheduler, type SchedulerDeps } from '../../src/scheduler/scheduler';
@@ -56,6 +57,7 @@ function makeScheduler(game: FakeGameAdapter, overrides: Partial<SchedulerDeps> 
       pending: () => false,
       harvestJob: vi.fn().mockReturnValue({ action: { label: 'lump-harvest' }, priority: JOB_PRIORITY.LUMP_HARVEST, key: 'lump-harvest' }),
     } as unknown as LumpHarvestActions,
+    grimoireUnlock: { pending: () => false } as unknown as GrimoireUnlocker,
     autoPlay: { shopReady: () => false } as unknown as AutoPlayEngine,
     happyDance: {
       job: vi.fn().mockReturnValue({ action: { label: 'dance' }, priority: JOB_PRIORITY.HAPPY_DANCE, key: 'happy-dance' }),

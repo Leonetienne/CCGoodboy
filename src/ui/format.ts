@@ -38,6 +38,8 @@ export function moodText(action: string): string {
     fthof: 'casting FTHOF ^w^',
     'grimoire-refill': 'refilling the grimoire :3',
     'lump-harvest': 'harvesting a ripe sugar lump :3',
+    'buildings-view': 'tidying up the view :3',
+    'grimoire-unlock': 'unlocking the grimoire ^w^',
   };
 
   return map[action] || action;

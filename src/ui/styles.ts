@@ -19,6 +19,7 @@ const CSS = `
     font-size:11.5px;
     line-height:1.4;
     overflow:hidden;
+    opacity:var(--ccsb-frame-opacity, 0.95);
 }
 
 #ccsb-panel * {
@@ -177,6 +178,21 @@ const CSS = `
     padding:2px 5px;
 }
 
+.ccsb-setting-range {
+    grid-template-columns:1fr 70px 34px;
+}
+
+.ccsb-setting-range input[type=range] {
+    width:70px;
+    accent-color:#ff8fcf;
+}
+
+.ccsb-setting-range-val {
+    font-size:10px;
+    text-align:right;
+    color:#c9a6e6;
+}
+
 #ccsb-settings input[type=checkbox] {
     accent-color:#ff8fcf;
 }
@@ -224,6 +240,7 @@ const CSS = `
     border-radius:18px;
     box-shadow:0 12px 50px rgba(255,120,190,.35);
     padding:12px;
+    opacity:var(--ccsb-frame-opacity, 0.95);
 }
 
 #ccsb-debug {
@@ -341,4 +358,10 @@ export function injectStyles(): void {
   style.id = 'ccsb-style';
   style.textContent = CSS;
   document.head.appendChild(style);
+}
+
+/** Sets the CSS variable the frames (main panel, graphs, logs, debug) read their opacity from
+ * ("Frame opacity" setting). */
+export function applyFrameOpacity(opacity: number): void {
+  document.documentElement.style.setProperty('--ccsb-frame-opacity', String(opacity));
 }

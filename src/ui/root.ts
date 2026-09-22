@@ -1,6 +1,7 @@
 import { VERSION } from '../core/constants';
 import type { PersistedData } from '../core/persisted-data';
 import type { RuntimeState } from '../core/runtime-state';
+import type { GrimoireUnlocker } from '../autoplay/grimoire-unlock';
 import type { AutoPlayEngine } from '../autoplay/shopping';
 import type { IncomeTracker } from '../autoplay/income-tracker';
 import type { IGameAdapter } from '../game/game-adapter';
@@ -16,8 +17,8 @@ import { DebugPanel, DebugTools } from './debug/debug-tools';
 import { createPanelElement } from './gui-frames/panel-dom';
 import { applyFramePosition, applyPanelPosition, setupFrameDrag, setupPanelDrag } from './gui-frames/panel-drag';
 import { PanelUpdater } from './gui-frames/panel-updater';
-import { SettingsPanel } from './settings/settings-panel';
-import { injectStyles } from './styles';
+import { SettingsPanel, updateRangeReadout } from './settings/settings-panel';
+import { applyFrameOpacity, injectStyles } from './styles';
 import { GraphsPanel } from './stats-window/graphs-panel';
 import { LogsPanel } from './stats-window/logs-panel';
 
@@ -31,6 +32,7 @@ export interface UiRootDeps {
   clickTiming: ClickTiming;
   hurryMode: HurryMode;
   autoPlay: AutoPlayEngine;
+  grimoireUnlock: GrimoireUnlocker;
   clock: BackgroundClock;
   keepAlive: KeepAliveController;
   incomeTracker: IncomeTracker;
@@ -54,9 +56,10 @@ export class UiRoot {
 
   constructor(deps: UiRootDeps) {
     this.deps = deps;
-    const { runtime, data, game, log, goldenCookieModel, goldenQueue, clickTiming, hurryMode, autoPlay, clock, keepAlive, incomeTracker } = deps;
+    const { runtime, data, game, log, goldenCookieModel, goldenQueue, clickTiming, hurryMode, autoPlay, grimoireUnlock, clock, keepAlive, incomeTracker } = deps;
 
     injectStyles();
+    applyFrameOpacity(data.config.frameOpacity ?? 0.95);
 
     this.overlayCanvas = document.createElement('canvas');
     this.overlayCanvas.id = 'ccsb-overlay';
@@ -72,13 +75,15 @@ export class UiRoot {
     this.logsPanel = new LogsPanel(data);
     document.body.appendChild(this.logsPanel.element);
 
-    this.debugTools = new DebugTools(runtime, game);
+    this.debugTools = new DebugTools(runtime, game, grimoireUnlock);
     this.debugPanel = new DebugPanel(this.debugTools);
     document.body.appendChild(this.debugPanel.element);
 
     this.panelUpdater = new PanelUpdater(this.panel, runtime, data, game, goldenCookieModel, goldenQueue, clickTiming, hurryMode, autoPlay, clock, keepAlive);
 
     this.settingsPanel = new SettingsPanel(this.panel, data, runtime, keepAlive, () => {
+      applyFrameOpacity(data.config.frameOpacity);
+
       if (this.graphsPanel.isOpen) {
         this.graphsPanel.draw();
       }
@@ -92,7 +97,13 @@ export class UiRoot {
     // stored on Save.
     for (const input of Array.from(this.panel.querySelectorAll<HTMLInputElement>('[data-setting]'))) {
       const key = input.dataset.setting!;
-      input.value = String((data.config as unknown as Record<string, unknown>)[key]);
+      const configValue = (data.config as unknown as Record<string, unknown>)[key];
+      input.value = String(configValue);
+
+      if (input.type === 'range') {
+        updateRangeReadout(this.panel, key, Number(configValue));
+        input.addEventListener('input', () => updateRangeReadout(this.panel, key, Number(input.value)));
+      }
 
       input.addEventListener('input', () => this.settingsPanel.setDirty(true));
       input.addEventListener('keydown', (e) => {

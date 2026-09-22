@@ -31,6 +31,11 @@ describe('normalizeSetting', () => {
     expect(normalizeSetting('chartHours', '4')).toBe(6); // min 6
     expect(normalizeSetting('retentionDays', '0')).toBe(1); // min 1
     expect(normalizeSetting('logLimit', '10')).toBe(100); // min 100
+    expect(normalizeSetting('frameOpacity', '0.01')).toBe(0.1); // min 0.1
+    expect(normalizeSetting('frameOpacity', '5')).toBe(1); // max 1
+    expect(normalizeSetting('frameOpacity', '')).toBe(0.95);
+    expect(normalizeSetting('overlayOpacity', '0.01')).toBe(0.1); // min 0.1
+    expect(normalizeSetting('overlayOpacity', '')).toBe(1);
   });
 
   it('passes unknown keys through as a plain number', () => {

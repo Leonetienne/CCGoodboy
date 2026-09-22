@@ -29,6 +29,8 @@ export class OverlayLoop {
       return;
     }
 
+    this.ctx.globalAlpha = this.data.config.overlayOpacity ?? 1;
+
     drawHitboxes(this.ctx, this.hitboxDeps);
 
     if (this.data.config.showBuyValue !== false) {

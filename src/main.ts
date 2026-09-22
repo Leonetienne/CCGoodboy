@@ -1,4 +1,5 @@
 import { AutoHammer } from './autoplay/auto-hammer';
+import { GrimoireUnlocker } from './autoplay/grimoire-unlock';
 import { IncomeTracker } from './autoplay/income-tracker';
 import { AutoPlayEngine } from './autoplay/shopping';
 import { PersistedData } from './core/persisted-data';
@@ -74,7 +75,18 @@ const autoPlay = new AutoPlayEngine(
   () => hurryMode.cookieChainActive(),
   fthofOrRefillPending,
 );
-const autoShopReady = () => autoPlay.shopReady();
+const grimoireUnlock = new GrimoireUnlocker(
+  runtime,
+  data,
+  game,
+  log,
+  () => autoPlay.shoppingInterrupted(),
+  isGoodGoldenReady,
+  (req) => cursorManager.enqueue(req.action, { priority: req.priority, key: req.key, dueAt: req.dueAt }),
+);
+// Anything auto play wants to do right now (unlock the Grimoire, or a due purchase): it
+// interrupts hammering and idle play at once (AUTO-8).
+const autoShopReady = () => grimoireUnlock.pending() || autoPlay.shopReady();
 
 const pendingWork = new PendingWork(game, isGoodGoldenReady, hammerActive, fthofOrRefillPending, lumpHarvestPending, autoShopReady, cursorManager);
 
@@ -111,6 +123,7 @@ const scheduler = new Scheduler(runtime, game, log, buffLock, goldenCookieModel,
   clickBigCookie,
   fthof,
   lumpHarvest,
+  grimoireUnlock,
   autoPlay,
   happyDance,
   idleBehavior,
@@ -130,6 +143,7 @@ const bootstrap = new Bootstrap({
   clickTiming,
   hurryMode,
   autoPlay,
+  grimoireUnlock,
   incomeTracker,
 });
 
