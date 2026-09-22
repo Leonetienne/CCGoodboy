@@ -1,5 +1,5 @@
 import { sayOops } from './console-voice';
-import { STORAGE_KEY, clampInt, hourKey } from './constants';
+import { STORAGE_KEY, VERSION, clampInt, hourKey } from './constants';
 
 export interface Config {
   goldenMinIntervalMs: number;
@@ -71,6 +71,8 @@ export interface UiState {
 }
 
 export interface PersistedState {
+  /** Script version that last saved this state ('' until the first save). */
+  version: string;
   config: Config;
   stats: Stats;
   hourly: Record<string, HourlyBucket>;
@@ -80,6 +82,7 @@ export interface PersistedState {
 
 /** Reference for every setting (label, range, meaning) lives in AGENTS.md. */
 export const DEFAULTS: PersistedState = {
+  version: '',
   config: {
     goldenMinIntervalMs: 200,
     goldenMinFadeCurve: 0.55,
@@ -182,9 +185,14 @@ function loadStoredState(): PersistedState {
 export class PersistedData {
   private state: PersistedState;
   private saveTimer = 0;
+  /** Version that saved the state found at load, or null for a fresh install. Differs from
+   * VERSION right after an update. */
+  readonly previousVersion: string | null;
 
   constructor() {
     this.state = loadStoredState();
+    this.previousVersion = this.state.version || null;
+    this.state.version = VERSION;
   }
 
   get config(): Config {

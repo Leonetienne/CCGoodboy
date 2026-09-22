@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import { STORAGE_KEY, VERSION } from '../../src/core/constants';
 import { DEFAULTS, mergeDefaults, PersistedData } from '../../src/core/persisted-data';
 
 describe('mergeDefaults', () => {
@@ -105,5 +106,24 @@ describe('PersistedData', () => {
     }
 
     expect(data.logs).toHaveLength(5);
+  });
+
+  it('has no previous version on a fresh install and saves the current one', () => {
+    const data = new PersistedData();
+    expect(data.previousVersion).toBeNull();
+    data.saveNow();
+
+    expect(JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null').version).toBe(VERSION);
+    expect(new PersistedData().previousVersion).toBe(VERSION);
+  });
+
+  it('reports the version that saved the stored state after an update', () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: '4.9.0', stats: { totalGolden: 3 } }));
+    const data = new PersistedData();
+
+    expect(data.previousVersion).toBe('4.9.0');
+    expect(data.stats.totalGolden).toBe(3);
+    data.saveNow();
+    expect(JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null').version).toBe(VERSION);
   });
 });

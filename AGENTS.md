@@ -397,9 +397,12 @@ action log (UI-6); nothing here is stored.
 ### 3.13 Persistence and API
 
 - **DATA-1** State is stored in
-  `localStorage["ccSmartGoldenComboBot.v2"]` as JSON
-  `{config, stats, hourly, logs, ui}`; saved debounced (500ms), on "Save
-  settings", and on page unload.
+  `localStorage["ccGoodBoy"]` as JSON
+  `{version, config, stats, hourly, logs, ui}`; saved debounced (500ms), on "Save
+  settings", and on page unload. `version` is the script version that last
+  saved it: at load it is kept as `PersistedData.previousVersion` (null on a
+  fresh install) and then replaced by the running `VERSION`, so a future
+  update can tell how old the stored state is.
 - **DATA-2** Pruning: hourly buckets older than "History retention days"
   and logs beyond "Log entries to keep" are dropped.
 - **DATA-3** Stored config is merged over the defaults, so new settings
@@ -752,7 +755,7 @@ at the call site).
 - **`PersistedData`** (`src/core/persisted-data.ts`) — was the plain
   `data` object. Owns `DEFAULTS`, `mergeDefaults()`, load/save/prune
   (DATA-1..3), `ensureBucket()`, `appendLog()`. Backed by
-  `localStorage["ccSmartGoldenComboBot.v2"]`.
+  `localStorage["ccGoodBoy"]`; `previousVersion` = the version that saved it.
 - **`RuntimeState`** (`src/core/runtime-state.ts`) — was the plain
   `runtime` object. In-memory only: scheduling flags, FTHOF/refill
   bookkeeping, click bookkeeping, idle/dance/hammer flags, auto-play
@@ -858,7 +861,7 @@ file.**
 
 Three layers, each catching a different class of bug:
 
-1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 279 tests
+1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 281 tests
    across 32 files. Pure functions (route planner, `autoDecide`, the chart
    engine, `normalizeSetting`) are tested directly with plain data; the
    cursor queue/actions have their own fake mover/timing tests. Classes
@@ -1002,6 +1005,13 @@ mouse while the bot runs and confirm the "+N" number follows your cursor,
 not the paw's).
 
 ## 12. Changelog
+
+- **4.10.11** The persisted state moved from
+  `localStorage["ccSmartGoldenComboBot.v2"]` to `localStorage["ccGoodBoy"]`
+  (DATA-1; no built-in migration, never released under the old key) and now
+  records the script version that saved it (`version`), exposed at load as
+  `PersistedData.previousVersion` so a later update can tell how old the
+  stored state is. Unit tests in `tests/unit/persisted-data.test.ts`.
 
 - **4.10.10** Fixed: "Pop a wrinkler" (DBG-14) said "trying again in 3s"
   after a failed poke but never did — the failure cleared its 30s force

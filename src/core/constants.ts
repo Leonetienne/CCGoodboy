@@ -1,9 +1,9 @@
-/** localStorage key of the persisted state. Kept at '.v2' so settings, stats and logs
- * survive script updates. */
-export const STORAGE_KEY = 'ccSmartGoldenComboBot.v2';
+/** localStorage key of the persisted state (settings, stats, logs, ui). The stored state
+ * carries the version that wrote it, so an update can tell how old it is. */
+export const STORAGE_KEY = 'ccGoodBoy';
 
 /** Script version. Keep in sync with package.json and the userscript banner. */
-export const VERSION = '4.10.10';
+export const VERSION = '4.10.11';
 
 export function clamp(n: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, n));
