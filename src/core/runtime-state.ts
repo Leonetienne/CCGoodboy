@@ -79,6 +79,10 @@ export class RuntimeState {
   buildingsViewSteps: Array<'prefsButton' | 'statsButton'> = [];
   buildingsViewStartedAt = 0;
   grimoireUnlockBlockUntil = 0;
+  /** FT-8 preparation failed: cast FTHOF directly until then. */
+  fthofPrepBlockUntil = 0;
+  /** "Show grimoire" debug goal is active until then (0 = off). */
+  showGrimoireGoalUntil = 0;
   autoHammerState: AutoHammerState = {
     on: false,
     wanted: null,

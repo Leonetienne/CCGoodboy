@@ -10,6 +10,7 @@ import { BIG_CLICK_LEAD_MS, type ClickBigCookieTask } from '../hunting/click-big
 import type { ClickGoldenTask } from '../hunting/click-golden';
 import type { FthofActions } from '../hunting/fthof';
 import type { GoldenQueueItem } from '../hunting/golden-queue';
+import type { GrimoireView } from '../hunting/grimoire-view';
 import type { HappyDance } from '../hunting/happy-dance';
 import type { LumpHarvestActions } from '../hunting/lump-harvest';
 import type { IdleBehavior } from '../idle/idle-behavior';
@@ -24,6 +25,7 @@ export interface PriorityDeps {
   clickBigCookie: ClickBigCookieTask;
   fthof: FthofActions;
   lumpHarvest: LumpHarvestActions;
+  grimoireView: GrimoireView;
   grimoireUnlock: GrimoireUnlocker;
   autoPlay: AutoPlayEngine;
   happyDance: HappyDance;
@@ -34,11 +36,14 @@ export interface PriorityDeps {
 /** Picks ONE job request by priority (SCHED-1):
  *   1 ready golden cookies   -> GoldenCookieAction (first cookie of the planned route)
  *   2 real Click Frenzy      -> HammerAction (only once within BIG_CLICK_LEAD_MS of due)
- *   3 FTHOF, else refill     -> FthofAction / RefillAction (only outside Click Frenzy)
+ *   3 FTHOF, else refill     -> FthofAction / RefillAction (only outside Click Frenzy); FTHOF
+ *                               first gets the Grimoire on screen (FT-8, GrimoireView steps)
  *   4 ripe sugar lump        -> LumpHarvestAction (harvest before the game auto-harvests it)
- *   5 auto play: unlock the Grimoire (menu recipe / scroll / level-up step), then shopping
- *                            -> MenuButtonAction / ScrollIntoViewAction / GrimoireUnlockAction,
- *                               else the auto-shop action (only when a purchase is due)
+ *   5 a started buildings-view recipe / "Show grimoire" debug goal, then auto play: unlock
+ *     the Grimoire, then shopping
+ *                            -> MenuButtonAction / ScrollIntoViewAction / MinigameButtonAction /
+ *                               GrimoireUnlockAction, else the auto-shop action (only when a
+ *                               purchase is due)
  *   6 hammer mode            -> HammerAction
  *   7 queued happy dance     -> DanceAction
  *   8 idle behaviour         -> IdleWanderAction
@@ -47,7 +52,7 @@ export interface PriorityDeps {
  * still falls through to lump harvest/auto-shop/hammer/dance/idle below it, exactly as the
  * original did. */
 export function selectJobRequest(deps: PriorityDeps): JobRequest | null {
-  const { queue, buffs, runtime, data, game, clickGolden, clickBigCookie, fthof, lumpHarvest, grimoireUnlock, autoPlay, happyDance, idleBehavior, hammerActive } = deps;
+  const { queue, buffs, runtime, data, game, clickGolden, clickBigCookie, fthof, lumpHarvest, grimoireView, grimoireUnlock, autoPlay, happyDance, idleBehavior, hammerActive } = deps;
 
   let job: JobRequest | null = null;
 
@@ -89,8 +94,13 @@ export function selectJobRequest(deps: PriorityDeps): JobRequest | null {
     job = lumpHarvest.harvestJob();
   }
 
-  // Auto play: unlock the Grimoire with a sugar lump as soon as possible (AUTO-13), and the
-  // buildings-view recipe (also started by the debug tool).
+  // A buildings-view recipe that is already under way (resumed after preemption) and the
+  // debug tools' "Show grimoire" goal.
+  if (!job && grimoireView.pending()) {
+    job = grimoireView.job();
+  }
+
+  // Auto play: unlock the Grimoire with a sugar lump as soon as possible (AUTO-13).
   if (!job && grimoireUnlock.pending()) {
     job = grimoireUnlock.job();
   }

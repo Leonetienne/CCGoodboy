@@ -1,7 +1,7 @@
 import { VERSION } from '../core/constants';
 import type { PersistedData } from '../core/persisted-data';
 import type { RuntimeState } from '../core/runtime-state';
-import type { GrimoireUnlocker } from '../autoplay/grimoire-unlock';
+import type { GrimoireView } from '../hunting/grimoire-view';
 import type { AutoPlayEngine } from '../autoplay/shopping';
 import type { IncomeTracker } from '../autoplay/income-tracker';
 import type { IGameAdapter } from '../game/game-adapter';
@@ -48,7 +48,7 @@ export interface BootstrapDeps {
   clickTiming: ClickTiming;
   hurryMode: HurryMode;
   autoPlay: AutoPlayEngine;
-  grimoireUnlock: GrimoireUnlocker;
+  grimoireView: GrimoireView;
   incomeTracker: IncomeTracker;
 }
 
@@ -128,7 +128,7 @@ export class Bootstrap {
       return;
     }
 
-    const { runtime, data, game, log, clock, keepAlive, scheduler, goldenCookieModel, goldenQueue, clickTiming, hurryMode, autoPlay, grimoireUnlock, incomeTracker } =
+    const { runtime, data, game, log, clock, keepAlive, scheduler, goldenCookieModel, goldenQueue, clickTiming, hurryMode, autoPlay, grimoireView, incomeTracker } =
       this.deps;
 
     window.__CCSmartGoldenComboBot = {
@@ -158,7 +158,7 @@ export class Bootstrap {
       clickTiming,
       hurryMode,
       autoPlay,
-      grimoireUnlock,
+      grimoireView,
       clock,
       keepAlive,
       incomeTracker,

@@ -30,10 +30,10 @@ Out of scope: wrinklers, seasons, garden, stock market, pantheon, ascending.
 Buying is only done by the optional, OFF-by-default "Auto play" mode
 (AUTO-\*) and even then only through the game's own buy functions. The bot
 NEVER clicks anything except: good golden cookies, the big cookie, the
-FTHOF spell button, the lump-refill button, a ripe sugar lump, and — in
-auto play only — the Wizard tower's "lvl" button plus the Options/Stats
-menu buttons needed to reach it (AUTO-13) (the paw only "visits" store
-items, AUTO-9).
+FTHOF spell button, the lump-refill button, a ripe sugar lump, the
+Options/Stats menu buttons and the "View Grimoire" button needed to get the
+FTHOF spell on screen (FT-8), and — in auto play only — the Wizard tower's
+"lvl" button (AUTO-13) (the paw only "visits" store items, AUTO-9).
 
 ## 2. Terms
 
@@ -149,7 +149,21 @@ refactor) which `tests/visual/scenarios.mjs` scenario exercises it.
 - **FT-7** If the real Grimoire buttons are not visible on screen, the
   cast/refill click still fires directly on the real control (no dock
   chip and no visit is required); the paw's movement target in that case
-  is simply wherever it already is.
+  is simply wherever it already is. Since FT-8 this is only the FALLBACK
+  for FTHOF (preparation blocked); the refill always works this way.
+- **FT-8** Before casting FTHOF the paw first gets the spell in front of
+  it, one step per scheduler tick at FTHOF priority, each re-checking the
+  FT-1 conditions (FT-4): (1) if a menu covers the buildings
+  (`Game.onMenu` not empty) it clicks Options once, then Stats twice;
+  (2) if the Grimoire is closed, it scrolls `#centerArea` until the
+  Wizard tower's "View Grimoire" button (`#productMinigameButton{id}`) is
+  on screen and (3) clicks it — never when the Grimoire is already open,
+  since that button toggles; (4) if the Grimoire is open but the FTHOF
+  spell is scrolled away, it scrolls to the spell; then it casts. If a
+  step is impossible (no Wizard tower row, a scroll that doesn't reach the
+  element, the menu staying open) it logs `"fthof prep"` and casts
+  directly per FT-7 for the next 10s instead. Debug: DBG-11 runs the same
+  steps.
 
 ### 3.5 Sugar lump harvesting
 
@@ -176,10 +190,11 @@ refactor) which `tests/visual/scenarios.mjs` scenario exercises it.
 - **SCHED-1** Priority, highest first:
   1. good golden cookies (queue)
   2. real Click Frenzy clicking
-  3. FTHOF cast, then lump refill
+  3. FTHOF cast (and its FT-8 preparation steps), then lump refill
   4. a ripe sugar lump (LUMP-\*)
-  5. auto play: Grimoire unlock (AUTO-13), then shopping (only when a
-     purchase is due, AUTO-8)
+  5. a buildings-view recipe already under way / the "Show grimoire"
+     debug goal (DBG-9/11), then auto play: Grimoire unlock (AUTO-13),
+     then shopping (only when a purchase is due, AUTO-8)
   6. hammer mode (manual button, or the auto hammer, AUTO-11)
   7. happy dance (only right after a catch, DANCE-1)
   8. idle behavior (IDLE-\*)
@@ -308,6 +323,14 @@ See [§7 State machine](#7-state-machine) for how this maps onto code.
   wheel-scrolls it until the Wizard tower row is centred (AUTO-13 step 2).
   Fails in red if the row is not shown (no Wizard tower, or a menu covers
   the buildings — use DBG-9 first).
+- **DBG-11** Show grimoire: (a) buildings view (DBG-9 recipe), (b) Wizard
+  towers scrolled into view, (c) Grimoire unlocked — fails in red at once
+  if no Wizard tower is bought, or it is still level 0 and there is no
+  sugar lump; otherwise spends one lump on level 1 like AUTO-13 — (d)
+  "View Grimoire" clicked if the Grimoire is closed, and the spells
+  scrolled into view. Works without auto play; gives up after 30s. The
+  outcome (`"Show grimoire: done"` / `"failed"`) is logged as `"debug
+  tool"`.
 ### 3.12 Persistence and API
 
 - **DATA-1** State is stored in
@@ -422,9 +445,10 @@ See [§7 State machine](#7-state-machine) for how this maps onto code.
   centred; (3) the paw clicks the level button (the game's "ask before
   spending lumps" confirmation is suppressed for that click, like FT-3's
   refill). Every step is a real synthetic click / visible scroll with the
-  paw there (NFR-8). Guards against spinning: re-running the recipe within
-  5s pauses it 30s, a failed scroll or missing row 10s, a failed level-up
-  3s. Priority: tier 5, before shopping (a pending unlock also interrupts
+  paw there (NFR-8). Guards against spinning: the recipe is never re-run
+  within 5s; a menu that stays open, a failed scroll or a missing row
+  pauses the unlock 10s, a failed level-up 3s. Planned by the same `GrimoireView` as FT-8 (goal "level").
+  Priority: tier 5, before shopping (a pending unlock also interrupts
   hammering/idle like a due purchase). Logged as `"auto grimoire
   unlock"`. Debug: DBG-9, DBG-10.
 
@@ -609,12 +633,12 @@ gainLumps) — still guarded, still the only path to those `Game.*` calls.
 | Core state | `src/core/` | `constants.ts` (VERSION, clamp helpers), `persisted-data.ts`, `runtime-state.ts`, `state-machine.ts` |
 | Game facade | `src/game/` | `game-adapter.ts` (IGameAdapter + GameAdapter), `types.ts` (GameShimmer/RawBuff/CpsBuff/GrimoireMinigame/GameBuilding/GameUpgrade), `golden-cookie-model.ts` (fade curve, shimmer classification, GC-2/GC-3), `hurry-mode.ts` (HURRY-\*), `buffs-lock.ts` (LOCK_A, FT-6), `grimoire.ts` (FTHOF spell/cost lookup), `grimoire-dom.ts` (real Grimoire controls — FT-7), `lump-dom.ts` (`#lumps` control/centre — LUMP-\*), `buildings-view-dom.ts` (`#centerArea`, menu buttons, building rows/level buttons, the Options/Stats/Stats recipe, `centeredScrollTop` — AUTO-13), `dom-geometry.ts` (visibleRect/looseRect/clippedByAncestor — shared by every overlay box, GC-2/BUY-3) |
 | Cursor (queue) | `src/cursor/` | `types.ts` (`JOB_PRIORITY`, `CursorAction`, `CursorJob`, `CursorJobContext`, `CursorMover`, `CursorClickTiming`, `JobRequest`), `cursor-manager.ts` (owns the priority queue + all cursor motion: click gap → travel → pre-click pause → `cursor_at_position`, dedup by key, preemption, single cursor writer) |
-| Actions | `src/actions/` | `click-element.ts` (ClickElementAction/MoveAction/VisualPressAction), `golden-cookie.ts` (GoldenCookieAction, `effectPrettyName`), `hammer.ts` (HammerAction + big-cookie point helpers, CF-\*), `fthof.ts` (FthofAction/RefillAction), `lump-harvest.ts` (LumpHarvestAction, LUMP-\*), `buildings-view.ts` (MenuButtonAction, ScrollIntoViewAction — AUTO-13/DBG-9/10), `grimoire-unlock.ts` (GrimoireUnlockAction, AUTO-13), `dance.ts` (DanceAction + `danceEligible`/`anyGoldenPresent`/`getDanceMs`), `ponder.ts` (PonderAction), `idle.ts` (IdleWanderAction + `IDLE_SPOTS`/`pickIdleSpot`) |
-| Hunting (modules) | `src/hunting/` | `click-golden.ts` (golden hunter: `jobFor` → GoldenCookieAction), `click-big-cookie.ts` (hammer module: `job` → HammerAction), `golden-queue.ts` (route caching, wraps route-planner), `fthof.ts` (FthofActions: `fthofOrRefillPending` + `castJob`/`refillJob`), `lump-harvest.ts` (LumpHarvestActions: `pending` + `harvestJob`), `happy-dance.ts` (HappyDance: `job` → DanceAction), `hitbox-overlay.ts` (GC-2) |
+| Actions | `src/actions/` | `click-element.ts` (ClickElementAction/MoveAction/VisualPressAction), `golden-cookie.ts` (GoldenCookieAction, `effectPrettyName`), `hammer.ts` (HammerAction + big-cookie point helpers, CF-\*), `fthof.ts` (FthofAction/RefillAction), `lump-harvest.ts` (LumpHarvestAction, LUMP-\*), `buildings-view.ts` (MenuButtonAction, ScrollIntoViewAction, MinigameButtonAction — FT-8/AUTO-13/DBG-9..11), `grimoire-unlock.ts` (GrimoireUnlockAction, AUTO-13), `dance.ts` (DanceAction + `danceEligible`/`anyGoldenPresent`/`getDanceMs`), `ponder.ts` (PonderAction), `idle.ts` (IdleWanderAction + `IDLE_SPOTS`/`pickIdleSpot`) |
+| Hunting (modules) | `src/hunting/` | `click-golden.ts` (golden hunter: `jobFor` → GoldenCookieAction), `click-big-cookie.ts` (hammer module: `job` → HammerAction), `golden-queue.ts` (route caching, wraps route-planner), `fthof.ts` (FthofActions: `fthofOrRefillPending` + `castJob`/`refillJob`), `lump-harvest.ts` (LumpHarvestActions: `pending` + `harvestJob`), `happy-dance.ts` (HappyDance: `job` → DanceAction), `buildings-view.ts` (BuildingsViewNavigator: Options/Stats/Stats recipe + scroll-into-view steps, `PrepStep`), `grimoire-view.ts` (GrimoireView: step planner to an unlocked/open, on-screen Grimoire — FT-8/AUTO-13 — plus the DBG-9..11 tools and their scheduler tier), `hitbox-overlay.ts` (GC-2) |
 | Routing | `src/routing/route-planner.ts` | `exactRoute` (Held-Karp DP, <= 11 cookies), `heuristicRoute` (nearest-neighbor + 2-opt/Or-opt + restarts), `planRoute` (GC-5) |
 | Idle | `src/idle/` | `idle-behavior.ts` (IdleBehavior module: `idleJob` → IdleWanderAction), `pending-work.ts` (conditions + queue state via `CursorManager.hasJobsAbove` — the shared "is anything more important pending?" predicate) |
 | Input synthesis | `src/input/` | `dispatch.ts` (dispatchMouse/dispatchMove — MOUSE-\*), `human-click.ts` (ClickTiming: delays, waitUntil, humanClick), `cursor-controller.ts` (CursorController: low-level PAW-4 arc/spline/warp travel, moveCursorTo/glideCursor — the only file that writes `runtime.cursor.x/y`), `background-clock.ts` (BackgroundClock: BG-1/BG-2 worker timer), `keep-alive.ts` (BG-3) |
-| Auto play | `src/autoplay/` | `valuation-tables.ts` (AUTO_BLOCKED_\*, AUTO_GOLDEN_UPGRADES, AUTO_KITTEN_POWER, AUTO_FINGER_STEPS, AUTO_BUILDING_CAPS — AUTO-2 data), `building-valuation.ts` + `upgrade-classifier.ts` (AUTO-3 gain math per candidate type), `collector.ts` (`autoCollect`: gathers candidates + ctx, AUTO-7 safety gates), `strategy.ts` (`autoDecide`: the pure insignificant/good/postpone/save decision, AUTO-4 — flagship unit-test target), `shopping.ts` (`AutoPlayEngine`: evaluate/shopJob/statusText, AUTO-1/8/9/10/12), `auto-hammer.ts` (AUTO-11), `grimoire-unlock.ts` (`GrimoireUnlocker`: AUTO-13 step derivation + DBG-9/10), `income-tracker.ts` (smoothed clicking income for AUTO-3's `income`), `buy-value-overlay.ts` (BUY-\*) |
+| Auto play | `src/autoplay/` | `valuation-tables.ts` (AUTO_BLOCKED_\*, AUTO_GOLDEN_UPGRADES, AUTO_KITTEN_POWER, AUTO_FINGER_STEPS, AUTO_BUILDING_CAPS — AUTO-2 data), `building-valuation.ts` + `upgrade-classifier.ts` (AUTO-3 gain math per candidate type), `collector.ts` (`autoCollect`: gathers candidates + ctx, AUTO-7 safety gates), `strategy.ts` (`autoDecide`: the pure insignificant/good/postpone/save decision, AUTO-4 — flagship unit-test target), `shopping.ts` (`AutoPlayEngine`: evaluate/shopJob/statusText, AUTO-1/8/9/10/12), `auto-hammer.ts` (AUTO-11), `grimoire-unlock.ts` (`GrimoireUnlocker`: AUTO-13 gating, steps from GrimoireView), `income-tracker.ts` (smoothed clicking income for AUTO-3's `income`), `buy-value-overlay.ts` (BUY-\*) |
 | Scheduler | `src/scheduler/` | `priority.ts` (`selectJobRequest`: the SCHED-1 cascade as pure data), `scheduler.ts` (`Scheduler.tick()`: wrath logging, queue build, enqueues ONE job via CursorManager), `overlay-loop.ts` (`OverlayLoop`: the requestAnimationFrame draw loop — hitboxes, buy-value overlay, paw) |
 | Rendering | `src/rendering/` | `paw-cursor.ts` (`PawCursor`: PAW-1..3, sprite rasterizing, click pulse, fallback drawn paw), `overlay-canvas.ts` (resize/DPR handling) |
 | Stats | `src/stats/` | `log.ts` (`LogStore`), `stats.ts` (`StatsRecorder`: GC-6/AUTO-10 counters + hourly buckets) |
@@ -664,7 +688,7 @@ target)`) instead of scattering direct field writes across every task.
 | `fthof` | casting Force the Hand of Fate (FT-1) | `FthofAction` |
 | `grimoire-refill` | spending a sugar lump on mana (FT-3) | `RefillAction` |
 | `lump-harvest` | harvesting a ripe sugar lump (LUMP-1) | `LumpHarvestAction` |
-| `buildings-view` | clicking Options/Stats back to the buildings, or scrolling `#centerArea` (AUTO-13, DBG-9/10) | `MenuButtonAction` / `ScrollIntoViewAction` |
+| `buildings-view` | clicking Options/Stats back to the buildings, scrolling `#centerArea`, or clicking "View Grimoire" (FT-8, AUTO-13, DBG-9..11) | `MenuButtonAction` / `ScrollIntoViewAction` / `MinigameButtonAction` |
 | `grimoire-unlock` | spending a sugar lump on Wizard tower level 1 (AUTO-13) | `GrimoireUnlockAction` |
 | `auto-shop` | visiting/buying a store item (AUTO-9) | auto-shop `CursorAction` from `AutoPlayEngine.shopJob()` |
 | `happy-dance` | post-catch celebration (DANCE-\*) | `DanceAction` |
@@ -688,7 +712,7 @@ file.**
 
 Three layers, each catching a different class of bug:
 
-1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 226 tests
+1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 235 tests
    across 30 files. Pure functions (route planner, `autoDecide`, the chart
    engine, `normalizeSetting`) are tested directly with plain data; the
    cursor queue/actions have their own fake mover/timing tests. Classes
@@ -808,7 +832,8 @@ Run `./run-vis-tests.sh` for the structured, repeatable version of this
 
 Not yet covered by a scripted scenario (do these by hand with Debug tools
 if you touch the relevant code): FTHOF/refill logic (FT-\*, needs mana +
-CpS buffs set up), sugar lump harvesting (LUMP-\*, "Ripen growing sugar
+CpS buffs set up; for FT-8 close the Grimoire, open Options and scroll the
+building list to the top before spawning a Frenzy + "Fill Up Mana"), sugar lump harvesting (LUMP-\*, "Ripen growing sugar
 lump" then watch the paw harvest it), Grimoire unlock (AUTO-13: on a test
 save with a Wizard tower at level 0, give lumps, open Options, switch auto
 play on, scroll the building list to the top; watch Options/Stats/Stats,
@@ -820,6 +845,21 @@ not the paw's).
 
 ## 12. Changelog
 
+- **4.9.0** FTHOF now gets the spell in front of the paw before casting
+  (FT-8): back to the buildings view (Options, Stats, Stats) if a menu is
+  open, scroll to the Wizard towers, click "View Grimoire"
+  (`#productMinigameButton7`) if the Grimoire is closed, scroll to the
+  spell — one step per tick at FTHOF priority, falling back to the old
+  direct cast (FT-7) for 10s when a step is impossible. The menu/scroll
+  logic moved out of `GrimoireUnlocker` into a shared
+  `BuildingsViewNavigator` (`src/hunting/buildings-view.ts`) and a
+  `GrimoireView` step planner (`src/hunting/grimoire-view.ts`) used by
+  FTHOF, the AUTO-13 unlock and the debug tools; new
+  `MinigameButtonAction`; `fthofCastBlocked()` shared by `FthofAction`
+  and the preparation steps. New debug tool "Show grimoire" (DBG-11);
+  "Show buildings view" / "Scroll to Wizard towers" lost their
+  "(paw: ...)" label suffixes. The unlock's "menu stays open" pause is now
+  10s (was 30s).
 - **4.8.0** Auto play unlocks the Grimoire (AUTO-13): as soon as a Wizard
   tower and a sugar lump are available and the tower is still level 0,
   the paw spends one lump on level 1 by clicking the tower's real "lvl"

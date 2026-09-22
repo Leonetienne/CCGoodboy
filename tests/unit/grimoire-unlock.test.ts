@@ -1,23 +1,33 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GrimoireUnlocker } from '../../src/autoplay/grimoire-unlock';
-import { MenuButtonAction, ScrollIntoViewAction } from '../../src/actions/buildings-view';
+import { MenuButtonAction, MinigameButtonAction, ScrollIntoViewAction } from '../../src/actions/buildings-view';
+import { FthofAction } from '../../src/actions/fthof';
 import { GrimoireUnlockAction } from '../../src/actions/grimoire-unlock';
 import { PersistedData } from '../../src/core/persisted-data';
 import { RuntimeState } from '../../src/core/runtime-state';
 import { JOB_PRIORITY, type JobRequest } from '../../src/cursor/types';
 import { BUILDINGS_VIEW_RECIPE } from '../../src/game/buildings-view-dom';
 import type { GameBuilding } from '../../src/game/types';
+import { BuildingsViewNavigator } from '../../src/hunting/buildings-view';
+import { FthofActions } from '../../src/hunting/fthof';
+import { GrimoireView } from '../../src/hunting/grimoire-view';
 import { FakeGameAdapter } from './fakes/fake-game-adapter';
 
 const RECT = { left: 100, top: 100, right: 160, bottom: 130, width: 60, height: 30, x: 100, y: 100, toJSON: () => ({}) } as DOMRect;
 const OFFSCREEN = { ...RECT, top: 5000, bottom: 5030, y: 5000 } as DOMRect;
+const NONE = { ...RECT, width: 0, height: 0 } as DOMRect;
+const COLUMN = { ...RECT, top: 0, bottom: 700, height: 700, width: 800, right: 900 } as DOMRect;
 
-/** Minimal game DOM: #centerArea > #rows > #row7 > #productLevel7, plus the two menu
- * buttons. jsdom has no layout, so rects are stubbed per element. */
-function buildDom(levelRect: DOMRect = RECT): void {
+/** Minimal game DOM: the menu buttons, and #centerArea > #rows > #row7 with the Wizard
+ * tower's level + minigame buttons and a Grimoire spell. jsdom has no layout, so rects are
+ * stubbed per element. */
+function buildDom(rects: { row?: DOMRect; level?: DOMRect; minigame?: DOMRect; spell?: DOMRect } = {}): void {
   document.body.innerHTML = `
     <div id="prefsButton"></div><div id="statsButton"></div>
-    <div id="centerArea"><div id="rows"><div id="row7"><div id="productLevel7">lvl 0</div></div></div></div>`;
+    <div id="centerArea"><div id="rows"><div id="row7">
+      <div id="productLevel7">lvl 0</div><div id="productMinigameButton7">View Grimoire</div>
+      <div id="grimoireSpell1"></div>
+    </div></div></div>`;
 
   // jsdom reports opacity '' (read as 0 = hidden) unless it's set on the element itself
   for (const el of Array.from(document.body.querySelectorAll('div'))) el.style.opacity = '1';
@@ -28,10 +38,12 @@ function buildDom(levelRect: DOMRect = RECT): void {
 
   stub('prefsButton', RECT);
   stub('statsButton', RECT);
-  stub('centerArea', { ...RECT, top: 0, bottom: 700, height: 700, width: 800, right: 900 } as DOMRect);
-  stub('rows', { ...RECT, top: 0, bottom: 700, height: 700, width: 800, right: 900 } as DOMRect);
-  stub('row7', levelRect);
-  stub('productLevel7', levelRect);
+  stub('centerArea', COLUMN);
+  stub('rows', COLUMN);
+  stub('row7', rects.row ?? RECT);
+  stub('productLevel7', rects.level ?? RECT);
+  stub('productMinigameButton7', rects.minigame ?? RECT);
+  stub('grimoireSpell1', rects.spell ?? RECT);
 }
 
 function setup() {
@@ -50,17 +62,20 @@ function setup() {
   const enqueued: JobRequest[] = [];
   let interrupted = false;
 
-  const unlocker = new GrimoireUnlocker(
-    runtime,
-    data,
-    game,
-    log as never,
-    () => interrupted,
-    () => false,
-    (req) => enqueued.push(req),
-  );
+  const nav = new BuildingsViewNavigator(runtime, game, () => false);
+  const view = new GrimoireView(runtime, game, log as never, nav, (req) => enqueued.push(req));
+  const unlocker = new GrimoireUnlocker(runtime, data, game, log as never, view, () => interrupted);
 
-  return { runtime, data, game, wt, log, enqueued, unlocker, interrupt: (v: boolean) => (interrupted = v) };
+  return { runtime, data, game, wt, log, enqueued, nav, view, unlocker, interrupt: (v: boolean) => (interrupted = v) };
+}
+
+/** A Wizard tower with the Grimoire unlocked, enough mana and an outlasting CpS buff. */
+function fthofReady(s: ReturnType<typeof setup>): FthofActions {
+  s.wt.level = 1;
+  s.game.grimoire = { spells: { 'hand of fate': { id: 1 } }, getSpellCost: () => 50, magic: 100, magicM: 100 };
+  s.game.rawBuffs = { a: { name: 'Frenzy', multCpS: 7, time: 3000 } };
+
+  return new FthofActions(s.runtime, s.game, null as never, s.log as never, () => false, s.view);
 }
 
 beforeEach(() => buildDom());
@@ -123,10 +138,10 @@ describe('GrimoireUnlocker.job', () => {
   });
 
   it('scrolls the Wizard towers into view first when the level button is scrolled away', () => {
-    buildDom(OFFSCREEN);
+    buildDom({ level: OFFSCREEN });
     const job = setup().unlocker.job()!;
     expect(job.action).toBeInstanceOf(ScrollIntoViewAction);
-    expect(job.key).toBe('grimoire-unlock:scroll');
+    expect(job.key).toBe('grimoire-unlock:scroll-level');
   });
 
   it('runs Options, Stats, Stats when a menu is open, one click per step', () => {
@@ -154,43 +169,151 @@ describe('GrimoireUnlocker.job', () => {
   });
 
   it('pauses when the Wizard tower row is not laid out at all', () => {
-    buildDom({ ...RECT, width: 0, height: 0 } as DOMRect);
+    buildDom({ row: NONE, level: NONE });
     const s = setup();
     expect(s.unlocker.job()).toBeNull();
     expect(s.runtime.grimoireUnlockBlockUntil).toBeGreaterThan(Date.now());
   });
 });
 
-describe('GrimoireUnlocker debug tools', () => {
+describe('FthofActions.castJob (FT-8: get the Grimoire on screen first)', () => {
+  it('casts straight away when the Grimoire is open and the spell is on screen', () => {
+    const s = setup();
+    const fthof = fthofReady(s);
+    s.wt.onMinigame = 1;
+
+    const job = fthof.castJob();
+    expect(job.action).toBeInstanceOf(FthofAction);
+    expect(job.key).toBe('fthof');
+  });
+
+  it('goes back to the buildings view first when a menu is open', () => {
+    const s = setup();
+    const fthof = fthofReady(s);
+    s.game.onMenu = 'prefs';
+
+    const job = fthof.castJob();
+    expect(job.action).toBeInstanceOf(MenuButtonAction);
+    expect(job.priority).toBe(JOB_PRIORITY.FTHOF);
+  });
+
+  it('scrolls to the Wizard towers when the Grimoire is closed and its button is scrolled away', () => {
+    buildDom({ minigame: OFFSCREEN });
+    const s = setup();
+    const fthof = fthofReady(s);
+
+    const job = fthof.castJob();
+    expect(job.action).toBeInstanceOf(ScrollIntoViewAction);
+    expect(job.key).toBe('fthof-prep:scroll-towers');
+  });
+
+  it('clicks "View Grimoire" when the Grimoire is closed', () => {
+    const s = setup();
+    const fthof = fthofReady(s);
+
+    const job = fthof.castJob();
+    expect(job.action).toBeInstanceOf(MinigameButtonAction);
+    expect(job.key).toBe('fthof-prep:open');
+    expect(job.priority).toBe(JOB_PRIORITY.FTHOF);
+  });
+
+  it('scrolls to the spell when the Grimoire is open but scrolled away', () => {
+    buildDom({ spell: OFFSCREEN });
+    const s = setup();
+    const fthof = fthofReady(s);
+    s.wt.onMinigame = 1;
+
+    expect(fthof.castJob().key).toBe('fthof-prep:scroll-grimoire');
+  });
+
+  it('falls back to the direct cast (FT-7) when preparing is blocked', () => {
+    buildDom({ row: NONE, minigame: NONE });
+    const s = setup();
+    const fthof = fthofReady(s);
+
+    expect(fthof.castJob().action).toBeInstanceOf(FthofAction);
+    expect(s.runtime.fthofPrepBlockUntil).toBeGreaterThan(Date.now());
+
+    // and keeps casting directly for a while instead of retrying the dead end every tick
+    buildDom();
+    expect(fthof.castJob().action).toBeInstanceOf(FthofAction);
+  });
+});
+
+describe('MinigameButtonAction', () => {
+  it('never clicks an already open minigame (the button toggles)', async () => {
+    const s = setup();
+    let open = false;
+    const action = new MinigameButtonAction(7, 'Grimoire', () => open, () => false);
+
+    expect(action.abortIf()).toBe(false);
+    open = true;
+    expect(action.abortIf()).toBe(true);
+
+    const humanClick = vi.fn();
+    await action.cursor_at_position({ runtime: s.runtime, clickTiming: { humanClick } } as never);
+    expect(humanClick).not.toHaveBeenCalled();
+  });
+});
+
+describe('debug tools', () => {
   it('"Show buildings view" queues the recipe even without auto play', () => {
     const s = setup();
     s.data.config.autoPlay = false;
 
-    s.unlocker.debugShowBuildingsView();
+    s.view.debugShowBuildingsView();
 
-    expect(s.unlocker.pending()).toBe(true);
-    expect(s.unlocker.job()!.action).toBeInstanceOf(MenuButtonAction);
+    expect(s.view.pending()).toBe(true);
+    expect(s.view.job()!.action).toBeInstanceOf(MenuButtonAction);
   });
 
   it('"Scroll to Wizard towers" enqueues a scroll job', () => {
     const s = setup();
-    s.unlocker.debugScrollToWizardTowers();
+    s.view.debugScrollToWizardTowers();
 
     expect(s.enqueued).toHaveLength(1);
     expect(s.enqueued[0]!.action).toBeInstanceOf(ScrollIntoViewAction);
   });
 
   it('"Scroll to Wizard towers" fails loudly without a Wizard tower row', () => {
-    buildDom({ ...RECT, width: 0, height: 0 } as DOMRect);
-    expect(() => setup().unlocker.debugScrollToWizardTowers()).toThrow();
+    buildDom({ row: NONE });
+    expect(() => setup().view.debugScrollToWizardTowers()).toThrow();
+  });
+
+  it('"Show grimoire" fails at once without a Wizard tower, or at level 0 without a lump', () => {
+    let s = setup();
+    s.wt.amount = 0;
+    expect(() => s.view.debugShowGrimoire()).toThrow(/Wizard tower/);
+
+    s = setup();
+    s.game.lumps = 0;
+    expect(() => s.view.debugShowGrimoire()).toThrow(/sugar lump/);
+  });
+
+  it('"Show grimoire" unlocks (level 0), then opens the Grimoire, then finishes', () => {
+    const s = setup();
+    s.data.config.autoPlay = false;
+    s.view.debugShowGrimoire();
+
+    expect(s.view.pending()).toBe(true);
+    expect(s.view.job()!.action).toBeInstanceOf(GrimoireUnlockAction);
+
+    s.wt.level = 1;
+    s.game.grimoire = { spells: { 'hand of fate': { id: 1 } } };
+    expect(s.view.job()!.action).toBeInstanceOf(MinigameButtonAction);
+
+    s.wt.onMinigame = 1;
+    expect(s.view.job()).toBeNull();
+    expect(s.view.pending()).toBe(false);
+    expect(s.log.log).toHaveBeenCalledWith('debug tool', 'Show grimoire: done', expect.anything());
   });
 });
 
 describe('MenuButtonAction', () => {
   it('advances the recipe only after its click was dispatched', async () => {
     const s = setup();
-    s.unlocker.debugShowBuildingsView();
-    const action = s.unlocker.job()!.action;
+    s.view.debugShowBuildingsView();
+    const action = s.view.job()!.action;
 
     const humanClick = vi.fn().mockResolvedValue(true);
     await action.cursor_at_position({ runtime: s.runtime, clickTiming: { humanClick } } as never);

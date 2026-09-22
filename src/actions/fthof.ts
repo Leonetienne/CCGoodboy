@@ -13,6 +13,23 @@ function grimoireTarget(kind: 'fthof' | 'refill', runtime: RuntimeState, game: I
   return p || { x: runtime.cursor.x, y: runtime.cursor.y };
 }
 
+/** True when a FTHOF cast must not (or no longer) happen: no Grimoire/spell/control, a Click
+ * Frenzy or ready golden cookie, too little mana, or no CpS buff that outlasts a Click Frenzy
+ * (FT-1/FT-4). Shared by FthofAction and the FT-8 preparation steps. */
+export function fthofCastBlocked(game: IGameAdapter, hasGoodGolden: () => boolean): boolean {
+  const M = game.getGrimoire();
+  const spell = getFthofSpell(M);
+  if (!M || !spell) return true;
+
+  const control = getGrimoireControl('fthof', M);
+  if (!control || !control.isConnected) return true;
+
+  if (game.clickFrenzyActive() || hasGoodGolden()) return true;
+
+  const cost = getFthofCost(M);
+  return (M.magic ?? 0) < cost || !game.cpsBuffOutlastsClickFrenzy();
+}
+
 /** One-shot job that casts Force the Hand of Fate. Preconditions are re-checked as the
  * abort predicate (FT-4), so the manager aborts if a golden cookie appears, a Click Frenzy
  * starts, or mana/buffs change before the click. */
@@ -33,19 +50,7 @@ export class FthofAction implements CursorAction {
   }
 
   abortIf(): boolean {
-    const M = this.game.getGrimoire();
-    const spell = getFthofSpell(M);
-    if (!M || !spell) return true;
-
-    const control = getGrimoireControl('fthof', M);
-    if (!control || !control.isConnected) return true;
-
-    if (this.game.clickFrenzyActive() || this.hasGoodGolden()) return true;
-
-    const cost = getFthofCost(M);
-    if ((M.magic ?? 0) < cost || !this.game.cpsBuffOutlastsClickFrenzy()) return true;
-
-    return false;
+    return fthofCastBlocked(this.game, this.hasGoodGolden);
   }
 
   async cursor_at_position(ctx: CursorJobContext): Promise<void> {

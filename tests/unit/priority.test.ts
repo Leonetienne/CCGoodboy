@@ -14,6 +14,7 @@ import type { GameShimmer } from '../../src/game/types';
 import { FakeGameAdapter } from './fakes/fake-game-adapter';
 import type { AutoPlayEngine } from '../../src/autoplay/shopping';
 import type { GrimoireUnlocker } from '../../src/autoplay/grimoire-unlock';
+import type { GrimoireView } from '../../src/hunting/grimoire-view';
 
 function makeDeps(overrides: Partial<PriorityDeps> = {}): PriorityDeps {
   const runtime = overrides.runtime ?? new RuntimeState();
@@ -74,6 +75,7 @@ function makeDeps(overrides: Partial<PriorityDeps> = {}): PriorityDeps {
     clickBigCookie,
     fthof,
     lumpHarvest,
+    grimoireView: { pending: () => false } as unknown as GrimoireView,
     grimoireUnlock,
     autoPlay,
     happyDance,

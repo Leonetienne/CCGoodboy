@@ -6,7 +6,7 @@ import { FakeGameAdapter } from './fakes/fake-game-adapter';
 // fthofOrRefillPending only touches `game` and `runtime`; the other collaborators (stats,
 // log) are irrelevant to it and never invoked here.
 function makeFthofActions(game: FakeGameAdapter, runtime: RuntimeState): FthofActions {
-  return new FthofActions(runtime, game, null as never, null as never, () => false);
+  return new FthofActions(runtime, game, null as never, null as never, () => false, null as never);
 }
 
 function withGrimoire(game: FakeGameAdapter, magic: number, magicM = 1000) {

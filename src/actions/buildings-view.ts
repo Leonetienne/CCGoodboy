@@ -1,6 +1,6 @@
 import type { RuntimeState } from '../core/runtime-state';
 import type { CursorAction, CursorJobContext } from '../cursor/types';
-import { centeredScrollTop, getCenterArea, getMenuButton, type MenuButtonId } from '../game/buildings-view-dom';
+import { centeredScrollTop, getCenterArea, getMenuButton, getMinigameButton, type MenuButtonId } from '../game/buildings-view-dom';
 import { visibleRect } from '../game/dom-geometry';
 import { elementCenter } from '../game/grimoire-dom';
 import { clampPawPoint } from '../input/paw-bounds';
@@ -126,5 +126,38 @@ export class ScrollIntoViewAction implements CursorAction {
     }
 
     if (this.p.onDone) this.p.onDone(!!visibleRect(this.p.element()));
+  }
+}
+
+/** Clicks a building's "View <minigame>" button (e.g. "View Grimoire") to open its minigame.
+ * The button TOGGLES, so `alreadyOpen` is re-checked right before the click (via abortIf):
+ * clicking it on an already open minigame would close it again. */
+export class MinigameButtonAction implements CursorAction {
+  readonly label: string;
+  readonly hud: { action: string; target: string };
+
+  constructor(
+    private readonly buildingId: number,
+    minigameName: string,
+    private readonly alreadyOpen: () => boolean,
+    private readonly shouldAbort: () => boolean,
+  ) {
+    this.label = `open ${minigameName}`;
+    this.hud = { action: 'buildings-view', target: `View ${minigameName}` };
+  }
+
+  target(): { x: number; y: number } | null {
+    return elementCenter(getMinigameButton(this.buildingId));
+  }
+
+  abortIf(): boolean {
+    return !visibleRect(getMinigameButton(this.buildingId)) || this.alreadyOpen() || this.shouldAbort();
+  }
+
+  async cursor_at_position(ctx: CursorJobContext): Promise<void> {
+    const el = getMinigameButton(this.buildingId);
+    if (!el || !el.isConnected || this.alreadyOpen()) return;
+
+    await ctx.clickTiming.humanClick(el, ctx.runtime.cursor.x, ctx.runtime.cursor.y);
   }
 }

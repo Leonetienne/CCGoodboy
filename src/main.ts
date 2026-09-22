@@ -11,7 +11,9 @@ import { GoldenCookieModel } from './game/golden-cookie-model';
 import { HurryMode } from './game/hurry-mode';
 import { ClickBigCookieTask } from './hunting/click-big-cookie';
 import { ClickGoldenTask } from './hunting/click-golden';
+import { BuildingsViewNavigator } from './hunting/buildings-view';
 import { FthofActions } from './hunting/fthof';
+import { GrimoireView } from './hunting/grimoire-view';
 import { GoldenQueue } from './hunting/golden-queue';
 import { danceEligible, HappyDance } from './hunting/happy-dance';
 import { LumpHarvestActions } from './hunting/lump-harvest';
@@ -22,7 +24,7 @@ import { CursorController } from './input/cursor-controller';
 import { ClickTiming, hasGoodGolden } from './input/human-click';
 import { KeepAliveController } from './input/keep-alive';
 import { CursorManager } from './cursor/cursor-manager';
-import { JOB_PRIORITY } from './cursor/types';
+import { JOB_PRIORITY, type JobRequest } from './cursor/types';
 import { Bootstrap, waitForGame } from './lifecycle/bootstrap';
 import { Scheduler } from './scheduler/scheduler';
 import { LogStore } from './stats/log';
@@ -57,7 +59,11 @@ const incomeTracker = new IncomeTracker(runtime, game);
 const autoHammer = new AutoHammer(runtime, data, game, log);
 const hammerActive = () => autoHammer.hammerActive();
 
-const fthof = new FthofActions(runtime, game, stats, log, isGoodGoldenReady);
+const enqueueJob = (req: JobRequest) => cursorManager.enqueue(req.action, { priority: req.priority, key: req.key, dueAt: req.dueAt });
+const buildingsView = new BuildingsViewNavigator(runtime, game, isGoodGoldenReady);
+const grimoireView = new GrimoireView(runtime, game, log, buildingsView, enqueueJob);
+
+const fthof = new FthofActions(runtime, game, stats, log, isGoodGoldenReady, grimoireView);
 const fthofOrRefillPending = () => fthof.fthofOrRefillPending();
 
 const lumpHarvest = new LumpHarvestActions(runtime, game, stats, log, isGoodGoldenReady);
@@ -75,18 +81,11 @@ const autoPlay = new AutoPlayEngine(
   () => hurryMode.cookieChainActive(),
   fthofOrRefillPending,
 );
-const grimoireUnlock = new GrimoireUnlocker(
-  runtime,
-  data,
-  game,
-  log,
-  () => autoPlay.shoppingInterrupted(),
-  isGoodGoldenReady,
-  (req) => cursorManager.enqueue(req.action, { priority: req.priority, key: req.key, dueAt: req.dueAt }),
-);
-// Anything auto play wants to do right now (unlock the Grimoire, or a due purchase): it
-// interrupts hammering and idle play at once (AUTO-8).
-const autoShopReady = () => grimoireUnlock.pending() || autoPlay.shopReady();
+const grimoireUnlock = new GrimoireUnlocker(runtime, data, game, log, grimoireView, () => autoPlay.shoppingInterrupted());
+// Anything at the auto-shop tier that wants to run right now (the buildings-view recipe or a
+// debug goal, the Grimoire unlock, a due purchase): it interrupts hammering and idle play at
+// once (AUTO-8).
+const autoShopReady = () => grimoireView.pending() || grimoireUnlock.pending() || autoPlay.shopReady();
 
 const pendingWork = new PendingWork(game, isGoodGoldenReady, hammerActive, fthofOrRefillPending, lumpHarvestPending, autoShopReady, cursorManager);
 
@@ -123,6 +122,7 @@ const scheduler = new Scheduler(runtime, game, log, buffLock, goldenCookieModel,
   clickBigCookie,
   fthof,
   lumpHarvest,
+  grimoireView,
   grimoireUnlock,
   autoPlay,
   happyDance,
@@ -143,7 +143,7 @@ const bootstrap = new Bootstrap({
   clickTiming,
   hurryMode,
   autoPlay,
-  grimoireUnlock,
+  grimoireView,
   incomeTracker,
 });
 

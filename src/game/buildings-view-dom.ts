@@ -55,3 +55,9 @@ export function centeredScrollTop(container: HTMLElement, el: Element): number {
 
   return clamp(container.scrollTop + (er.top + er.height / 2) - (top + bottom) / 2, 0, max);
 }
+
+/** A building's "View/Close <minigame>" toggle button inside its row
+ * (`#productMinigameButton{id}`, e.g. "View Grimoire" for the Wizard tower). */
+export function getMinigameButton(buildingId: number): Element | null {
+  return document.getElementById(`productMinigameButton${buildingId}`);
+}
