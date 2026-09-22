@@ -6,8 +6,8 @@ import { elementCenter, getActionVisualElement, getGrimoireControl } from '../ga
 import type { LogStore } from '../stats/log';
 import type { StatsRecorder } from '../stats/stats';
 
-/** The click-at position for a Grimoire action: the visible real control, else the HUD dock
- * chip, else (no visual at all) the current cursor position so the click still happens. */
+/** The click-at position for a Grimoire action: the visible real control, else (not on
+ * screen) the current cursor position so the click still happens. */
 function grimoireTarget(kind: 'fthof' | 'refill', runtime: RuntimeState, game: IGameAdapter): { x: number; y: number } {
   const p = elementCenter(getActionVisualElement(kind, game.getGrimoire()));
   return p || { x: runtime.cursor.x, y: runtime.cursor.y };

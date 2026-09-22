@@ -142,8 +142,10 @@ refactor) which `tests/visual/scenarios.mjs` scenario exercises it.
   pause.
 - **FT-6** LOCK_A opens again when the CpS buff count returns to 0, or
   when it rises to >= 3 (and above its previous value).
-- **FT-7** If the real Grimoire buttons are not visible, the HUD "dock"
-  chips (FTHOF / REFILL) serve as click targets for the paw's movement.
+- **FT-7** If the real Grimoire buttons are not visible on screen, the
+  cast/refill click still fires directly on the real control (no dock
+  chip and no visit is required); the paw's movement target in that case
+  is simply wherever it already is.
 
 ### 3.5 Sugar lump harvesting
 
@@ -551,7 +553,7 @@ gainLumps) — still guarded, still the only path to those `Game.*` calls.
 | Area | Path | Contents |
 |---|---|---|
 | Core state | `src/core/` | `constants.ts` (VERSION, clamp helpers), `persisted-data.ts`, `runtime-state.ts`, `state-machine.ts` |
-| Game facade | `src/game/` | `game-adapter.ts` (IGameAdapter + GameAdapter), `types.ts` (GameShimmer/RawBuff/CpsBuff/GrimoireMinigame/GameBuilding/GameUpgrade), `golden-cookie-model.ts` (fade curve, shimmer classification, GC-2/GC-3), `hurry-mode.ts` (HURRY-\*), `buffs-lock.ts` (LOCK_A, FT-6), `grimoire.ts` (FTHOF spell/cost lookup), `grimoire-dom.ts` (real/dock Grimoire controls — FT-7), `lump-dom.ts` (`#lumps` control/centre — LUMP-\*), `dom-geometry.ts` (visibleRect/looseRect/clippedByAncestor — shared by every overlay box, GC-2/BUY-3) |
+| Game facade | `src/game/` | `game-adapter.ts` (IGameAdapter + GameAdapter), `types.ts` (GameShimmer/RawBuff/CpsBuff/GrimoireMinigame/GameBuilding/GameUpgrade), `golden-cookie-model.ts` (fade curve, shimmer classification, GC-2/GC-3), `hurry-mode.ts` (HURRY-\*), `buffs-lock.ts` (LOCK_A, FT-6), `grimoire.ts` (FTHOF spell/cost lookup), `grimoire-dom.ts` (real Grimoire controls — FT-7), `lump-dom.ts` (`#lumps` control/centre — LUMP-\*), `dom-geometry.ts` (visibleRect/looseRect/clippedByAncestor — shared by every overlay box, GC-2/BUY-3) |
 | Cursor (queue) | `src/cursor/` | `types.ts` (`JOB_PRIORITY`, `CursorAction`, `CursorJob`, `CursorJobContext`, `CursorMover`, `CursorClickTiming`, `JobRequest`), `cursor-manager.ts` (owns the priority queue + all cursor motion: click gap → travel → pre-click pause → `cursor_at_position`, dedup by key, preemption, single cursor writer) |
 | Actions | `src/actions/` | `click-element.ts` (ClickElementAction/MoveAction/VisualPressAction), `golden-cookie.ts` (GoldenCookieAction, `effectPrettyName`), `hammer.ts` (HammerAction + big-cookie point helpers, CF-\*), `fthof.ts` (FthofAction/RefillAction), `lump-harvest.ts` (LumpHarvestAction, LUMP-\*), `dance.ts` (DanceAction + `danceEligible`/`anyGoldenPresent`/`getDanceMs`), `ponder.ts` (PonderAction), `idle.ts` (IdleWanderAction + `IDLE_SPOTS`/`pickIdleSpot`) |
 | Hunting (modules) | `src/hunting/` | `click-golden.ts` (golden hunter: `jobFor` → GoldenCookieAction), `click-big-cookie.ts` (hammer module: `job` → HammerAction), `golden-queue.ts` (route caching, wraps route-planner), `fthof.ts` (FthofActions: `fthofOrRefillPending` + `castJob`/`refillJob`), `lump-harvest.ts` (LumpHarvestActions: `pending` + `harvestJob`), `happy-dance.ts` (HappyDance: `job` → DanceAction), `hitbox-overlay.ts` (GC-2) |
@@ -756,6 +758,12 @@ not the paw's).
 
 ## 12. Changelog
 
+- **4.5.1** Removed the HUD "dock" chips (FTHOF / REFILL) that used to
+  appear under the settings panel as a fallback movement target when the
+  real Grimoire buttons weren't on screen. The cast/refill click still
+  fires directly on the real control either way (FT-7); the paw just no
+  longer has a dedicated fallback spot to visit first, and stays where it
+  is instead.
 - **4.5.0** New module: automatically harvests ripe sugar lumps. The paw
   clicks the growing sugar lump icon (`#lumps`) the moment it turns ripe
   (`Game.lumpT` age in `[lumpRipeAge, lumpOverripeAge)`), instead of

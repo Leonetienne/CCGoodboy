@@ -18,24 +18,10 @@ export function getGrimoireControl(kind: GrimoireActionKind, M: GrimoireMinigame
   return null;
 }
 
-/** Element used as the paw's movement target: the real control when visible, otherwise the
- * HUD dock chip (FTHOF / REFILL). */
+/** Element used as the paw's movement target: the real control, if visible. */
 export function getActionVisualElement(kind: GrimoireActionKind, M: GrimoireMinigame | null): Element | null {
   const real = getGrimoireControl(kind, M);
-
-  if (visibleRect(real)) {
-    return real;
-  }
-
-  if (kind === 'fthof') {
-    return document.getElementById('ccsb-dock-fthof');
-  }
-
-  if (kind === 'refill') {
-    return document.getElementById('ccsb-dock-refill');
-  }
-
-  return null;
+  return visibleRect(real) ? real : null;
 }
 
 /** Centre of a visible element. */

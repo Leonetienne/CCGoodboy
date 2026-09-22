@@ -207,22 +207,6 @@ const CSS = `
     color:#c9a6e6;
 }
 
-#ccsb-action-dock {
-    display:flex;
-    gap:5px;
-    margin-top:8px;
-}
-
-.ccsb-action-chip {
-    flex:1;
-    text-align:center;
-    border:1px solid rgba(150,215,255,.9);
-    border-radius:999px;
-    color:#e4f5ff;
-    padding:3px 4px;
-    background:rgba(150,215,255,.10);
-}
-
 #ccsb-graphs,
 #ccsb-logs,
 #ccsb-debug {

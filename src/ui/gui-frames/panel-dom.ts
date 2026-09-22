@@ -194,11 +194,6 @@ function panelBodyHtml(version: string): string {
             <span id="ccsb-save-status"></span>
         </div>
     </div>
-
-    <div id="ccsb-action-dock">
-        <div class="ccsb-action-chip" id="ccsb-dock-fthof">FTHOF</div>
-        <div class="ccsb-action-chip" id="ccsb-dock-refill">REFILL</div>
-    </div>
 </div>`;
 }
 
