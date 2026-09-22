@@ -29,7 +29,13 @@ export function drawBuyValueOverlay(ctx: CanvasRenderingContext2D, game: IGameAd
     const rank = span > 0 ? Math.max(0, Math.min(1, (worst - Math.log(Math.max(row.payback, 0.001))) / span)) : 1;
     const color = buyRankColor(rank);
 
-    drawRect(ctx, r, color, 1.6, [4, 3]);
+    // The intended next purchase gets a solid, much thicker box: the imminent buy (affordable
+    // now, about to be clicked) and/or what is being saved up for.
+    if (row.c === snap.decision.buy || row.c === snap.decision.save) {
+      drawRect(ctx, r, color, 5);
+    } else {
+      drawRect(ctx, r, color, 1.6, [4, 3]);
+    }
 
     // Score 0 (worst on offer) to 100 (best on offer), centred IN the box so it can never
     // overlap a neighbour's number the way a label floating above it could.

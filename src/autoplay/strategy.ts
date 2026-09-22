@@ -109,6 +109,15 @@ export function autoDecide(cands: PurchaseCandidate[], ctx: AutoCollectCtx): Dec
     })
     .sort((a, b) => prefOf(b) - prefOf(a) || a.payback - b.payback);
 
+  // What's next to save for, computed independently of whether something is ALSO buyable this
+  // tick: an affordable insignificant/preferred purchase (e.g. a Wizard tower) can go out this
+  // very tick while the bot is still accumulating for something bigger it isn't affording yet
+  // (that's exactly what `postponed()` above is protecting) — both should be reported, not just
+  // whichever one `autoDecide` happens to act on this call.
+  const save = inReach
+    .filter((r) => !r.affordable && (r.payback <= cfg.maxPaybackSec || wizardPref(r)))
+    .sort((a, b) => prefOf(b) - prefOf(a) || a.pp - b.pp)[0] || null;
+
   if (buyable.length) {
     const p = buyable[0]!;
 
@@ -116,14 +125,11 @@ export function autoDecide(cands: PurchaseCandidate[], ctx: AutoCollectCtx): Dec
       buy: p.c,
       why: !good(p) && !p.insignificant && prefOf(p) > 0 ? (wizardPref(p) ? 'wizard target' : 'preferred') : good(p) ? 'good payback' : 'insignificant cost',
       row: p,
-      save: null,
+      save: save ? save.c : null,
+      saveRow: save,
       rows,
     };
   }
-
-  const save = inReach
-    .filter((r) => !r.affordable && (r.payback <= cfg.maxPaybackSec || wizardPref(r)))
-    .sort((a, b) => prefOf(b) - prefOf(a) || a.pp - b.pp)[0] || null;
 
   return {
     buy: null,

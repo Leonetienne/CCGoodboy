@@ -173,6 +173,19 @@ describe('autoDecide', () => {
     expect(d.save?.name).toBe('Wizard tower');
   });
 
+  it('reports a save target alongside an unrelated buy happening the same tick', () => {
+    // A cheap, affordable, preferred candidate (exempt from postponement) buys immediately...
+    const wizard = candidate('Wizard tower', 50, 5, 2); // affordable, preferred (top tier)
+    // ...while a big, not-yet-affordable, good-deal candidate is independently being saved for.
+    // It must not be crowded out of `save` just because something else is bought this tick.
+    const big = candidate('Big building', 10000, 1000); // payback 10, not affordable
+
+    const d = autoDecide([wizard, big], ctx({ bank: 50, income: 100, reserve: 0 }));
+
+    expect(d.buy?.name).toBe('Wizard tower');
+    expect(d.save?.name).toBe('Big building');
+  });
+
   it('buys the small item once a cheaper option makes the big one no longer the best deal', () => {
     // Same big candidate as above, but a cheap, excellent-payback small candidate now has the
     // best pp in the field, which pulls the "good deal" bar down far enough that the big

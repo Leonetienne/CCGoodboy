@@ -758,6 +758,44 @@ not the paw's).
 
 ## 12. Changelog
 
+- **4.5.6** Fixed the real bug behind 4.5.2-4.5.5: `autoDecide()` itself
+  (`src/autoplay/strategy.ts`) only ever populated `save` when `buy` was
+  `null` for that call, so the overlay's `decision.buy ||
+  decision.save`/independent-row-check logic from 4.5.5 still flickered —
+  the save-target box vanished every tick some unrelated affordable
+  purchase (an insignificant buy, a preferred Wizard tower, ...) also
+  went out, then reappeared once that purchase cleared. `save` is now
+  computed once, unconditionally, from the same "not affordable yet, in
+  reach" candidates regardless of whether `buyable.length` is also
+  nonzero this tick, so the two boxes are now genuinely independent, as
+  intended by 4.5.5's "draw for both if both are ever present". New unit
+  test in `tests/unit/strategy.test.ts` covers an affordable preferred
+  buy landing the same tick as an unrelated, bigger save target.
+- **4.5.5** "How good is a buy" overlay: the highlight box is drawn for
+  `decision.buy` and `decision.save` independently (both get it if both
+  are ever present) instead of picking one via `||`, and made thicker
+  (5px, was 3px).
+- **4.5.4** Reworked the 4.5.2/4.5.3 highlight rule: it now marks the
+  intended NEXT purchase, whether that is something being saved up for
+  (`decision.save`) or something already affordable and about to be
+  bought outright (`decision.buy`) — including an item that was never
+  saved for because it was affordable right away. Replaces the sticky
+  `runtime.buySaveTargetKey` tracking from 4.5.3, which only bridged the
+  save→buy transition and still missed instant buys; comparing directly
+  against `decision.buy || decision.save` covers both without extra
+  state.
+- **4.5.3** Fixed: the "how good is a buy" save-target highlight (4.5.2)
+  disappeared the instant the saved-for item became affordable and the
+  paw started moving to buy it, because `decision.save` goes back to
+  `null` the moment `autoDecide()` returns a `buy` instead. The highlight
+  is now sticky (`AutoPlayEngine.updateSaveTarget`/`isSaveTarget`,
+  tracked by `runtime.buySaveTargetKey`): it stays on the same option
+  through the purchase itself and only clears once that option is no
+  longer a candidate at all (i.e. actually bought).
+- **4.5.2** "How good is a buy" overlay: the item currently being saved for
+  (`decision.save`) now gets a solid, thicker outline (3px, no dash)
+  instead of the usual dashed one, so it stands out from the rest of the
+  ranked boxes.
 - **4.5.1** Removed the HUD "dock" chips (FTHOF / REFILL) that used to
   appear under the settings panel as a fallback movement target when the
   real Grimoire buttons weren't on screen. The cast/refill click still
