@@ -68,6 +68,18 @@ export class Bootstrap {
 
   constructor(private readonly deps: BootstrapDeps) {}
 
+  /** Remembers the real human cursor position from trusted mousemove events. Synthetic bot
+   * moves are ignored, so the paw never mistakes its own movement for the user's. */
+  private trackUserMouse = (e: Event): void => {
+    const me = e as MouseEvent;
+
+    if (!isUserEvent(me) || this.deps.runtime.destroyed) {
+      return;
+    }
+
+    this.deps.runtime.userMouse = { x: me.clientX, y: me.clientY };
+  };
+
   /** Before the game handles one of the USER's mouse events, tells it where the real mouse is
    * (the game reads Game.mouseX/Y for the floating click numbers) by re-sending a mousemove at
    * the event's coordinates. Otherwise a manual click would show its number wherever the paw
@@ -159,6 +171,7 @@ export class Bootstrap {
     window.addEventListener('beforeunload', this.saveNow);
 
     USER_SYNC_EVENTS.forEach((type) => window.addEventListener(type, this.syncGameMouseFromUser, true));
+    window.addEventListener('mousemove', this.trackUserMouse, true);
 
     log.log('bot started', `v${VERSION}`);
 
@@ -174,6 +187,7 @@ export class Bootstrap {
     runtime.running = false;
 
     USER_SYNC_EVENTS.forEach((type) => window.removeEventListener(type, this.syncGameMouseFromUser, true));
+    window.removeEventListener('mousemove', this.trackUserMouse, true);
 
     clock.stop(runtime.schedulerTimer || null);
     keepAlive.stop();

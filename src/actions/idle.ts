@@ -87,7 +87,9 @@ export class IdleWanderAction implements CursorAction {
   }
 
   private hold(ctx: CursorJobContext, minMs: number, maxMs: number): Promise<void> {
-    return new PonderAction(randBetween(minMs, maxMs), () => this.stop(ctx)).cursor_at_position(ctx);
+    return new PonderAction(randBetween(minMs, maxMs), () => this.stop(ctx), {
+      fleeSpeed: getIdleSpeed(ctx.data),
+    }).cursor_at_position(ctx);
   }
 
   private idleTravelOpts(ctx: CursorJobContext): MoveCursorOpts {

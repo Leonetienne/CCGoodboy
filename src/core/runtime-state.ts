@@ -93,6 +93,8 @@ export class RuntimeState {
   leanState: { x: number; t: number } | null = null;
   pulseAt = 0;
   cursor: CursorPoint;
+  /** Last trusted (real human) mouse position, or null until one has been seen. */
+  userMouse: CursorPoint | null = null;
 
   // ---- timers / lifecycle ----
   panelTimer = 0;

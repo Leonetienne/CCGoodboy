@@ -176,6 +176,11 @@ See [§7 State machine](#7-state-machine) for how this maps onto code.
   the game (MOUSE-2). It yields to any real work within a frame.
 - **IDLE-5** Setting "Idle playtime" switches all of this off; "Paw idle
   speed" (default 320px/s) sets the travel speed.
+- **IDLE-6** While pondering, if the REAL human cursor gets really close
+  (within 60px of the paw), the paw stops pondering there and moves away to
+  a random spot far from the human cursor (one relocation, not a continuous
+  repulsion), then keeps pondering. It ignores the human cursor for 2.5s
+  after a relocation so it doesn't flee in a loop.
 - **DANCE-1** After catching a golden cookie the paw does a small happy
   dance (hops + sway + tilt, default 2200ms, 0 = off) ONLY IF that very
   moment is idle: no other golden/wrath cookie present, nothing for
@@ -708,6 +713,12 @@ runs and confirm the "+N" number follows your cursor, not the paw's).
 
 ## 12. Changelog
 
+- **4.4.0** While pondering, the paw now relocates somewhere else entirely
+  when the real human cursor gets within 60px of it (tracked from trusted
+  mousemove events only) — one relocation rather than a continuous
+  antigravity-style repulsion. It picks a random spot at least 320px from
+  the human cursor and keeps pondering there, with a 2.5s cooldown after a
+  relocation so a stationary user cursor doesn't make it flee repeatedly.
 - **4.3.1** Renamed the Wizard tower limit setting to
   `autoWizardTowerTarget` and made Wizard towers below that target top
   purchase priority: they are bought whenever affordable, ignoring
