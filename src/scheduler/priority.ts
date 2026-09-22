@@ -1,7 +1,7 @@
 import type { PersistedData } from '../core/persisted-data';
 import type { RuntimeState } from '../core/runtime-state';
 import type { IGameAdapter } from '../game/game-adapter';
-import { getFthofCost } from '../game/grimoire';
+import { getFthofCost, refillCanReachCost } from '../game/grimoire';
 import type { CpsBuff } from '../game/types';
 import type { AutoPlayEngine } from '../autoplay/shopping';
 import type { JobRequest } from '../cursor/types';
@@ -71,7 +71,10 @@ export function selectJobRequest(deps: PriorityDeps): JobRequest | null {
       game.cpsBuffOutlastsClickFrenzy(buffs) &&
       (M.magic ?? 0) < cost &&
       !runtime.lockA &&
-      !runtime.refillInFlight
+      !runtime.refillInFlight &&
+      refillCanReachCost(M, cost) &&
+      game.canRefillLump() &&
+      game.getLumps() >= 1
     ) {
       job = fthof.refillJob();
     }

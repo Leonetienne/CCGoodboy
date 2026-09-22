@@ -16,3 +16,10 @@ export function getFthofCost(M: GrimoireMinigame | null): number {
 
   return M.getSpellCost(spell);
 }
+
+/** Whether a full mana refill could ever pay for `cost` at all. Wizard towers cap max mana
+ * (`magic M`); once FTHOF's cost outgrows it, a lump refill only ever tops off to that cap
+ * and can never reach `cost`, so spending a lump on it would be pure waste. */
+export function refillCanReachCost(M: GrimoireMinigame | null, cost: number): boolean {
+  return !!M && (M.magicM ?? 0) >= cost;
+}

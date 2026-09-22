@@ -134,8 +134,10 @@ refactor) which `tests/visual/scenarios.mjs` scenario exercises it.
 - **FT-2** "Outlast" rule: some CpS buff has remaining time >=
   `estimateClickFrenzySec()`.
 - **FT-3** Refill (sugar lump) when: >= 2 CpS buffs, FT-2 holds, mana <
-  FTHOF cost, LOCK_A open, refill not on cooldown, >= 1 lump. After a
-  refill LOCK_A is set.
+  FTHOF cost, max mana >= FTHOF cost (a refill that could never reach the
+  cost, because Wizard towers cap max mana below it, is skipped — it
+  would just waste the lump), LOCK_A open, refill not on cooldown, >= 1
+  lump. After a refill LOCK_A is set.
 - **FT-4** Both abort at once if a golden cookie becomes ready or a Click
   Frenzy starts, and re-check their conditions right before clicking.
 - **FT-5** Both respect the click delay (before moving) and pre-click
@@ -771,6 +773,40 @@ not the paw's).
 
 ## 12. Changelog
 
+- **4.6.2** Fixed: the bot could spend a sugar lump refilling Grimoire
+  mana even when Wizard towers cap max mana (`magicM`) below FTHOF's
+  current cost — refilling only ever tops mana off to that cap, so the
+  lump was spent for nothing since FTHOF still couldn't be cast
+  afterward. Added `refillCanReachCost()` (`src/game/grimoire.ts`) and
+  wired it into all three places that decide/guard a refill:
+  `fthofOrRefillPending()` (`src/hunting/fthof.ts`), the refill branch of
+  `selectJobRequest()` (`src/scheduler/priority.ts`), and
+  `RefillAction.abortIf()` (`src/actions/fthof.ts`) — the same
+  three-call-site pattern as 4.6.1's cooldown/lumps fix, since a refill
+  that can never help is exactly as wasteful/blocking as one that's
+  outright impossible. Spec FT-3 updated to say so explicitly. New unit
+  tests in `tests/unit/fthof.test.ts`, `tests/unit/actions.test.ts` and
+  `tests/unit/priority.test.ts` cover a Wizard-tower-limited max mana
+  below cost.
+- **4.6.1** Fixed: hammer mode (and everything below it — lump harvest,
+  auto-shop, dance, idle) could go completely dead outside of a real
+  Click Frenzy whenever the bot had >= 2 CpS buffs and low mana but a
+  sugar lump refill wasn't actually possible (still on the game's
+  15-minute cooldown, or 0 lumps in stock) — exactly the "buff combo
+  without Click Frenzy" case reported. `fthofOrRefillPending()`
+  (`src/hunting/fthof.ts`) and the matching refill branch in
+  `selectJobRequest()` (`src/scheduler/priority.ts`) only checked buff
+  count / mana / LOCK_A / refill-in-flight, unlike `RefillAction.abortIf()`
+  (`src/actions/fthof.ts`) and FT-3's own spec, which both also require
+  `canRefillLump()` and `getLumps() >= 1`. Every 25ms tick the scheduler
+  kept re-selecting a refill job that immediately self-aborted, winning
+  priority tier 3 over hammer mode (tier 6) each time without ever
+  actually doing anything. Both call sites now check the same
+  cooldown/lump preconditions as the action itself, so an impossible
+  refill correctly falls through to hammer mode/lump harvest/auto-shop/
+  idle instead of starving them forever. New unit tests in
+  `tests/unit/fthof.test.ts` and `tests/unit/priority.test.ts` cover the
+  cooldown and no-lumps cases.
 - **4.6.0** Reworked the auto play purchase strategy: 4.5.7 and 4.5.8
   each patched the payback-cap relief further to cover cases where auto
   play sat on an enormous, flush bank and still refused its own

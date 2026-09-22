@@ -1,7 +1,7 @@
 import type { RuntimeState } from '../core/runtime-state';
 import { JOB_PRIORITY, type JobRequest } from '../cursor/types';
 import type { IGameAdapter } from '../game/game-adapter';
-import { getFthofCost } from '../game/grimoire';
+import { getFthofCost, refillCanReachCost } from '../game/grimoire';
 import { FthofAction, RefillAction } from '../actions/fthof';
 import type { LogStore } from '../stats/log';
 import type { StatsRecorder } from '../stats/stats';
@@ -36,7 +36,15 @@ export class FthofActions {
       return true;
     }
 
-    return buffs.length >= 2 && (M.magic ?? 0) < cost && !this.runtime.lockA && !this.runtime.refillInFlight;
+    return (
+      buffs.length >= 2 &&
+      (M.magic ?? 0) < cost &&
+      !this.runtime.lockA &&
+      !this.runtime.refillInFlight &&
+      refillCanReachCost(M, cost) &&
+      this.game.canRefillLump() &&
+      this.game.getLumps() >= 1
+    );
   }
 
   /** Cast Force the Hand of Fate job. Preconditions are re-checked by the action's abort

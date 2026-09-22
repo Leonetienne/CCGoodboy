@@ -12,11 +12,12 @@ function connectedShimmer(overrides: Partial<GameShimmer> = {}): GameShimmer {
   return { id: 1, type: 'golden', popped: false, l: el, ...overrides };
 }
 
-function withGrimoire(game: FakeGameAdapter, magic: number, spellId = 1) {
+function withGrimoire(game: FakeGameAdapter, magic: number, spellId = 1, magicM = 1000) {
   game.grimoire = {
     spells: { 'hand of fate': { id: spellId } },
     getSpellCost: () => 100,
     magic,
+    magicM,
   };
 }
 
@@ -158,6 +159,17 @@ describe('RefillAction.abortIf', () => {
     withRefillControl();
     game.refillable = false;
     game.lumps = 0;
+
+    expect(make(game).abortIf()).toBe(true);
+  });
+
+  it('is true when max mana can never reach the cost (refilling would waste the lump)', () => {
+    const game = new FakeGameAdapter();
+    withGrimoire(game, 10, 1, 50); // cost is 100, max mana (magicM) is only 50
+    withOutlastingBuffs(game, 2);
+    withRefillControl();
+    game.refillable = true;
+    game.lumps = 5;
 
     expect(make(game).abortIf()).toBe(true);
   });

@@ -1,7 +1,7 @@
 import type { RuntimeState } from '../core/runtime-state';
 import type { CursorAction, CursorJobContext } from '../cursor/types';
 import type { IGameAdapter } from '../game/game-adapter';
-import { getFthofCost, getFthofSpell } from '../game/grimoire';
+import { getFthofCost, getFthofSpell, refillCanReachCost } from '../game/grimoire';
 import { elementCenter, getActionVisualElement, getGrimoireControl } from '../game/grimoire-dom';
 import type { LogStore } from '../stats/log';
 import type { StatsRecorder } from '../stats/stats';
@@ -102,6 +102,7 @@ export class RefillAction implements CursorAction {
       return true;
     }
 
+    if (!refillCanReachCost(M, cost)) return true;
     if (!this.game.canRefillLump() || this.game.getLumps() < 1) return true;
 
     return false;

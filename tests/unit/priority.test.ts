@@ -121,13 +121,42 @@ describe('selectJobRequest', () => {
     expect(job?.key).toBe('fthof');
   });
 
-  it('picks refill when mana is short, LOCK_A is open and no refill is in flight', () => {
+  it('picks refill when mana is short, LOCK_A is open, no refill is in flight, refill is off cooldown and a lump is available', () => {
     const game = new FakeGameAdapter();
-    game.grimoire = { spells: { 'hand of fate': { id: 1 } }, getSpellCost: () => 100, magic: 10 };
+    game.grimoire = { spells: { 'hand of fate': { id: 1 } }, getSpellCost: () => 100, magic: 10, magicM: 1000 };
     game.rawBuffs = { a: { name: 'Buff', multCpS: 2, time: 3000 }, b: { name: 'Buff2', multCpS: 2, time: 3000 } };
+    game.refillable = true;
+    game.lumps = 1;
 
     const job = selectJobRequest(makeDeps({ game, buffs: game.positiveCpsBuffs() }));
     expect(job?.key).toBe('refill');
+  });
+
+  it('falls through to hammer mode when a refill looks due but the refill is on cooldown or has no lumps', () => {
+    const game = new FakeGameAdapter();
+    game.grimoire = { spells: { 'hand of fate': { id: 1 } }, getSpellCost: () => 100, magic: 10, magicM: 1000 };
+    game.rawBuffs = { a: { name: 'Buff', multCpS: 2, time: 3000 }, b: { name: 'Buff2', multCpS: 2, time: 3000 } };
+    game.refillable = false; // still on the game's 15-minute cooldown
+    game.lumps = 0;
+    const runtime = new RuntimeState();
+
+    const job = selectJobRequest(makeDeps({ game, buffs: game.positiveCpsBuffs(), runtime, hammerActive: () => true }));
+    expect(job?.key).toBe('hammer');
+    expect(job?.priority).toBe(JOB_PRIORITY.HAMMER);
+  });
+
+  it('falls through to hammer mode instead of refilling when max mana can never reach the FTHOF cost', () => {
+    const game = new FakeGameAdapter();
+    // cost is 100, but Wizard towers only allow 50 max mana: refilling could never pay for it.
+    game.grimoire = { spells: { 'hand of fate': { id: 1 } }, getSpellCost: () => 100, magic: 10, magicM: 50 };
+    game.rawBuffs = { a: { name: 'Buff', multCpS: 2, time: 3000 }, b: { name: 'Buff2', multCpS: 2, time: 3000 } };
+    game.refillable = true;
+    game.lumps = 1;
+    const runtime = new RuntimeState();
+
+    const job = selectJobRequest(makeDeps({ game, buffs: game.positiveCpsBuffs(), runtime, hammerActive: () => true }));
+    expect(job?.key).toBe('hammer');
+    expect(job?.priority).toBe(JOB_PRIORITY.HAMMER);
   });
 
   it('picks a ripe sugar lump below FTHOF/refill and above auto-shop', () => {

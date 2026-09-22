@@ -9,11 +9,12 @@ function makeFthofActions(game: FakeGameAdapter, runtime: RuntimeState): FthofAc
   return new FthofActions(runtime, game, null as never, null as never, () => false);
 }
 
-function withGrimoire(game: FakeGameAdapter, magic: number) {
+function withGrimoire(game: FakeGameAdapter, magic: number, magicM = 1000) {
   game.grimoire = {
     spells: { 'hand of fate': { id: 1 } },
     getSpellCost: () => 100,
     magic,
+    magicM,
   };
 }
 
@@ -49,13 +50,48 @@ describe('FthofActions.fthofOrRefillPending', () => {
     expect(makeFthofActions(game, runtime).fthofOrRefillPending()).toBe(true);
   });
 
-  it('is true for a refill: >=2 outlasting buffs, not enough mana, LOCK_A open, no refill in flight', () => {
+  it('is true for a refill: >=2 outlasting buffs, not enough mana, LOCK_A open, no refill in flight, refillable, has lumps', () => {
     const game = new FakeGameAdapter();
     withGrimoire(game, 10); // < cost (100)
     withCpsBuffs(game, 2, 3000);
+    game.refillable = true;
+    game.lumps = 1;
     const runtime = new RuntimeState();
 
     expect(makeFthofActions(game, runtime).fthofOrRefillPending()).toBe(true);
+  });
+
+  it('is false for a would-be refill still on cooldown', () => {
+    const game = new FakeGameAdapter();
+    withGrimoire(game, 10);
+    withCpsBuffs(game, 2, 3000);
+    game.refillable = false;
+    game.lumps = 1;
+    const runtime = new RuntimeState();
+
+    expect(makeFthofActions(game, runtime).fthofOrRefillPending()).toBe(false);
+  });
+
+  it('is false for a would-be refill with 0 sugar lumps', () => {
+    const game = new FakeGameAdapter();
+    withGrimoire(game, 10);
+    withCpsBuffs(game, 2, 3000);
+    game.refillable = true;
+    game.lumps = 0;
+    const runtime = new RuntimeState();
+
+    expect(makeFthofActions(game, runtime).fthofOrRefillPending()).toBe(false);
+  });
+
+  it('is false for a would-be refill whose max mana can never reach the cost', () => {
+    const game = new FakeGameAdapter();
+    withGrimoire(game, 10, 50); // cost is 100, but max mana (magicM) is only 50
+    withCpsBuffs(game, 2, 3000);
+    game.refillable = true;
+    game.lumps = 1;
+    const runtime = new RuntimeState();
+
+    expect(makeFthofActions(game, runtime).fthofOrRefillPending()).toBe(false);
   });
 
   it('is false for a would-be refill when LOCK_A is set', () => {
