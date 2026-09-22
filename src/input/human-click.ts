@@ -69,7 +69,9 @@ export class ClickTiming {
 
   /** Synthesizes a click on an element like a person: mouseover, mousemove (which also puts
    * the game's mouse position, and therefore the floating '+N' number, at the paw), mousedown,
-   * a short hold, mouseup, click. Also starts the click pulse and records the time. */
+   * a short hold, mouseup, click. Also starts the click pulse and records the time.
+   * The mousemove is sent again right before mouseup/click: a real mouse moving during the
+   * hold would otherwise pull Game.mouseX/Y (and the '+N') back under the human's cursor. */
   async humanClick(el: Element | null, x: number, y: number, holdMs?: number): Promise<boolean> {
     if (!el || !el.isConnected) {
       return false;
@@ -83,6 +85,7 @@ export class ClickTiming {
 
     await this.clock.sleep(holdMs != null ? holdMs : 8 + Math.random() * 13);
 
+    dispatchMouse(el, 'mousemove', x, y, 0);
     dispatchMouse(el, 'mouseup', x, y, 0);
     dispatchMouse(el, 'click', x, y, 0);
 

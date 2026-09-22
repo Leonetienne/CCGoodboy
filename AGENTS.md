@@ -279,8 +279,10 @@ See [§7 State machine](#7-state-machine) for how this maps onto code.
   the bot re-sends a mousemove at the real coordinates so the game's own
   `Game.mouseX/Y` (used for the floating "+N" numbers) are correct.
 - **MOUSE-2** Cosmetic paw movement does not dispatch mousemove to the
-  game. Bot clicks still put the number where the paw is (`humanClick`
-  sends a mousemove at the click point right before pressing).
+  game. Bot clicks always put the number where the paw is, never under the
+  real cursor: `humanClick` sends a mousemove at the click point right
+  before pressing AND again right before mouseup/click, so a real mouse
+  moving during the hold can't pull `Game.mouseX/Y` back to the human.
 
 ### 3.10 User interface
 
@@ -861,8 +863,8 @@ file.**
 
 Three layers, each catching a different class of bug:
 
-1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 281 tests
-   across 32 files. Pure functions (route planner, `autoDecide`, the chart
+1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 282 tests
+   across 33 files. Pure functions (route planner, `autoDecide`, the chart
    engine, `normalizeSetting`) are tested directly with plain data; the
    cursor queue/actions have their own fake mover/timing tests. Classes
    that depend on the game are tested against `FakeGameAdapter`
@@ -1005,6 +1007,13 @@ mouse while the bot runs and confirm the "+N" number follows your cursor,
 not the paw's).
 
 ## 12. Changelog
+
+- **4.10.12** Fixed: the "+N" number of a bot click (Click Frenzy,
+  hammering, bored clicks) could pop up under the human's cursor instead of
+  at the paw. The game places it at `Game.mouseX/Y` when the click fires,
+  and any real mouse movement during the paw's 8-21ms hold overwrote that.
+  `humanClick()` now re-sends the mousemove at the paw right before
+  mouseup/click (MOUSE-2). Unit test in `tests/unit/human-click.test.ts`.
 
 - **4.10.11** The persisted state moved from
   `localStorage["ccSmartGoldenComboBot.v2"]` to `localStorage["ccGoodBoy"]`

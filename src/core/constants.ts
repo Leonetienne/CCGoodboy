@@ -3,7 +3,7 @@
 export const STORAGE_KEY = 'ccGoodBoy';
 
 /** Script version. Keep in sync with package.json and the userscript banner. */
-export const VERSION = '4.10.11';
+export const VERSION = '4.10.12';
 
 export function clamp(n: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, n));
