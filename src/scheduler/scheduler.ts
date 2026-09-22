@@ -56,6 +56,8 @@ export class Scheduler {
       }
     }
 
+    this.deps.fthof.reportBlockers(buffs);
+
     const queue = this.goldenQueue.build(shimmers.good);
     const job = selectJobRequest({ ...this.deps, queue, buffs });
 

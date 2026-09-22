@@ -1,3 +1,4 @@
+import { sayYay } from '../core/console-voice';
 import { VERSION } from '../core/constants';
 import type { PersistedData } from '../core/persisted-data';
 import type { RuntimeState } from '../core/runtime-state';
@@ -201,7 +202,7 @@ export class Bootstrap {
 
     log.log('bot started', `v${VERSION}`);
 
-    console.log('[CC Good Boy] Loaded uwu. window.__CCSmartGoldenComboBot exposes pause/resume/state/data/destroy.');
+    sayYay('Hiii, missed you!! Ready to catch cookies for you :3');
   }
 
   /** Stops everything and removes all elements/listeners (exposed on the API; useful for hot
@@ -239,8 +240,11 @@ export class Bootstrap {
   }
 }
 
+/** How long to wait after the game reports ready before the bot starts (LIFE-1). */
+export const GAME_SETTLE_MS = 1000;
+
 /** Polls every 500ms until the game object, its shimmer list and the big cookie exist, then
- * starts the bot. */
+ * starts the bot GAME_SETTLE_MS later. */
 export function waitForGame(bootstrap: Bootstrap): void {
   const Game = window.Game;
 
@@ -249,5 +253,7 @@ export function waitForGame(bootstrap: Bootstrap): void {
     return;
   }
 
-  bootstrap.start();
+  // Game.ready flips before everything is loaded (minigame scripts such as the Grimoire come
+  // in asynchronously), so let the page settle before doing anything (LIFE-1).
+  setTimeout(() => bootstrap.start(), GAME_SETTLE_MS);
 }

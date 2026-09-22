@@ -1,3 +1,4 @@
+import { sayCant } from '../core/console-voice';
 import type { RuntimeState } from '../core/runtime-state';
 import type { CursorAction, CursorJobContext } from '../cursor/types';
 import type { IGameAdapter } from '../game/game-adapter';
@@ -45,6 +46,8 @@ export class LumpHarvestAction implements CursorAction {
     if (ctx.game.getLumps() > beforeLumps) {
       this.stats.recordLumpHarvest();
       this.log.log('harvest sugar lump', 'ripe', { lumps: ctx.game.getLumps() });
+    } else {
+      sayCant('Wanted to harvest a sugar lump, but it didn\'t come off :c');
     }
   }
 }

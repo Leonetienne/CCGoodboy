@@ -1,3 +1,4 @@
+import { sayCant, sayCantWhile } from '../core/console-voice';
 import type { PersistedData } from '../core/persisted-data';
 import type { RuntimeState } from '../core/runtime-state';
 import { JOB_PRIORITY, type JobRequest } from '../cursor/types';
@@ -30,7 +31,17 @@ export class GrimoireUnlocker {
     const wt = this.grimoireView.wizardTower();
     if (!wt || !((Number(wt.amount) || 0) >= 1) || this.grimoireView.wizardLevel() !== 0) return false;
 
-    return this.game.lumpsUnlocked() && this.game.getLumps() >= 1;
+    const noLumps = !this.game.lumpsUnlocked() ? 'lumps-locked' : this.game.getLumps() < 1 ? 'no-lumps' : null;
+
+    sayCantWhile(
+      'grimoire unlock',
+      noLumps,
+      noLumps === 'lumps-locked'
+        ? 'Wanted to unlock my Grimoire, but sugar lumps aren\'t unlocked yet :c'
+        : 'Wanted to unlock my Grimoire, but I have no sugar popsies :c',
+    );
+
+    return noLumps == null;
   }
 
   /** Something for this module to do (the scheduler, PendingWork and hammering use it). A
@@ -81,5 +92,6 @@ export class GrimoireUnlocker {
   private block(ms: number, why: string): void {
     this.runtime.grimoireUnlockBlockUntil = Date.now() + ms;
     this.log.log('auto grimoire unlock', `paused: ${why}`);
+    sayCant(`Wanted to unlock my Grimoire, but ${why}, trying again in ${Math.round(ms / 1000)}s :c`);
   }
 }

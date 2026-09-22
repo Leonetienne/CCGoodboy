@@ -1,3 +1,4 @@
+import { sayCant, sayYay } from '../core/console-voice';
 import type { RuntimeState } from '../core/runtime-state';
 import { shimmerCenter } from '../game/dom-geometry';
 import type { IGameAdapter } from '../game/game-adapter';
@@ -96,8 +97,15 @@ export class GoldenCookieAction implements CursorAction {
       this.stats.recordGolden(kind);
       this.log.log('click golden cookie', kind.toLowerCase(), { effect: internal, shimmerId: this.shimmer.id });
 
+      // GC-8: brag in the console, but not for every storm drop (spam).
+      if (internal !== 'cookie storm' && internal !== 'cookie storm drop') {
+        sayYay('Caught a cookie!! I am such a gewd boy :3');
+      }
+
       // Happy dance only if this exact moment is otherwise idle.
       this.runtime.danceQueued = this.danceEligible();
+    } else if (preForce !== 'cookie storm drop') {
+      sayCant('Wanted to catch a cookie, but it got away :c');
     }
   }
 }

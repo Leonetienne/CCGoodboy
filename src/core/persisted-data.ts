@@ -1,3 +1,4 @@
+import { sayOops } from './console-voice';
 import { STORAGE_KEY, clampInt, hourKey } from './constants';
 
 export interface Config {
@@ -170,7 +171,7 @@ function loadStoredState(): PersistedState {
     const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
     return mergeDefaults(DEFAULTS, parsed);
   } catch (e) {
-    console.warn('[CC Good Boy] Could not load stored state:', e);
+    sayOops('Wanted to remember my settings, but I couldn\'t load them :c', e);
     return clone(DEFAULTS);
   }
 }
@@ -222,7 +223,7 @@ export class PersistedData {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(this.state));
     } catch (e) {
-      console.warn('[CC Good Boy] Could not save state:', e);
+      sayOops('Wanted to save my stuff, but I couldn\'t :c', e);
     }
   }
 

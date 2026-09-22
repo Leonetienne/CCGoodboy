@@ -1,3 +1,4 @@
+import { sayOops } from '../core/console-voice';
 import type { CursorPoint, RuntimeState } from '../core/runtime-state';
 import type { PersistedData } from '../core/persisted-data';
 import type { IGameAdapter } from '../game/game-adapter';
@@ -39,7 +40,7 @@ export class CursorManager {
     private readonly clock: BackgroundClock,
     private readonly mover: CursorMover,
     private readonly timing: CursorClickTiming,
-    private readonly onError: (err: unknown) => void = (err) => console.error('[CC Good Boy] action failed:', err),
+    private readonly onError: (err: unknown) => void = (err) => sayOops('Oopsie, I tripped while doing something >_<', err),
   ) {}
 
   get currentJob(): CursorJob | null {

@@ -1,3 +1,4 @@
+import { sayCant } from '../core/console-voice';
 import type { RuntimeState } from '../core/runtime-state';
 import type { CursorAction, CursorJobContext } from '../cursor/types';
 import type { IGameAdapter } from '../game/game-adapter';
@@ -68,6 +69,8 @@ export class FthofAction implements CursorAction {
     if (casted) {
       this.stats.recordFthof();
       this.log.log('cast fthof', 'force the hand of fate', { cost: getFthofCost(M) });
+    } else {
+      sayCant('Wanted to cast Force the Hand of Fate, but the spell didn\'t go off :c');
     }
   }
 }
@@ -145,6 +148,8 @@ export class RefillAction implements CursorAction {
       this.stats.recordRefill();
       this.log.log('refill grimoire', 'sugar lump', { cpsBuffCount: buffCount });
       this.log.log('lock A', `refill used at ${buffCount} cps buffs`);
+    } else {
+      sayCant('Wanted to refill mana, but the sugar lump didn\'t get eaten :c');
     }
   }
 }

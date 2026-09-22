@@ -53,6 +53,7 @@ function makeScheduler(game: FakeGameAdapter, overrides: Partial<SchedulerDeps> 
     } as unknown as ClickBigCookieTask,
     fthof: {
       castJob: vi.fn().mockReturnValue({ action: { label: 'fthof' }, priority: JOB_PRIORITY.FTHOF, key: 'fthof' }),
+      reportBlockers: vi.fn(),
       refillJob: vi.fn().mockReturnValue({ action: { label: 'refill' }, priority: JOB_PRIORITY.REFILL, key: 'refill' }),
     } as unknown as FthofActions,
     lumpHarvest: {

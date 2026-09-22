@@ -1,3 +1,4 @@
+import { sayCant } from '../../core/console-voice';
 import type { GrimoireView } from '../../hunting/grimoire-view';
 import type { WrinklerPopper } from '../../autoplay/wrinkler-popper';
 import type { RuntimeState } from '../../core/runtime-state';
@@ -185,6 +186,7 @@ export class DebugPanel {
     }
 
     log.log('debug tool', tool.label, ok ? undefined : { error: msg });
+    if (!ok) sayCant(`Wanted to do "${tool.label}", but ${msg} :c`);
     this.setStatus(ok ? msg : `failed: ${msg}`, ok);
   }
 }

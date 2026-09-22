@@ -1,3 +1,4 @@
+import { sayOops } from '../core/console-voice';
 import pawOpenSvg from '../assets/paw-open.svg';
 import pawClosedSvg from '../assets/paw-closed.svg';
 import type { RuntimeState } from '../core/runtime-state';
@@ -64,17 +65,17 @@ export class PawCursor {
 
           done(c);
         } catch (e) {
-          console.warn('[CC Good Boy] Could not prepare a paw sprite:', e);
+          sayOops('Wanted to put on my paw, but it didn\'t fit >_<', e);
         }
       };
 
       img.onerror = () => {
-        console.warn('[CC Good Boy] A paw sprite failed to load.');
+        sayOops('Wanted to put on my paw, but it didn\'t load >_<');
       };
 
       img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
     } catch (e) {
-      console.warn('[CC Good Boy] Paw sprite error:', e);
+      sayOops('Oopsie, my paw sprite broke >_<', e);
     }
   }
 

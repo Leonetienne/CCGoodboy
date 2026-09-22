@@ -3,7 +3,7 @@
 export const STORAGE_KEY = 'ccSmartGoldenComboBot.v2';
 
 /** Script version. Keep in sync with package.json and the userscript banner. */
-export const VERSION = '4.10.3';
+export const VERSION = '4.10.10';
 
 export function clamp(n: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, n));

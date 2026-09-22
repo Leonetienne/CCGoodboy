@@ -1,8 +1,10 @@
+import { errText, sayCant, sayOops, sayYay } from '../core/console-voice';
 import type { PersistedData } from '../core/persisted-data';
 import type { RuntimeState } from '../core/runtime-state';
 import { JOB_PRIORITY, type JobRequest } from '../cursor/types';
 import type { IGameAdapter } from '../game/game-adapter';
 import { WrinklerPopAction } from '../actions/wrinkler-pop';
+import { wrinklerPokeCanvasPoint } from '../game/wrinkler-dom';
 import type { LogStore } from '../stats/log';
 import type { StatsRecorder } from '../stats/stats';
 import type { AutoPlayEngine } from './shopping';
@@ -98,7 +100,8 @@ export class WrinklerPopper {
 
       this.runtime.wrinklerPlan = { ids: picked.map((w) => w.id), yield: stashOf(picked), forName: buy.name, cost: buy.cost };
     } catch (e) {
-      this.block(30000, String(e && (e as Error).message ? (e as Error).message : e));
+      sayOops('Oopsie, I tripped while planning a wrinkler pop >_<', e);
+      this.block(30000, errText(e));
     }
 
     return this.runtime.wrinklerPlan;
@@ -128,6 +131,15 @@ export class WrinklerPopper {
 
     const id = plan.ids[0]!;
 
+    // Its whole body is covered by wrinklers the game checks first: don't hand the scheduler a
+    // job that would only be cancelled again every tick.
+    const all = this.game.getWrinklers();
+    const target = all.find((w) => w && w.id === id);
+    if (target && !wrinklerPokeCanvasPoint(target, all)) {
+      this.block(3000, 'I can\'t reach it (other wrinklers are in the way)');
+      return null;
+    }
+
     const action = new WrinklerPopAction(
       id,
       this.game,
@@ -135,11 +147,13 @@ export class WrinklerPopper {
       (popped, gained) => {
         this.runtime.wrinklerNextEvalAt = 0;
         this.runtime.autoNextEvalAt = 0;
-        this.runtime.wrinklerForcePopUntil = 0;
 
         if (popped) {
+          // A forced debug pop is done; a failed one keeps retrying within its 30s window.
+          this.runtime.wrinklerForcePopUntil = 0;
           this.stats.recordWrinklerPop();
           this.log.log('pop wrinkler', `for ${plan.forName}`, { id, gained: Math.round(gained), cost: Math.round(plan.cost) });
+          sayYay('Popped a stinky wrinkler! Yuckies!');
         } else {
           this.block(3000, 'wrinkler did not pop');
         }
@@ -193,6 +207,8 @@ export class WrinklerPopper {
   private block(ms: number, why: string): void {
     this.runtime.wrinklerBlockUntil = Date.now() + ms;
     this.log.log('pop wrinkler', `paused: ${why}`);
+    const giveUp = this.runtime.wrinklerForcePopUntil > 0 && this.runtime.wrinklerForcePopUntil < this.runtime.wrinklerBlockUntil;
+    sayCant(`Wanted to pop a wrinkler, but ${why}, ${giveUp ? 'giving up for now' : `trying again in ${Math.round(ms / 1000)}s`} :c`);
   }
 }
 

@@ -33,7 +33,7 @@ export class WrinklerPopAction implements CursorAction {
 
   target(): { x: number; y: number } | null {
     const w = this.live();
-    return w ? wrinklerPoint(w) : null;
+    return w ? wrinklerPoint(w, this.game.getWrinklers()) : null;
   }
 
   abortIf(): boolean {

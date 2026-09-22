@@ -1,3 +1,5 @@
+import { sayOops } from '../core/console-voice';
+
 export type TimerHandle = number | { native: number };
 
 export interface IntervalHandle {
@@ -56,7 +58,7 @@ export class BackgroundClock {
         try {
           fn();
         } catch (err) {
-          console.error('[CC Good Boy] timer error', err);
+          sayOops('Oopsie, my inner clock tripped >_<', err);
         }
       };
 

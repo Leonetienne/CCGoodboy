@@ -1,3 +1,4 @@
+import { sayCant } from '../core/console-voice';
 import type { RuntimeState } from '../core/runtime-state';
 import { JOB_PRIORITY, type JobRequest } from '../cursor/types';
 import { MinigameButtonAction } from '../actions/buildings-view';
@@ -230,5 +231,6 @@ export class GrimoireView {
   private endShowGoal(ok: boolean, why: string): void {
     this.runtime.showGrimoireGoalUntil = 0;
     this.log.log('debug tool', `Show grimoire: ${ok ? 'done' : 'failed'}`, ok ? { result: why } : { error: why });
+    if (!ok) sayCant(`Wanted to show my Grimoire, but ${why} :c`);
   }
 }

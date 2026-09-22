@@ -101,6 +101,9 @@ refactor) which `tests/visual/scenarios.mjs` scenario exercises it.
 - **GC-6** Every catch is recorded (stats per effect name + hourly
   buckets) and logged (`"click golden cookie"`).
 - **GC-7** Golden cookies have ABSOLUTE priority (see SCHED-1).
+- **GC-8** Every caught golden cookie also logs `"Caught a cookie!! I am
+  such a gewd boy :3"` to the browser console, except Cookie Storm cookies
+  (the storm itself and its drops), which would spam it (see CON-1).
 
 ### 3.2 Hurry mode
 
@@ -353,9 +356,45 @@ See [§7 State machine](#7-state-machine) for how this maps onto code.
   fattest attached normal wrinkler. Skips only maturity, the "a purchase
   needs it" check and the auto play switches; the WRINK-4 safety gates
   (golden cookie, Click Frenzy, CpS buff, ...) still hold it back, for up to
-  30s. Works without auto play; dry run only logs. Fails in red when no
-  normal wrinkler is attached.
-### 3.12 Persistence and API
+  30s: a poke that didn't pop pauses 3s (WRINK-4) and then retries while
+  the 30s last. Works without auto play; dry run only logs. Fails in red
+  when no normal wrinkler is attached.
+### 3.12 Console voice
+
+The bot talks in the browser console, in the same cute style as the UI
+(NFR-5), via `src/core/console-voice.ts`. Separate from the persisted
+action log (UI-6); nothing here is stored.
+
+- **CON-1** Happy lines (`sayYay`, `console.log`): GC-8's catch message,
+  one short, personal greeting when the bot starts (`Bootstrap.start()`),
+  and `"Popped a stinky wrinkler! Yuckies!"` after each successful pop
+  (WRINK-6).
+- **CON-2** "Wanted to ..., but ..." lines (`console.log`) whenever the bot
+  wants to do something and can't. Conditions re-checked every scheduler
+  tick go through `sayCantWhile(wish, reasonCode, msg)`, which says each
+  reason once and only again when the reason changes or the wish went
+  away in between (no spam at 40 ticks/s):
+  - FTHOF wanted (>= 1 CpS buff outlasting a Click Frenzy, no Click
+    Frenzy): no Wizard towers, Grimoire still locked (Wizard tower level
+    0; a level >= 1 tower whose Grimoire hasn't loaded yet is not
+    complained about), spell not found, not enough mana (`FthofActions.reportBlockers()`, called by
+    `Scheduler.tick()`).
+  - Refill wanted (additionally >= 2 buffs and too little mana): full mana
+    can't pay for FTHOF (FT-3), LOCK_A already used, refill on cooldown, no
+    sugar lumps ("sugar popsies").
+  - Grimoire unlock wanted (AUTO-13): sugar lumps not unlocked, no lumps.
+
+  One-off events use `sayCant(msg)`: a golden cookie click that didn't pop
+  it (not for storm drops), a FTHOF/refill/lump click that did nothing,
+  FT-8 preparation falling back to a direct cast, the Grimoire unlock or
+  wrinkler popping pausing (with the reason), a purchase the shop refused,
+  a failed debug tool or "Show grimoire".
+- **CON-3** Errors (`sayOops`, `console.error` with the error object): a
+  failing action (SCHED-4, `CursorManager`), a failing timer callback, the
+  auto play planner or wrinkler planner throwing, localStorage load/save
+  failures, paw sprite failures.
+
+### 3.13 Persistence and API
 
 - **DATA-1** State is stored in
   `localStorage["ccSmartGoldenComboBot.v2"]` as JSON
@@ -365,10 +404,15 @@ See [§7 State machine](#7-state-machine) for how this maps onto code.
   and logs beyond "Log entries to keep" are dropped.
 - **DATA-3** Stored config is merged over the defaults, so new settings
   appear with their defaults after an update.
+- **LIFE-1** Start-up: the bot waits until `Game.ready`, the shimmers
+  array and `#bigCookie` exist (polled every 500ms), then another
+  `GAME_SETTLE_MS` (1000ms) before starting, since minigames such as the
+  Grimoire load asynchronously after `Game.ready`
+  (`waitForGame()`, `src/lifecycle/bootstrap.ts`).
 - **API-1** `window.__CCSmartGoldenComboBot = { version, pause(),
   resume(), state (runtime), clickFrenzySec(), data, save(), destroy() }`.
 
-### 3.13 Auto play mode ("full auto play": shopping)
+### 3.14 Auto play mode ("full auto play": shopping)
 
 - **AUTO-1** OFF by default. The "Auto play" button switches it on/off;
   the choice is stored with the settings (`config.autoPlay`). The button
@@ -479,7 +523,7 @@ See [§7 State machine](#7-state-machine) for how this maps onto code.
   hammering/idle like a due purchase). Logged as `"auto grimoire
   unlock"`. Debug: DBG-9, DBG-10.
 
-### 3.14 Background operation (browser tab not in front)
+### 3.15 Background operation (browser tab not in front)
 
 - **BG-1** The bot's own timing (`sleep()`, the 25ms scheduler) runs on a
   Web Worker clock. Browsers throttle the timers of a background PAGE, not
@@ -497,7 +541,7 @@ See [§7 State machine](#7-state-machine) for how this maps onto code.
 - **BG-4** HUD row "Background" shows the timer source and the keep-alive
   state.
 
-### 3.15 "How good is a buy" overlay (independent of auto play)
+### 3.16 "How good is a buy" overlay (independent of auto play)
 
 - **BUY-1** ON by default ("Show \"how good is a buy\" overlay"). Draws a
   bounding box directly over every building and upgrade the auto player
@@ -520,7 +564,7 @@ See [§7 State machine](#7-state-machine) for how this maps onto code.
   the same way as an off-screen element (shared with every other overlay
   box: golden cookies, the Grimoire buttons, ...).
 
-### 3.16 Grandmapocalypse stage 1 and wrinklers (auto play)
+### 3.17 Grandmapocalypse stage 1 and wrinklers (auto play)
 
 - **WRINK-1** Stage 1 only. With "Auto: grandmapocalypse stage 1 (wrinklers)"
   on (`config.autoGrandmapocalypse`, DEFAULT ON) auto play treats the
@@ -574,7 +618,11 @@ See [§7 State machine](#7-state-machine) for how this maps onto code.
   3s, an error 30s. Dry run only logs "would pop".
 - **WRINK-5** Popping is a real poke (NFR-8): the paw moves onto the
   wrinkler's body (90 canvas px out from its anchor along its angle, the
-  middle of the game's hit box), hovers 260ms (the game re-checks what is
+  middle of the game's hit box — or, since the game hands a click to the
+  FIRST wrinkler in `Game.wrinklers` under the mouse, the spot nearest
+  that middle which no earlier attached wrinkler covers,
+  `wrinklerPokeCanvasPoint()`; a body covered completely pauses popping
+  3s), hovers 260ms (the game re-checks what is
   under its mouse only every 5th frame), then clicks `#backgroundLeftCanvas`
   until it bursts (3 pokes: 2.1 hp, −0.75 per click; at most 10).
   Priority: tier 5, after the Grimoire unlock, before shopping; a due pop
@@ -727,7 +775,7 @@ gainLumps) — still guarded, still the only path to those `Game.*` calls.
 
 | Area | Path | Contents |
 |---|---|---|
-| Core state | `src/core/` | `constants.ts` (VERSION, clamp helpers), `persisted-data.ts`, `runtime-state.ts`, `state-machine.ts` |
+| Core state | `src/core/` | `constants.ts` (VERSION, clamp helpers), `console-voice.ts` (CON-\*), `persisted-data.ts`, `runtime-state.ts`, `state-machine.ts` |
 | Game facade | `src/game/` | `game-adapter.ts` (IGameAdapter + GameAdapter), `types.ts` (GameShimmer/RawBuff/CpsBuff/GrimoireMinigame/GameBuilding/GameUpgrade), `golden-cookie-model.ts` (fade curve, shimmer classification, GC-2/GC-3), `hurry-mode.ts` (HURRY-\*), `buffs-lock.ts` (LOCK_A, FT-6), `grimoire.ts` (FTHOF spell/cost lookup), `grimoire-dom.ts` (real Grimoire controls — FT-7), `lump-dom.ts` (`#lumps` control/centre — LUMP-\*), `wrinkler-dom.ts` (`#backgroundLeftCanvas`, a wrinkler's body point — WRINK-5), `buildings-view-dom.ts` (`#centerArea`, menu buttons, building rows/level buttons, the Options/Stats/Stats recipe, `centeredScrollTop` — AUTO-13), `dom-geometry.ts` (visibleRect/looseRect/clippedByAncestor — shared by every overlay box, GC-2/BUY-3) |
 | Cursor (queue) | `src/cursor/` | `types.ts` (`JOB_PRIORITY`, `CursorAction`, `CursorJob`, `CursorJobContext`, `CursorMover`, `CursorClickTiming`, `JobRequest`), `cursor-manager.ts` (owns the priority queue + all cursor motion: click gap → travel → pre-click pause → `cursor_at_position`, dedup by key, preemption, single cursor writer) |
 | Actions | `src/actions/` | `click-element.ts` (ClickElementAction/MoveAction/VisualPressAction), `golden-cookie.ts` (GoldenCookieAction, `effectPrettyName`), `hammer.ts` (HammerAction + big-cookie point helpers, CF-\*), `fthof.ts` (FthofAction/RefillAction), `lump-harvest.ts` (LumpHarvestAction, LUMP-\*), `buildings-view.ts` (MenuButtonAction, ScrollIntoViewAction, MinigameButtonAction — FT-8/AUTO-13/DBG-9..11), `grimoire-unlock.ts` (GrimoireUnlockAction, AUTO-13), `wrinkler-pop.ts` (WrinklerPopAction, WRINK-5), `dance.ts` (DanceAction + `danceEligible`/`anyGoldenPresent`/`getDanceMs`), `ponder.ts` (PonderAction), `idle.ts` (IdleWanderAction + `IDLE_SPOTS`/`pickIdleSpot`) |
@@ -810,8 +858,8 @@ file.**
 
 Three layers, each catching a different class of bug:
 
-1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 265 tests
-   across 31 files. Pure functions (route planner, `autoDecide`, the chart
+1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 279 tests
+   across 32 files. Pure functions (route planner, `autoDecide`, the chart
    engine, `normalizeSetting`) are tested directly with plain data; the
    cursor queue/actions have their own fake mover/timing tests. Classes
    that depend on the game are tested against `FakeGameAdapter`
@@ -954,6 +1002,51 @@ mouse while the bot runs and confirm the "+N" number follows your cursor,
 not the paw's).
 
 ## 12. Changelog
+
+- **4.10.10** Fixed: "Pop a wrinkler" (DBG-14) said "trying again in 3s"
+  after a failed poke but never did — the failure cleared its 30s force
+  window along with the attempt. The window now only ends on a successful
+  pop, so a failed one retries after the 3s pause (the console says
+  "giving up for now" once the window is over). Also fixed why pokes could
+  miss with many wrinklers: the game gives a click to the first wrinkler in
+  its list under the mouse, so an overlapping neighbour could take the
+  pokes. The paw now pokes the nearest spot of the target's body that no
+  earlier wrinkler covers (`wrinklerHit()`/`wrinklerPokeCanvasPoint()` in
+  `src/game/wrinkler-dom.ts`, a port of the game's hit test), and pauses
+  3s instead of looping when the body is fully covered. Unit tests in
+  `tests/unit/wrinklers.test.ts`.
+
+- **4.10.9** Each successful wrinkler pop says "Popped a stinky wrinkler!
+  Yuckies!" in the browser console (CON-1).
+
+- **4.10.8** Fixed: right after page load the console claimed "my
+  Grimoire is still locked (Wizard tower level 0)" although the Wizard
+  towers were levelled — the Grimoire minigame simply hadn't loaded yet.
+  The bot now waits 1s after the game reports ready before starting
+  (LIFE-1), and CON-2 only calls the Grimoire locked when the Wizard
+  tower's level really is 0 (a loading Grimoire is not complained about).
+
+- **4.10.7** The console greeting (CON-1) is now one short, personal
+  sentence ("Hiii, missed you!! Ready to catch cookies for you :3")
+  instead of "hooman" plus a second API-hint line.
+
+- **4.10.6** The bot greets you in the browser console when it loads
+  ("Hiii hooman!! CC Good Boy vX is here ...", CON-1), replacing the old
+  "[CC Good Boy] Loaded uwu." line; the API hint is kept in the same style.
+
+- **4.10.5** The bot now says in the browser console when it wants to do
+  something but can't (CON-2: FTHOF without Wizard towers / a locked
+  Grimoire / enough mana, a refill on cooldown / without sugar lumps /
+  capped by max mana / after LOCK_A, a Grimoire unlock without lumps, a
+  click that did nothing, a paused module, a refused purchase, a failed
+  debug tool), once per reason instead of every tick, and logs errors with
+  `console.error` in the same style (CON-3). New
+  `src/core/console-voice.ts`, `FthofActions.reportBlockers()`; unit tests
+  in `tests/unit/console-voice.test.ts`.
+
+- **4.10.4** Every caught golden cookie logs "Caught a cookie!! I am such
+  a gewd boy :3" to the browser console (GC-8), except Cookie Storm /
+  Cookie Storm Drop catches, to avoid spam.
 
 - **4.10.3** Two new debug tools: "Spawn a wrinkler" (DBG-13, one wrinkler
   crawls in via `Game.SpawnWrinkler`; `IGameAdapter.spawnWrinkler()`) and

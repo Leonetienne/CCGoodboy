@@ -1,3 +1,4 @@
+import { errText, sayCant, sayOops } from '../core/console-voice';
 import { clamp } from '../core/constants';
 import type { PersistedData } from '../core/persisted-data';
 import type { RuntimeState } from '../core/runtime-state';
@@ -201,7 +202,8 @@ export class AutoPlayEngine {
       plan.note = 'error, paused for 30 s';
       this.runtime.autoBlockUntil = now + 30000;
 
-      this.log.log('auto play error', String(e && (e as Error).message ? (e as Error).message : e));
+      this.log.log('auto play error', errText(e));
+      sayOops('Oopsie, my shopping brain tripped, taking a 30s break >_<', e);
     }
 
     this.runtime.autoPlan = plan;
@@ -353,6 +355,7 @@ export class AutoPlayEngine {
           });
         } else {
           engine.runtime.autoBlockUntil = Date.now() + 3000;
+          sayCant(`Wanted to buy ${fresh.buy.name}, but the shop said no :c`);
         }
       },
     };

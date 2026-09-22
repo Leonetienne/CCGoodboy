@@ -14,13 +14,14 @@ import { GameAdapter } from '../../src/game/game-adapter';
 import type { GameBuilding, GameUpgrade, GameWrinkler } from '../../src/game/types';
 import { LogStore } from '../../src/stats/log';
 import { StatsRecorder } from '../../src/stats/stats';
+import { wrinklerHit, wrinklerPokeCanvasPoint } from '../../src/game/wrinkler-dom';
 import { FakeGameAdapter } from './fakes/fake-game-adapter';
 
 const STAGE1_CHANCE = 0.00001;
 const STAGE1_RESPAWN = 1 / (STAGE1_CHANCE * 30) + 10; // ~3343s
 
 function wrinkler(id: number, sucked: number, extra: Partial<GameWrinkler> = {}): GameWrinkler {
-  return { id, phase: 2, sucked, type: 0, x: 0, y: 0, r: 0, ...extra };
+  return { id, phase: 2, sucked, type: 0, x: 0, y: 0, r: id * 36, ...extra }; // fanned out like the real ring, so bodies don't overlap
 }
 
 /** Cookies a wrinkler holds after digesting `sec` seconds with 10 attached at 100 CpS. */
@@ -358,7 +359,7 @@ describe('wrinkler debug tools', () => {
     expect(decideWithExtraBank).not.toHaveBeenCalled(); // no purchase needed for a forced pop
   });
 
-  it('a forced pop still waits for the safety gates, and ends after one attempt', async () => {
+  it('a forced pop still waits for the safety gates, and ends once it popped', async () => {
     const { runtime, game, popper } = setup([wrinkler(2, 50)]);
     popper.debugPopWrinkler();
 
@@ -382,6 +383,30 @@ describe('wrinkler debug tools', () => {
 
     expect(runtime.wrinklerForcePopUntil).toBe(0);
     expect(popper.pending()).toBe(false);
+  });
+
+  it('a forced pop that did not pop stays forced, so it is retried after the 3s pause', async () => {
+    const { runtime, game, popper } = setup([wrinkler(2, 50)]);
+    popper.debugPopWrinkler();
+    const job = popper.job()!;
+
+    document.body.innerHTML = '<canvas id="backgroundLeftCanvas" width="400" height="600"></canvas>';
+    const ctx = {
+      runtime,
+      game,
+      clock: { sleep: () => Promise.resolve() },
+      clickTiming: { humanClick: vi.fn(async () => true) }, // pokes that never land
+      abortRequested: () => false,
+    } as unknown as CursorJobContext;
+
+    await job.action.cursor_at_position(ctx);
+
+    expect(runtime.wrinklerForcePopUntil).toBeGreaterThan(Date.now());
+    expect(popper.pending()).toBe(false); // paused 3s
+
+    runtime.wrinklerBlockUntil = 0;
+    runtime.wrinklerNextEvalAt = 0;
+    expect(popper.pending()).toBe(true);
   });
 
   it('"Pop a wrinkler" fails when no normal wrinkler is attached', () => {
@@ -462,5 +487,43 @@ describe('WrinklerPopAction', () => {
     w.phase = 0;
     expect(action.abortIf()).toBe(true);
     expect(action.target()).toBeNull();
+  });
+});
+
+describe('wrinkler poke point (WRINK-5)', () => {
+  it('hit-tests the body like the game: 100x200, centred 90px out along the angle', () => {
+    const w = wrinkler(0, 0, { x: 200, y: 300, r: 0 });
+
+    expect(wrinklerHit(w, 200, 390)).toBe(true);
+    expect(wrinklerHit(w, 245, 390)).toBe(true);
+    expect(wrinklerHit(w, 255, 390)).toBe(false);
+    expect(wrinklerHit(w, 200, 495)).toBe(false);
+
+    const turned = wrinkler(0, 0, { x: 200, y: 300, r: 90 }); // body points to +x
+    expect(wrinklerHit(turned, 290, 300)).toBe(true);
+    expect(wrinklerHit(turned, 200, 390)).toBe(false);
+  });
+
+  it('pokes the body centre when nothing earlier covers it', () => {
+    const w = wrinkler(3, 0, { x: 200, y: 300, r: 0 });
+    const later = wrinkler(4, 0, { x: 200, y: 300, r: 0 }); // later ones never steal the click
+
+    expect(wrinklerPokeCanvasPoint(w, [w, later])).toEqual({ x: 200, y: 390 });
+  });
+
+  it('dodges an earlier overlapping wrinkler, or gives up when fully covered', () => {
+    const w = wrinkler(3, 0, { x: 200, y: 300, r: 0 });
+    const neighbour = wrinkler(1, 0, { x: 240, y: 300, r: 0 }); // covers x 190..290
+    const all = [neighbour, w];
+
+    const p = wrinklerPokeCanvasPoint(w, all)!;
+    expect(wrinklerHit(w, p.x, p.y)).toBe(true);
+    expect(wrinklerHit(neighbour, p.x, p.y)).toBe(false);
+
+    const twin = wrinkler(1, 0, { x: 200, y: 300, r: 0 });
+    expect(wrinklerPokeCanvasPoint(w, [twin, w])).toBeNull();
+
+    const detached = wrinkler(1, 0, { x: 200, y: 300, r: 0, phase: 0 }); // empty slots don't count
+    expect(wrinklerPokeCanvasPoint(w, [detached, w])).toEqual({ x: 200, y: 390 });
   });
 });
