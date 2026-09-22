@@ -703,6 +703,9 @@ runs and confirm the "+N" number follows your cursor, not the paw's).
 
 ## 12. Changelog
 
+- **4.2.0** All UI frames (main HUD, Graphs, Logs, Debug tools) are now
+  draggable by their title/header bar; each frame remembers its own
+  position in the saved UI state.
 - **4.1.3** Debug tool "Spawn Cookie Chain" now spawns a REAL cookie chain:
   the first cookie is marked as the spawn lead (`spawnLead = 1`) and forced
   to `chain cookie`, so the game restarts its golden-cookie spawn timer

@@ -1,40 +1,49 @@
 import { clamp } from '../../core/constants';
 import type { PersistedData } from '../../core/persisted-data';
 
-/** Applies the saved (dragged) position, keeping the panel fully on screen and letting the
- * expanded body scroll instead of running off the bottom. */
-export function applyPanelPosition(panel: HTMLElement | null, data: PersistedData): void {
+/** UI position fields that can be dragged (one per frame). */
+export type UiPosKey = 'panelPos' | 'graphsPos' | 'logsPos' | 'debugPos';
+
+export interface FrameOptions {
+  posKey: UiPosKey;
+  header: HTMLElement | null;
+  /** Only the main HUD panel adjusts its body height to the available screen space. */
+  body?: HTMLElement | null;
+}
+
+/** Applies a saved (dragged) position, keeping the frame fully on screen. For the main panel
+ * the expanded body scrolls instead of running off the bottom. */
+export function applyFramePosition(panel: HTMLElement | null, data: PersistedData, opts: FrameOptions): void {
   if (!panel) return;
 
-  const body = document.getElementById('ccsb-body');
-  const pos = data.ui.panelPos;
+  const pos = data.ui[opts.posKey];
+  const headerH = (opts.header && opts.header.getBoundingClientRect().height) || 32;
 
   if (!pos || !Number.isFinite(pos.left) || !Number.isFinite(pos.top)) {
     panel.style.left = '';
     panel.style.top = '';
     panel.style.right = '';
+    panel.style.transform = '';
 
-    if (body) {
-      body.style.maxHeight = '';
+    if (opts.body) {
+      opts.body.style.maxHeight = '';
     }
 
     return;
   }
 
   const rect = panel.getBoundingClientRect();
-  const header = document.getElementById('ccsb-header');
-  const headerH = (header && header.getBoundingClientRect().height) || 32;
-
   const left = clamp(pos.left, 0, Math.max(0, window.innerWidth - (rect.width || 360)));
   const top = clamp(pos.top, 0, Math.max(0, window.innerHeight - headerH));
 
   panel.style.left = left + 'px';
   panel.style.top = top + 'px';
   panel.style.right = 'auto';
+  panel.style.transform = 'none';
 
   // Let the expanded body scroll instead of running off the bottom of the screen.
-  if (body) {
-    body.style.maxHeight = Math.max(120, window.innerHeight - top - headerH - 12) + 'px';
+  if (opts.body) {
+    opts.body.style.maxHeight = Math.max(120, window.innerHeight - top - headerH - 12) + 'px';
   }
 }
 
@@ -44,10 +53,10 @@ interface DragState {
   dy: number;
 }
 
-/** Makes the panel's title bar a drag handle (pointer events; buttons excluded). Saves the
- * final position. */
-export function setupPanelDrag(panel: HTMLElement, data: PersistedData, onDragEnd: () => void): void {
-  const header = document.getElementById('ccsb-header');
+/** Makes a frame's header a drag handle (pointer events; interactive elements excluded).
+ * Saves the final position under `opts.posKey`. */
+export function setupFrameDrag(panel: HTMLElement, data: PersistedData, opts: FrameOptions, onDragEnd: () => void): void {
+  const header = opts.header;
   if (!header) return;
 
   let drag: DragState | null = null;
@@ -56,11 +65,18 @@ export function setupPanelDrag(panel: HTMLElement, data: PersistedData, onDragEn
     const me = e as PointerEvent;
     const target = me.target as HTMLElement | null;
 
-    if (me.button !== 0 || (target && target.closest && target.closest('button'))) {
+    if (me.button !== 0 || (target && target.closest && target.closest('button,input,textarea,select,a'))) {
       return;
     }
 
     const r = panel.getBoundingClientRect();
+
+    // If the frame is still centred by its CSS transform, pin it at its current on-screen
+    // spot first so it does not jump when we clear the transform.
+    panel.style.left = r.left + 'px';
+    panel.style.top = r.top + 'px';
+    panel.style.right = 'auto';
+    panel.style.transform = 'none';
 
     drag = { id: me.pointerId, dx: me.clientX - r.left, dy: me.clientY - r.top };
 
@@ -78,8 +94,8 @@ export function setupPanelDrag(panel: HTMLElement, data: PersistedData, onDragEn
     const me = e as PointerEvent;
     if (!drag || me.pointerId !== drag.id) return;
 
-    data.ui.panelPos = { left: me.clientX - drag.dx, top: me.clientY - drag.dy };
-    applyPanelPosition(panel, data);
+    data.ui[opts.posKey] = { left: me.clientX - drag.dx, top: me.clientY - drag.dy };
+    applyFramePosition(panel, data, opts);
   });
 
   const end = (e: Event) => {
@@ -98,11 +114,35 @@ export function setupPanelDrag(panel: HTMLElement, data: PersistedData, onDragEn
 
     // Store the clamped, final position.
     const r = panel.getBoundingClientRect();
-    data.ui.panelPos = { left: Math.round(r.left), top: Math.round(r.top) };
+    data.ui[opts.posKey] = { left: Math.round(r.left), top: Math.round(r.top) };
+    applyFramePosition(panel, data, opts);
 
     onDragEnd();
   };
 
   header.addEventListener('pointerup', end);
   header.addEventListener('pointercancel', end);
+}
+
+/** Main HUD panel wrapper (kept as the public name used by UiRoot). */
+export function applyPanelPosition(panel: HTMLElement | null, data: PersistedData): void {
+  applyFramePosition(panel, data, {
+    posKey: 'panelPos',
+    header: document.getElementById('ccsb-header'),
+    body: document.getElementById('ccsb-body'),
+  });
+}
+
+/** Main HUD panel wrapper (kept as the public name used by UiRoot). */
+export function setupPanelDrag(panel: HTMLElement, data: PersistedData, onDragEnd: () => void): void {
+  setupFrameDrag(
+    panel,
+    data,
+    {
+      posKey: 'panelPos',
+      header: document.getElementById('ccsb-header'),
+      body: document.getElementById('ccsb-body'),
+    },
+    onDragEnd,
+  );
 }

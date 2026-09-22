@@ -57,6 +57,9 @@ export interface UiState {
   minimized: boolean;
   panelPos: { left: number; top: number } | null;
   settingsOpen: boolean;
+  graphsPos: { left: number; top: number } | null;
+  logsPos: { left: number; top: number } | null;
+  debugPos: { left: number; top: number } | null;
 }
 
 export interface PersistedState {
@@ -113,6 +116,9 @@ export const DEFAULTS: PersistedState = {
     minimized: false,
     panelPos: null,
     settingsOpen: false,
+    graphsPos: null,
+    logsPos: null,
+    debugPos: null,
   },
 };
 

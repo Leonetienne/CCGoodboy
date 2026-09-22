@@ -44,6 +44,12 @@ const CSS = `
     opacity:.85;
 }
 
+#ccsb-graphs.dragging,
+#ccsb-logs.dragging,
+#ccsb-debug.dragging {
+    opacity:.85;
+}
+
 #ccsb-version {
     font-size:10px;
     opacity:.8;
@@ -274,6 +280,18 @@ const CSS = `
     align-items:center;
     gap:8px;
     margin-bottom:8px;
+    user-select:none;
+    cursor:move;
+    touch-action:none;
+}
+
+.ccsb-modal-head button {
+    cursor:pointer;
+}
+
+.ccsb-modal-head input {
+    cursor:text;
+    user-select:text;
 }
 
 .ccsb-modal-head strong {

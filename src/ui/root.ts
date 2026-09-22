@@ -14,7 +14,7 @@ import { resizeOverlayCanvas } from '../rendering/overlay-canvas';
 import type { LogStore } from '../stats/log';
 import { DebugPanel, DebugTools } from './debug/debug-tools';
 import { createPanelElement } from './gui-frames/panel-dom';
-import { applyPanelPosition, setupPanelDrag } from './gui-frames/panel-drag';
+import { applyFramePosition, applyPanelPosition, setupFrameDrag, setupPanelDrag } from './gui-frames/panel-drag';
 import { PanelUpdater } from './gui-frames/panel-updater';
 import { SettingsPanel } from './settings/settings-panel';
 import { injectStyles } from './styles';
@@ -188,16 +188,31 @@ export class UiRoot {
     setupPanelDrag(this.panel, data, () => data.scheduleSave());
     applyPanelPosition(this.panel, data);
 
+    setupFrameDrag(this.graphsPanel.element, data, { posKey: 'graphsPos', header: this.graphsPanel.element.querySelector('.ccsb-modal-head') }, () => data.scheduleSave());
+    setupFrameDrag(this.logsPanel.element, data, { posKey: 'logsPos', header: this.logsPanel.element.querySelector('.ccsb-modal-head') }, () => data.scheduleSave());
+    setupFrameDrag(this.debugPanel.element, data, { posKey: 'debugPos', header: this.debugPanel.element.querySelector('.ccsb-modal-head') }, () => data.scheduleSave());
+
+    this.applyFramePositions();
+
     window.addEventListener('resize', this.onResizeOverlay);
     window.addEventListener('resize', this.onResizePanel);
   }
+
+  private applyFramePositions = (): void => {
+    const { data } = this.deps;
+
+    applyPanelPosition(this.panel, data);
+    applyFramePosition(this.graphsPanel.element, data, { posKey: 'graphsPos', header: this.graphsPanel.element.querySelector('.ccsb-modal-head') });
+    applyFramePosition(this.logsPanel.element, data, { posKey: 'logsPos', header: this.logsPanel.element.querySelector('.ccsb-modal-head') });
+    applyFramePosition(this.debugPanel.element, data, { posKey: 'debugPos', header: this.debugPanel.element.querySelector('.ccsb-modal-head') });
+  };
 
   private onResizeOverlay = (): void => {
     resizeOverlayCanvas(this.overlayCanvas, this.overlayCtx);
   };
 
   private onResizePanel = (): void => {
-    applyPanelPosition(this.panel, this.deps.data);
+    this.applyFramePositions();
   };
 
   /** Removes the resize listeners this UiRoot added and every DOM element it created. The rest
