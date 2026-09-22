@@ -10,7 +10,7 @@ import type { StatsRecorder } from '../stats/stats';
 import { autoCollect, type PurchaseCandidate } from './collector';
 import type { Decision, DecisionRow } from './strategy';
 import { autoDecide } from './strategy';
-import { IncomeTracker } from './income-tracker';
+import type { IncomeTracker } from './income-tracker';
 
 export interface AutoPlan {
   at: number;
@@ -93,8 +93,6 @@ export function autoBuy(game: IGameAdapter, c: PurchaseCandidate): boolean {
 /** Orchestrates auto play shopping: planning (autoEvaluate), the "how good is a buy" overlay
  * snapshot, the interrupt/allowed/ready gates, and the shopping task itself. */
 export class AutoPlayEngine {
-  private readonly incomeTracker: IncomeTracker;
-
   constructor(
     private readonly runtime: RuntimeState,
     private readonly data: PersistedData,
@@ -103,13 +101,12 @@ export class AutoPlayEngine {
     private readonly stats: StatsRecorder,
     private readonly cursorController: CursorController,
     private readonly clock: BackgroundClock,
+    private readonly incomeTracker: IncomeTracker,
     private readonly hasGoodGolden: () => boolean,
     private readonly cookieStormActive: () => boolean,
     private readonly cookieChainActive: () => boolean,
     private readonly fthofOrRefillPending: () => boolean,
-  ) {
-    this.incomeTracker = new IncomeTracker(runtime, game);
-  }
+  ) {}
 
   /** Candidates + decision for the "how good is a buy" overlay, cached for ~500ms (works
    * whether or not auto play is switched on; it never buys anything by itself). */

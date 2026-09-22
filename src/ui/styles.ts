@@ -1,0 +1,342 @@
+const CSS = `
+#ccsb-panel, #ccsb-graphs, #ccsb-logs, #ccsb-debug {
+    font-family: "Quicksand","Nunito","Varela Round","Segoe UI Rounded","Segoe UI","Comic Sans MS",ui-rounded,system-ui,sans-serif;
+    color:#ffeaf6;
+    box-sizing:border-box;
+}
+
+#ccsb-panel {
+    position:fixed;
+    top:8px;
+    right:8px;
+    z-index:2147483646;
+    width:360px;
+    max-height:calc(100vh - 16px);
+    background:linear-gradient(160deg, rgba(50,27,68,.95), rgba(30,20,54,.95));
+    border:2px solid #ff9ed2;
+    border-radius:16px;
+    box-shadow:0 8px 30px rgba(255,120,190,.30), inset 0 0 0 1px rgba(150,215,255,.35);
+    font-size:11.5px;
+    line-height:1.4;
+    overflow:hidden;
+}
+
+#ccsb-panel * {
+    box-sizing:border-box;
+}
+
+#ccsb-header {
+    display:flex;
+    align-items:center;
+    gap:7px;
+    padding:8px 10px;
+    background:linear-gradient(90deg, rgba(255,158,210,.45), rgba(196,170,255,.36), rgba(150,215,255,.36));
+    user-select:none;
+    cursor:move;
+    touch-action:none;
+}
+
+#ccsb-header button {
+    cursor:pointer;
+}
+
+#ccsb-panel.dragging {
+    opacity:.85;
+}
+
+#ccsb-version {
+    font-size:10px;
+    opacity:.8;
+    color:#fff;
+}
+
+#ccsb-title {
+    font-weight:800;
+    flex:1;
+    letter-spacing:.3px;
+    color:#fff;
+    text-shadow:0 1px 8px rgba(255,105,180,.75);
+}
+
+#ccsb-status-dot {
+    width:9px;
+    height:9px;
+    border-radius:50%;
+    background:#ff8fcf;
+    box-shadow:0 0 9px #ff8fcf;
+}
+
+#ccsb-panel.paused #ccsb-status-dot {
+    background:#b9a0ff;
+    box-shadow:none;
+}
+
+#ccsb-body {
+    padding:9px;
+    overflow:auto;
+    max-height:calc(100vh - 52px);
+}
+
+#ccsb-panel.minimized #ccsb-body {
+    display:none;
+}
+
+#ccsb-panel button,
+#ccsb-panel input,
+#ccsb-graphs button,
+#ccsb-logs button,
+#ccsb-debug button,
+#ccsb-logs input {
+    font:inherit;
+}
+
+.ccsb-btn {
+    color:#ffe6f4;
+    background:rgba(255,158,210,.18);
+    border:1px solid #ff9ed2;
+    border-radius:999px;
+    padding:3px 10px;
+    cursor:pointer;
+}
+
+.ccsb-btn:hover {
+    background:rgba(255,158,210,.38);
+}
+
+.ccsb-btn.active {
+    background:rgba(255,143,207,.6);
+    border-color:#fff;
+}
+
+.ccsb-row {
+    display:flex;
+    gap:6px;
+    align-items:flex-start;
+    margin:2px 0;
+}
+
+.ccsb-label {
+    width:112px;
+    color:#ffb3dc;
+    flex:0 0 auto;
+}
+
+.ccsb-value {
+    flex:1;
+    overflow-wrap:anywhere;
+}
+
+.ccsb-buttons {
+    display:flex;
+    flex-wrap:wrap;
+    gap:5px;
+    margin:8px 0;
+}
+
+.ccsb-section {
+    margin-top:7px;
+    padding-top:6px;
+    border-top:1px dashed rgba(255,158,210,.45);
+}
+
+.ccsb-stats-grid {
+    display:grid;
+    grid-template-columns:1fr auto;
+    gap:2px 8px;
+}
+
+#ccsb-settings {
+    display:none;
+    margin-top:7px;
+}
+
+#ccsb-settings.open {
+    display:block;
+}
+
+.ccsb-setting {
+    display:grid;
+    grid-template-columns:1fr 84px;
+    align-items:center;
+    gap:8px;
+    margin:3px 0;
+}
+
+.ccsb-setting input[type=number] {
+    width:84px;
+    background:#2a1a3c;
+    color:#ffeaf6;
+    border:1px solid #ff9ed2;
+    border-radius:8px;
+    padding:2px 5px;
+}
+
+#ccsb-settings input[type=checkbox] {
+    accent-color:#ff8fcf;
+}
+
+#ccsb-auto-settings {
+    display:none;
+    margin-top:8px;
+    padding-top:6px;
+    border-top:1px dashed rgba(255,158,210,.45);
+}
+
+#ccsb-auto-settings.open {
+    display:block;
+}
+
+.ccsb-auto-title {
+    color:#ffb3dc;
+    margin-bottom:4px;
+}
+
+#ccsb-save-settings.dirty {
+    background:rgba(255,143,207,.6);
+    border-color:#fff;
+}
+
+#ccsb-save-status {
+    align-self:center;
+    color:#c9a6e6;
+}
+
+#ccsb-action-dock {
+    display:flex;
+    gap:5px;
+    margin-top:8px;
+}
+
+.ccsb-action-chip {
+    flex:1;
+    text-align:center;
+    border:1px solid rgba(150,215,255,.9);
+    border-radius:999px;
+    color:#e4f5ff;
+    padding:3px 4px;
+    background:rgba(150,215,255,.10);
+}
+
+#ccsb-graphs,
+#ccsb-logs,
+#ccsb-debug {
+    display:none;
+    position:fixed;
+    z-index:2147483647;
+    left:50%;
+    top:50%;
+    transform:translate(-50%,-50%);
+    width:min(900px,calc(100vw - 50px));
+    max-height:calc(100vh - 50px);
+    overflow:auto;
+    background:linear-gradient(160deg, rgba(46,25,64,.98), rgba(28,18,50,.98));
+    border:2px solid #ff9ed2;
+    border-radius:18px;
+    box-shadow:0 12px 50px rgba(255,120,190,.35);
+    padding:12px;
+}
+
+#ccsb-debug {
+    width:min(560px,calc(100vw - 50px));
+}
+
+.ccsb-debug-note {
+    color:#c9a6e6;
+    font-size:10.5px;
+    margin-bottom:8px;
+}
+
+.ccsb-debug-grid {
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:6px;
+}
+
+.ccsb-debug-grid .ccsb-btn {
+    text-align:left;
+    padding:5px 10px;
+}
+
+#ccsb-debug-status {
+    margin-top:10px;
+    padding:6px 10px;
+    border:1px dashed rgba(255,158,210,.45);
+    border-radius:10px;
+    min-height:1.6em;
+}
+
+#ccsb-debug-status.err {
+    color:#ff9aa8;
+}
+
+.ccsb-modal-head {
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-bottom:8px;
+}
+
+.ccsb-modal-head strong {
+    flex:1;
+    color:#fff;
+    text-shadow:0 1px 8px rgba(255,105,180,.7);
+}
+
+.ccsb-chart {
+    width:100%;
+    height:300px;
+    display:block;
+    background:#241534;
+    border:1px solid #6b4a86;
+    border-radius:12px;
+    margin:6px 0 14px;
+}
+
+#ccsb-log-filter {
+    width:300px;
+    max-width:55vw;
+    background:#2a1a3c;
+    color:#ffeaf6;
+    border:1px solid #ff9ed2;
+    border-radius:999px;
+    padding:4px 10px;
+}
+
+#ccsb-log-table {
+    width:100%;
+    border-collapse:collapse;
+    font-size:10.5px;
+}
+
+#ccsb-log-table th,
+#ccsb-log-table td {
+    border-bottom:1px solid #4a2f63;
+    text-align:left;
+    padding:3px 5px;
+    vertical-align:top;
+}
+
+#ccsb-log-table th {
+    position:sticky;
+    top:0;
+    background:#3a2352;
+    color:#ffb3dc;
+}
+
+#ccsb-overlay {
+    position:fixed;
+    inset:0;
+    z-index:2147483644;
+    pointer-events:none;
+    width:100vw;
+    height:100vh;
+}
+`;
+
+/** Injects the <style> element for the HUD, panels and overlay (pastel theme). */
+export function injectStyles(): void {
+  const style = document.createElement('style');
+  style.id = 'ccsb-style';
+  style.textContent = CSS;
+  document.head.appendChild(style);
+}

@@ -40,6 +40,12 @@ export interface IGameAdapter {
   isPromptOpen(): boolean;
   getMilkProgress(): number | null;
   getAchievementsOwned(): number;
+
+  // ---- debug-tools-only raw operations (see ui/debug/debug-tools.ts) ----
+  spawnGoldenShimmer(opts: { wrath?: boolean }): Record<string, unknown>;
+  resetLumpRefillCooldown(): 'ready' | 'overridden';
+  earnCookies(n: number): void;
+  gainLumps(n: number): void;
 }
 
 export class GameAdapter implements IGameAdapter {
@@ -275,5 +281,76 @@ export class GameAdapter implements IGameAdapter {
   getAchievementsOwned(): number {
     const Game = window.Game;
     return Game ? Number(Game.AchievementsOwned) || 0 : 0;
+  }
+
+  spawnGoldenShimmer(opts: { wrath?: boolean }): Record<string, unknown> {
+    const Game = window.Game;
+
+    if (!Game || typeof Game.shimmer !== 'function') {
+      throw new Error('Game.shimmer is not available');
+    }
+
+    return new Game.shimmer('golden', opts.wrath ? { wrath: true } : { noWrath: true });
+  }
+
+  /** The sugar lump refill has a 15 minute cooldown in the game. Resets Game.lumpRefill if it
+   * is a number; if the game still says no, overrides Game.canRefillLump until the page
+   * reloads. */
+  resetLumpRefillCooldown(): 'ready' | 'overridden' {
+    const Game = window.Game;
+
+    if (!Game || typeof Game.canRefillLump !== 'function') {
+      throw new Error('Game.canRefillLump is not available');
+    }
+
+    if (typeof Game.lumpRefill === 'number') {
+      Game.lumpRefill = 0;
+    }
+
+    if (Game.canRefillLump()) {
+      return 'ready';
+    }
+
+    Game.canRefillLump = () => true;
+    return 'overridden';
+  }
+
+  /** Gives cookies with the game's own Earn() so they also count as earned; that is what makes
+   * higher buildings (e.g. Wizard tower) show up in the store, not just the bank balance. */
+  earnCookies(n: number): void {
+    const Game = window.Game;
+
+    if (!Game) {
+      throw new Error('Game not available');
+    }
+
+    if (typeof Game.Earn === 'function') {
+      Game.Earn(n);
+    } else {
+      Game.cookies = (Number(Game.cookies) || 0) + n;
+      Game.cookiesEarned = (Number(Game.cookiesEarned) || 0) + n;
+    }
+  }
+
+  /** Gives n sugar lumps (Game.gainLumps if present, else added directly; unlocks lumps if
+   * locked). */
+  gainLumps(n: number): void {
+    const Game = window.Game;
+
+    if (!Game) {
+      throw new Error('Game not available');
+    }
+
+    if (typeof Game.gainLumps === 'function') {
+      Game.gainLumps(n);
+    } else {
+      if (Game.lumpsTotal === -1) {
+        Game.lumpsTotal = 0;
+        Game.lumps = 0;
+      }
+
+      Game.lumps = (Number(Game.lumps) || 0) + n;
+      Game.lumpsTotal = (Number(Game.lumpsTotal) || 0) + n;
+    }
   }
 }

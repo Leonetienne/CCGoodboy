@@ -193,4 +193,20 @@ export class FakeGameAdapter implements IGameAdapter {
   getAchievementsOwned(): number {
     return this.achievementsOwned;
   }
+
+  spawnGoldenShimmer(_opts: { wrath?: boolean }): Record<string, unknown> {
+    throw new Error('Game.shimmer is not available');
+  }
+
+  resetLumpRefillCooldown(): 'ready' | 'overridden' {
+    return 'ready';
+  }
+
+  earnCookies(n: number): void {
+    this.cookies += n;
+  }
+
+  gainLumps(n: number): void {
+    this.lumps += n;
+  }
 }

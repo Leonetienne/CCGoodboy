@@ -24,6 +24,13 @@ export class BackgroundClock {
     return this.failed;
   }
 
+  /** Terminates the underlying worker, if one was created. Used on teardown. */
+  terminateWorker(): void {
+    if (this.worker) {
+      this.worker.terminate();
+    }
+  }
+
   /** Creates the timer worker and runs a self-test (a 20ms timeout must come back within 2s). */
   init(): void {
     if (this.worker || this.failed) return;

@@ -1,0 +1,214 @@
+import { VERSION } from '../core/constants';
+import type { PersistedData } from '../core/persisted-data';
+import type { RuntimeState } from '../core/runtime-state';
+import type { AutoPlayEngine } from '../autoplay/shopping';
+import type { IncomeTracker } from '../autoplay/income-tracker';
+import type { IGameAdapter } from '../game/game-adapter';
+import type { GoldenCookieModel } from '../game/golden-cookie-model';
+import type { HurryMode } from '../game/hurry-mode';
+import type { GoldenQueue } from '../hunting/golden-queue';
+import type { BackgroundClock } from '../input/background-clock';
+import type { ClickTiming } from '../input/human-click';
+import type { KeepAliveController } from '../input/keep-alive';
+import { resizeOverlayCanvas } from '../rendering/overlay-canvas';
+import type { LogStore } from '../stats/log';
+import { DebugPanel, DebugTools } from './debug/debug-tools';
+import { createPanelElement } from './gui-frames/panel-dom';
+import { applyPanelPosition, setupPanelDrag } from './gui-frames/panel-drag';
+import { PanelUpdater } from './gui-frames/panel-updater';
+import { SettingsPanel } from './settings/settings-panel';
+import { injectStyles } from './styles';
+import { GraphsPanel } from './stats-window/graphs-panel';
+import { LogsPanel } from './stats-window/logs-panel';
+
+export interface UiRootDeps {
+  runtime: RuntimeState;
+  data: PersistedData;
+  game: IGameAdapter;
+  log: LogStore;
+  goldenCookieModel: GoldenCookieModel;
+  goldenQueue: GoldenQueue;
+  clickTiming: ClickTiming;
+  hurryMode: HurryMode;
+  autoPlay: AutoPlayEngine;
+  clock: BackgroundClock;
+  keepAlive: KeepAliveController;
+  incomeTracker: IncomeTracker;
+}
+
+/** Builds the whole interface once at start: overlay canvas, HUD panel, graphs/logs/debug
+ * modals, settings inputs and every event handler (minimize, pause, hammer, toggles, export,
+ * debug). Element ids all start with 'ccsb-'. */
+export class UiRoot {
+  readonly overlayCanvas: HTMLCanvasElement;
+  readonly overlayCtx: CanvasRenderingContext2D;
+  readonly panel: HTMLDivElement;
+  readonly graphsPanel: GraphsPanel;
+  readonly logsPanel: LogsPanel;
+  readonly debugTools: DebugTools;
+  readonly debugPanel: DebugPanel;
+  readonly panelUpdater: PanelUpdater;
+  readonly settingsPanel: SettingsPanel;
+
+  private readonly deps: UiRootDeps;
+
+  constructor(deps: UiRootDeps) {
+    this.deps = deps;
+    const { runtime, data, game, log, goldenCookieModel, goldenQueue, clickTiming, hurryMode, autoPlay, clock, keepAlive, incomeTracker } = deps;
+
+    injectStyles();
+
+    this.overlayCanvas = document.createElement('canvas');
+    this.overlayCanvas.id = 'ccsb-overlay';
+    document.body.appendChild(this.overlayCanvas);
+    this.overlayCtx = this.overlayCanvas.getContext('2d')!;
+
+    this.panel = createPanelElement(VERSION);
+    document.body.appendChild(this.panel);
+
+    this.graphsPanel = new GraphsPanel(data);
+    document.body.appendChild(this.graphsPanel.element);
+
+    this.logsPanel = new LogsPanel(data);
+    document.body.appendChild(this.logsPanel.element);
+
+    this.debugTools = new DebugTools(runtime, data, game, incomeTracker, log);
+    this.debugPanel = new DebugPanel(this.debugTools);
+    document.body.appendChild(this.debugPanel.element);
+
+    this.panelUpdater = new PanelUpdater(this.panel, runtime, data, game, goldenCookieModel, goldenQueue, clickTiming, hurryMode, autoPlay, clock, keepAlive);
+
+    this.settingsPanel = new SettingsPanel(this.panel, data, runtime, keepAlive, () => {
+      if (this.graphsPanel.isOpen) {
+        this.graphsPanel.draw();
+      }
+    });
+
+    this.panel.classList.toggle('minimized', !!data.ui.minimized);
+    document.getElementById('ccsb-minimize')!.textContent = data.ui.minimized ? '+' : '−';
+    document.getElementById('ccsb-settings')!.classList.toggle('open', !!data.ui.settingsOpen);
+
+    // Settings are staged: editing only marks them "unsaved". They are validated, applied and
+    // stored on Save.
+    for (const input of Array.from(this.panel.querySelectorAll<HTMLInputElement>('[data-setting]'))) {
+      const key = input.dataset.setting!;
+      input.value = String((data.config as unknown as Record<string, unknown>)[key]);
+
+      input.addEventListener('input', () => this.settingsPanel.setDirty(true));
+      input.addEventListener('keydown', (e) => {
+        if ((e as KeyboardEvent).key === 'Enter') {
+          this.settingsPanel.save();
+        }
+      });
+    }
+
+    const bindCheckbox = (id: string, checked: boolean) => {
+      const box = document.getElementById(id) as HTMLInputElement;
+      box.checked = checked;
+      box.addEventListener('change', () => this.settingsPanel.setDirty(true));
+      return box;
+    };
+
+    bindCheckbox('ccsb-visuals', !!data.config.visuals);
+    bindCheckbox('ccsb-idle-wander', data.config.idleWander !== false);
+    bindCheckbox('ccsb-buyvalue', data.config.showBuyValue !== false);
+    bindCheckbox('ccsb-keepalive', data.config.keepAlive !== false);
+    bindCheckbox('ccsb-auto-hammer', data.config.autoHammer !== false);
+
+    autoPlay.applyVisibility();
+
+    bindCheckbox('ccsb-auto-dry', data.config.autoDryRun === true);
+
+    document.getElementById('ccsb-auto-toggle')!.addEventListener('click', () => {
+      autoPlay.setAutoPlay(data.config.autoPlay !== true);
+      this.panelUpdater.update();
+    });
+
+    document.getElementById('ccsb-save-settings')!.addEventListener('click', () => this.settingsPanel.save());
+
+    document.getElementById('ccsb-minimize')!.addEventListener('click', () => {
+      data.ui.minimized = !data.ui.minimized;
+      this.panel.classList.toggle('minimized', data.ui.minimized);
+      document.getElementById('ccsb-minimize')!.textContent = data.ui.minimized ? '+' : '−';
+      applyPanelPosition(this.panel, data);
+      data.scheduleSave();
+    });
+
+    document.getElementById('ccsb-pause')!.addEventListener('click', () => {
+      runtime.running = !runtime.running;
+      log.log(runtime.running ? 'bot resumed' : 'bot paused', 'manual');
+      this.panelUpdater.update();
+    });
+
+    document.getElementById('ccsb-hammer')!.addEventListener('click', () => {
+      runtime.hammer = !runtime.hammer;
+
+      if (runtime.hammer) {
+        runtime.nextBigClickAt = Date.now();
+      } else {
+        // ponder where the paw stopped
+        runtime.idleStay = true;
+      }
+
+      log.log('hammer cookie', runtime.hammer ? 'on' : 'off');
+      this.panelUpdater.update();
+    });
+
+    document.getElementById('ccsb-toggle-settings')!.addEventListener('click', () => {
+      data.ui.settingsOpen = !data.ui.settingsOpen;
+      document.getElementById('ccsb-settings')!.classList.toggle('open', data.ui.settingsOpen);
+      data.scheduleSave();
+    });
+
+    document.getElementById('ccsb-toggle-graphs')!.addEventListener('click', () => this.graphsPanel.toggle());
+    document.getElementById('ccsb-close-graphs')!.addEventListener('click', () => this.graphsPanel.toggle());
+
+    document.getElementById('ccsb-toggle-logs')!.addEventListener('click', () => this.logsPanel.toggle());
+    document.getElementById('ccsb-close-logs')!.addEventListener('click', () => this.logsPanel.toggle());
+
+    document.getElementById('ccsb-toggle-debug')!.addEventListener('click', () => this.debugPanel.toggle());
+    document.getElementById('ccsb-close-debug')!.addEventListener('click', () => this.debugPanel.toggle());
+
+    this.debugPanel.element.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement | null;
+      const b = target && target.closest ? (target.closest('[data-debug]') as HTMLElement | null) : null;
+
+      if (b) {
+        this.debugPanel.run(Number(b.dataset.debug), log);
+      }
+    });
+
+    document.getElementById('ccsb-log-filter')!.addEventListener('input', () => this.logsPanel.render());
+    document.getElementById('ccsb-export-json')!.addEventListener('click', () => this.logsPanel.export('json'));
+    document.getElementById('ccsb-export-csv')!.addEventListener('click', () => this.logsPanel.export('csv'));
+
+    this.panelUpdater.update();
+    resizeOverlayCanvas(this.overlayCanvas, this.overlayCtx);
+
+    setupPanelDrag(this.panel, data, () => data.scheduleSave());
+    applyPanelPosition(this.panel, data);
+
+    window.addEventListener('resize', this.onResizeOverlay);
+    window.addEventListener('resize', this.onResizePanel);
+  }
+
+  private onResizeOverlay = (): void => {
+    resizeOverlayCanvas(this.overlayCanvas, this.overlayCtx);
+  };
+
+  private onResizePanel = (): void => {
+    applyPanelPosition(this.panel, this.deps.data);
+  };
+
+  /** Removes the resize listeners this UiRoot added and every DOM element it created. The rest
+   * of teardown (timers, keep-alive, the worker clock, beforeunload, mouse-sync) belongs to
+   * lifecycle/bootstrap.ts. */
+  destroy(): void {
+    window.removeEventListener('resize', this.onResizeOverlay);
+    window.removeEventListener('resize', this.onResizePanel);
+
+    for (const id of ['ccsb-panel', 'ccsb-graphs', 'ccsb-logs', 'ccsb-debug', 'ccsb-overlay', 'ccsb-style']) {
+      document.getElementById(id)?.remove();
+    }
+  }
+}

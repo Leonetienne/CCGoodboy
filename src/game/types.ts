@@ -34,6 +34,7 @@ export interface GrimoireMinigame {
   spells?: Record<string, unknown>;
   getSpellCost?: (spell: unknown) => number;
   magic?: number;
+  magicM?: number;
   spellsCastTotal?: number;
 }
 

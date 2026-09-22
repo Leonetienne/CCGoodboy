@@ -1,6 +1,6 @@
 import { AutoHammer } from './autoplay/auto-hammer';
+import { IncomeTracker } from './autoplay/income-tracker';
 import { AutoPlayEngine } from './autoplay/shopping';
-import { VERSION } from './core/constants';
 import { PersistedData } from './core/persisted-data';
 import { RuntimeState } from './core/runtime-state';
 import { BotStateMachine } from './core/state-machine';
@@ -19,20 +19,17 @@ import { BackgroundClock } from './input/background-clock';
 import { CursorController } from './input/cursor-controller';
 import { ClickTiming, hasGoodGolden } from './input/human-click';
 import { KeepAliveController } from './input/keep-alive';
+import { Bootstrap, waitForGame } from './lifecycle/bootstrap';
 import { Scheduler } from './scheduler/scheduler';
 import { LogStore } from './stats/log';
 import { StatsRecorder } from './stats/stats';
 
-// Entry point / composition root. Modules land here phase by phase as the
-// legacy/cc-bot.original.js monolith gets ported (see AGENTS.md).
-//
-// Phase 5 (current): every module from phases 1-4 is wired into one object
-// graph, including the scheduler and its priority table, so the bot is
-// functionally complete end to end. What's still missing is Phase 6: the
-// UI (panel, settings, graphs, logs, debug tools, overlay rendering) and
-// the lifecycle bootstrap (waitForGame -> start() -> the 25ms scheduler
-// loop, keep-alive init, teardown). Until that lands, the object graph
-// below is built and typechecked, but never started.
+// Entry point / composition root. See AGENTS.md for the full module map and
+// the manual test plan. This file wires every module from core/game/stats/
+// input/routing/hunting/idle/autoplay/scheduler/ui/rendering into one
+// object graph, then hands it to lifecycle/bootstrap.ts, which waits for
+// Cookie Clicker to be ready and starts the bot exactly like the original
+// monolith's waitForGame()/start() did.
 
 const data = new PersistedData();
 const runtime = new RuntimeState();
@@ -50,6 +47,8 @@ const cursorController = new CursorController(runtime, data, hurryMode, clock, i
 const clickTiming = new ClickTiming(runtime, data, hurryMode, clock, isGoodGoldenReady);
 const goldenQueue = new GoldenQueue(runtime);
 
+const incomeTracker = new IncomeTracker(runtime, game);
+
 const autoHammer = new AutoHammer(runtime, data, game, log);
 const hammerActive = () => autoHammer.hammerActive();
 
@@ -64,6 +63,7 @@ const autoPlay = new AutoPlayEngine(
   stats,
   cursorController,
   clock,
+  incomeTracker,
   isGoodGoldenReady,
   () => hurryMode.cookieStormActive(),
   () => hurryMode.cookieChainActive(),
@@ -116,7 +116,20 @@ const scheduler = new Scheduler(runtime, game, log, buffLock, goldenCookieModel,
   hammerActive,
 });
 
-void keepAlive;
-void scheduler;
+const bootstrap = new Bootstrap({
+  runtime,
+  data,
+  game,
+  log,
+  clock,
+  keepAlive,
+  scheduler,
+  goldenCookieModel,
+  goldenQueue,
+  clickTiming,
+  hurryMode,
+  autoPlay,
+  incomeTracker,
+});
 
-console.log(`CC Good Boy ${VERSION}: full object graph wired, lifecycle/UI not yet migrated.`);
+waitForGame(bootstrap);

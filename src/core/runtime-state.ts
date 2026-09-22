@@ -1,5 +1,6 @@
 import type { AutoPlan } from '../autoplay/shopping';
 import type { Decision } from '../autoplay/strategy';
+import type { IntervalHandle } from '../input/background-clock';
 
 export interface CursorPoint {
   x: number;
@@ -90,13 +91,13 @@ export class RuntimeState {
   // ---- paw animation ----
   cursorTilt = 0;
   lean = 0;
-  leanState: unknown = null;
+  leanState: { x: number; t: number } | null = null;
   pulseAt = 0;
   cursor: CursorPoint;
 
   // ---- timers / lifecycle ----
   panelTimer = 0;
-  schedulerTimer = 0;
+  schedulerTimer: IntervalHandle | 0 = 0;
   keepAlive: KeepAliveState = { ctx: null, state: 'off', listening: false };
   drawRaf = 0;
   graphTimer = 0;
