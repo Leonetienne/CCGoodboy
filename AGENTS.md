@@ -241,16 +241,14 @@ See [§7 State machine](#7-state-machine) for how this maps onto code.
 - **DBG-2** Grant 1 quadrillion cookies (`Game.Earn`, so it counts as
   earned).
 - **DBG-3** Fill Up Mana (mana = max).
-- **DBG-4** Reset FTHOF cooldown = mana raised to exactly the FTHOF cost
-  (the game has no real FTHOF cooldown, only the mana cost).
-- **DBG-5** Reset Filling Up Mana cooldown = reset the game's 15-minute
+- **DBG-4** Reset Filling Up Mana cooldown = reset the game's 15-minute
   lump-refill timer (falls back to overriding `Game.canRefillLump` until
   reload).
-- **DBG-6** Clear LOCK_A (the bot's own refill lock).
-- **DBG-7** Give 10 sugar lumps.
-- **DBG-8** Each use shows a status line (errors in red) and is logged
+- **DBG-5** Clear LOCK_A (the bot's own refill lock).
+- **DBG-6** Give 10 sugar lumps.
+- **DBG-7** Each use shows a status line (errors in red) and is logged
   (`"debug tool"`).
-- **DBG-9** "Auto play: explain store (log)": lists every store upgrade
+- **DBG-8** "Auto play: explain store (log)": lists every store upgrade
   with how the auto player classifies it (type, cost, CpS gain, payback)
   or why it is ignored, in the log (`"auto explain"`), the console and a
   summary line.
@@ -705,6 +703,14 @@ runs and confirm the "+N" number follows your cursor, not the paw's).
 
 ## 12. Changelog
 
+- **4.1.2** Fixed: golden cookies were ignored because `CursorManager`
+  called action `target` getters without their `this` binding, so
+  `GoldenCookieAction.target()` threw (and was swallowed), cancelling the
+  job right after the reaction delay. Getter targets are now invoked with
+  the action as `this`; regression test added.
+- **4.1.1** Removed the debug tool "Reset FTHOF cooldown" — it was just
+  a weaker duplicate of "Fill Up Mana" (the game has no real FTHOF
+  cooldown, only the mana cost).
 - **4.1.0** Cursor architecture refactor: modules now produce **actions**
   and enqueue them as **jobs** into a new `CursorManager`
   (`src/cursor/`) that owns the priority queue and ALL cursor motion

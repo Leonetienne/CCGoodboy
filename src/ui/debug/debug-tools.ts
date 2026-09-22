@@ -46,7 +46,6 @@ export class DebugTools {
       },
       { label: 'Grant 1 quadrillion cookies', run: () => this.grantCookies(1e15, '1 quadrillion cookies') },
       { label: 'Fill Up Mana', run: () => this.fillMana() },
-      { label: 'Reset FTHOF cooldown', run: () => this.resetFthofCooldown() },
       { label: 'Reset Filling Up Mana cooldown', run: () => this.resetRefillCooldown() },
       { label: 'Clear LOCK_A (bot refill lock)', run: () => this.clearLockA() },
       { label: 'Give 10 Sugar Lumps', run: () => this.giveLumps(10) },
@@ -84,24 +83,6 @@ export class DebugTools {
     M.magic = max;
 
     return `mana filled (${formatNum(max)})`;
-  }
-
-  private resetFthofCooldown(): string {
-    const M = this.game.getGrimoire();
-
-    if (!M) {
-      throw new Error('Grimoire not available (own a Wizard tower with its minigame first)');
-    }
-
-    const cost = getFthofCostOrThrow(M);
-
-    if (Number(M.magic) >= cost) {
-      return `FTHOF is already castable (mana ${formatNum(M.magic)} / ${formatNum(M.magicM)}, cost ${formatNum(cost)})`;
-    }
-
-    M.magic = cost;
-
-    return `FTHOF castable now (mana set to its cost: ${formatNum(cost)} / ${formatNum(M.magicM)})`;
   }
 
   private resetRefillCooldown(): string {
@@ -168,22 +149,6 @@ export class DebugTools {
       decision.buy ? 'buy ' + decision.buy.name : decision.save ? 'save for ' + decision.save.name : decision.note || 'nothing'
     }. Details in the log (action "auto explain").`;
   }
-}
-
-function getFthofCostOrThrow(M: { spells?: Record<string, unknown>; getSpellCost?: (spell: unknown) => number }): number {
-  const spell = M.spells ? M.spells['hand of fate'] : null;
-
-  if (!spell || typeof M.getSpellCost !== 'function') {
-    throw new Error('could not read the FTHOF cost');
-  }
-
-  const cost = M.getSpellCost(spell);
-
-  if (!Number.isFinite(cost)) {
-    throw new Error('could not read the FTHOF cost');
-  }
-
-  return cost;
 }
 
 function debugPanelBodyHtml(tools: DebugTool[]): string {

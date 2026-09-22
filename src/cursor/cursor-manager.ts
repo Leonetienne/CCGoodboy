@@ -275,7 +275,7 @@ export class CursorManager {
       }
 
       const hasTarget = action.target != null;
-      const pos = this.resolveTarget(action.target);
+      const pos = this.resolveTarget(action.target, action);
 
       if (hasTarget && !pos) {
         job.state = 'cancelled';
@@ -303,7 +303,7 @@ export class CursorManager {
       }
 
       if (action.reacquire && pos) {
-        const pos2 = this.resolveTarget(action.target);
+        const pos2 = this.resolveTarget(action.target, action);
 
         if (pos2 && Math.hypot(pos2.x - pos.x, pos2.y - pos.y) > 0.5) {
           const ok = await this.mover.moveCursorTo(pos2.x, pos2.y, action.abortOnGolden !== false, travelOpts);
@@ -377,12 +377,14 @@ export class CursorManager {
     };
   }
 
-  private resolveTarget(target: CursorAction['target']): CursorPoint | null {
+  private resolveTarget(target: CursorAction['target'], action: CursorAction): CursorPoint | null {
     if (target == null) return null;
 
     if (typeof target === 'function') {
       try {
-        return target();
+        // Bind the action as `this` so class-method targets (e.g. GoldenCookieAction.target)
+        // can read their own fields instead of throwing and silently cancelling the job.
+        return target.call(action);
       } catch {
         return null;
       }

@@ -264,6 +264,28 @@ describe('CursorManager execution pipeline', () => {
     expect(runtime.cursor).toEqual({ x: 466, y: 233 });
   });
 
+  it('calls getter targets with the action as `this` (regression: golden cookies)', async () => {
+    const { manager, mover } = makeHarness();
+    const seen: string[] = [];
+
+    const action: CursorAction = {
+      label: 'uses-this-target',
+      target: function () {
+        seen.push('target');
+        return { x: this.label.length * 10, y: 0 };
+      },
+      waitClickGap: false,
+      preClickPause: false,
+      cursor_at_position: () => {},
+    };
+
+    manager.enqueue(action, { priority: 1 });
+    await manager.waitUntilIdle();
+
+    expect(seen).toEqual(['target']);
+    expect(mover.calls[0]).toMatchObject({ x: 160, y: 0 });
+  });
+
   it('passes abortOnGolden=false through to travel and pauses', async () => {
     const { manager, mover, timing } = makeHarness();
 
