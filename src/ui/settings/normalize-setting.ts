@@ -34,7 +34,7 @@ export function normalizeSetting(key: string, raw: string): number {
       return Number.isFinite(value) && raw !== '' ? clamp(value, 2, 120) : 10;
 
     case 'autoInsignificantSec':
-      return Number.isFinite(value) && raw !== '' ? clamp(value, 0, 3600) : 1;
+      return Number.isFinite(value) && raw !== '' ? clamp(value, 0, 3600) : 60;
 
     case 'autoGoodFactor':
       return Number.isFinite(value) && raw !== '' ? clamp(value, 1, 10) : 1.2;
@@ -44,9 +44,6 @@ export function normalizeSetting(key: string, raw: string): number {
 
     case 'autoReachSec':
       return Number.isFinite(value) && raw !== '' ? clamp(value, 0, 86400) : 1800;
-
-    case 'autoMaxPaybackSec':
-      return Number.isFinite(value) && raw !== '' ? clamp(value, 60, 10000000) : 86400;
 
     case 'autoReserveSec':
       return Number.isFinite(value) && raw !== '' ? clamp(value, 0, 1000000) : 0;

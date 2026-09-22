@@ -12,7 +12,6 @@ export interface AutoConfig {
   goodFactor: number;
   biggerImpact: number;
   reachSec: number;
-  maxPaybackSec: number;
 }
 
 export interface AutoCollectCtx {
@@ -76,11 +75,10 @@ export function autoCollect(game: IGameAdapter, data: PersistedData, runtime: Ru
   }
 
   const cfg: AutoConfig = {
-    insignificantSec: Math.max(0, num(data.config.autoInsignificantSec, 1)),
+    insignificantSec: Math.max(0, num(data.config.autoInsignificantSec, 60)),
     goodFactor: Math.max(1, num(data.config.autoGoodFactor, 1.2)),
     biggerImpact: Math.max(1, num(data.config.autoBiggerImpact, 3)),
     reachSec: Math.max(0, num(data.config.autoReachSec, 1800)),
-    maxPaybackSec: Math.max(1, num(data.config.autoMaxPaybackSec, 86400)),
   };
 
   const ctx: AutoCollectCtx = {

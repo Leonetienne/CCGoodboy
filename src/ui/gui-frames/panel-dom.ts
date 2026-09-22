@@ -140,7 +140,7 @@ function panelBodyHtml(version: string): string {
         <div id="ccsb-auto-settings">
             <div class="ccsb-auto-title">Auto play settings :3</div>
             <div class="ccsb-setting">
-                <span>Auto: insignificant cost (s of income)</span>
+                <span>Auto: insignificant cost (s of CpS)</span>
                 <input data-setting="autoInsignificantSec" type="number" min="0" max="3600" step="0.5">
             </div>
             <div class="ccsb-setting">
@@ -154,10 +154,6 @@ function panelBodyHtml(version: string): string {
             <div class="ccsb-setting">
                 <span>Auto: in reach within (s)</span>
                 <input data-setting="autoReachSec" type="number" min="0" max="86400" step="60">
-            </div>
-            <div class="ccsb-setting">
-                <span>Auto: max payback (s)</span>
-                <input data-setting="autoMaxPaybackSec" type="number" min="60" max="10000000" step="600">
             </div>
             <div class="ccsb-setting">
                 <span>Auto: bank reserve (s of CpS)</span>

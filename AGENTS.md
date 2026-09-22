@@ -331,21 +331,35 @@ See [§7 State machine](#7-state-machine) for how this maps onto code.
   / `dCps` ("rentability"); impact = `dCps` / CpS; wait = time to afford it
   at the income (CpS without buffs + smoothed clicking income) after the
   reserve.
-- **AUTO-4** Strategy: (A) insignificant cost (<= 1s of income, or <=
-  0.1% of the bank) -> buy at once. (B) good deal (payback incl. waiting
-  <= 1.2× the best in reach) -> buy, UNLESS an option that is not
-  affordable yet, in reach and good has >= 3× the impact and this one
-  costs more than 10% of it: then save up. (C) preferred candidates —
-  golden cookie upgrades and Wizard towers below `autoWizardTowerTarget` —
-  are bought while affordable even when they are not a good deal; Wizard
-  towers ignore `autoMaxPaybackSec` (they are mana, not CpS) but are only
-  considered when they are in reach (`wait <= autoReachSec`), so the bot
-  never saves for them for years. Preferred candidates sort before
-  ordinary ones (Wizard towers first), are exempt from postponement, and
-  are preferred as the save target. Otherwise nothing is bought and the
-  target is shown.
-- **AUTO-5** "In reach" = affordable within 1800s at the income and
-  payback <= 24h (both are settings).
+- **AUTO-4** Strategy: there is no absolute payback ceiling. Every
+  candidate reaching `autoDecide()` already passed AUTO-2/AUTO-3's
+  classification (never the research center, always a positive `dCps`),
+  so a slow payback still beats 0% return from letting cookies sit idle —
+  payback only ever decides ORDER and what is worth deliberately saving
+  for, never whether an affordable purchase gets refused outright.
+  (A) insignificant cost (<= `autoInsignificantSec` x CpS, default 60s —
+  "worthless junk") -> buy at once, always, exempt from postponement.
+  (B) preferred candidates — golden cookie upgrades and Wizard towers
+  below `autoWizardTowerTarget` — are bought while affordable regardless
+  of payback, also exempt from postponement, and sort before ordinary
+  ones (Wizard towers first). (C) every other affordable candidate is
+  bought too, UNLESS an option that is not affordable yet, in reach and a
+  good deal (payback incl. waiting <= 1.2× the best in reach) or preferred
+  has >= 3× the impact and this one costs more than 10% of it: then it is
+  postponed in favor of saving up for the big one (else a stream of small
+  purchases keeps the bank too low to ever afford it). Among everything
+  bought this tick the best payback goes first within a preference tier;
+  with one purchase per task (AUTO-7), later ticks work down the same
+  ranking, so the store empties out highest score first whenever nothing
+  is being saved for. Otherwise nothing is bought and the target is shown
+  (preferred first, then lowest pp — this report is deliberately broader
+  than the postponement check: it names whatever is next even when
+  nothing is currently a strict "good deal").
+- **AUTO-5** "In reach" = affordable within 1800s (`autoReachSec`) at the
+  income — purely a time-window check, not a profitability one: a
+  candidate outside it is just too far off to reason about yet, not "too
+  slow a payback" (AUTO-4, there is no such gate). See `autoDecide()` in
+  `src/autoplay/strategy.ts`.
 - **AUTO-6** Optional bank reserve: keep N seconds of CpS in the bank
   (default 0), e.g. for Lucky/chain payouts.
 - **AUTO-7** Safety: never while ascending, a prompt is open, the store is
@@ -488,11 +502,10 @@ saved (see `normalizeSetting()` in
 | `keepAlive` | Background keep-alive (silent audio) [checkbox] | true | – |
 | `autoPlay` | (Auto play button, stored) | false | – |
 | `autoDryRun` | Auto play dry run (log only) [checkbox] | false | – |
-| `autoInsignificantSec` | Auto: insignificant cost (s of income) | 1 | 0-3600 |
+| `autoInsignificantSec` | Auto: insignificant cost (s of CpS) | 60 | 0-3600 |
 | `autoGoodFactor` | Auto: good deal (× best payback) | 1.2 | 1-10 |
 | `autoBiggerImpact` | Auto: much bigger impact (×) | 3 | 1-100 |
 | `autoReachSec` | Auto: in reach within (s) | 1800 | 0-86400 |
-| `autoMaxPaybackSec` | Auto: max payback (s) | 86400 | 60-10000000 |
 | `autoReserveSec` | Auto: bank reserve (s of CpS) | 0 | 0-1000000 |
 | `autoWizardTowerTarget` | Auto: wizard tower target | 57 | 0-500 |
 | `autoHammer` | Auto: manage hammering [checkbox] | true | – |
@@ -758,6 +771,67 @@ not the paw's).
 
 ## 12. Changelog
 
+- **4.6.0** Reworked the auto play purchase strategy: 4.5.7 and 4.5.8
+  each patched the payback-cap relief further to cover cases where auto
+  play sat on an enormous, flush bank and still refused its own
+  best-ranked, affordable purchase — and it kept recurring one tier up
+  (a golden upgrade, then a grandma upgrade, then a plain biscuit
+  upgrade) because the underlying model was wrong, not just mistuned.
+  `autoDecide()` (`src/autoplay/strategy.ts`) no longer has an absolute
+  payback ceiling at all: `autoMaxPaybackSec` is removed as a concept and
+  as a setting (config key, UI row, defaults, clamp). Every candidate
+  reaching the function already passed AUTO-2/AUTO-3's classification —
+  never the research center, always a real, positive `dCps` — so a slow
+  payback is simply not a reason to refuse an otherwise-affordable
+  purchase; it only affects ordering (best payback first) and what counts
+  as worth deliberately saving for. "In reach" (AUTO-5) is now purely a
+  time-window check (`wait <= autoReachSec`), not a profitability one.
+  The one thing kept from the old model is the postponement guard: a
+  much-bigger, much-more-impactful not-yet-affordable option can still
+  hold back an ordinary small purchase so the bank doesn't get chipped
+  away from ever affording it — insignificant and preferred purchases
+  remain exempt. `autoInsignificantSec`'s formula is also simplified: it
+  used to be `max(insignificantSec x income, 0.1% of bank)`; it is now
+  just `insignificantSec x CpS` (default raised from 1s to 60s of CpS —
+  "worthless junk"), and `AUTO_BANK_FRACTION` is removed as unused.
+  Net effect: whenever nothing is being saved for, auto play now buys
+  every affordable, viable option highest-score-to-lowest each tick,
+  same as the "how good is a buy" overlay already ranks them (BUY-2),
+  instead of getting stuck reporting "nothing in reach" while sitting on
+  an idle fortune. Unit tests in `tests/unit/strategy.test.ts` rewritten
+  for the new model (15 tests, was 18 patched-model tests).
+- **4.5.8** Fixed a gap in 4.5.7's fix: the fixed 20× ceiling on the
+  payback-cap relief (`AUTO_PAYBACK_SURPLUS_CAP_MULT`) still undershot for
+  an expensive late-game purchase — e.g. a grandma cofactor upgrade
+  costing ~10% of a huge, flush bank — whose absolute payback is long
+  purely because it costs a big slice of an even bigger bank, not because
+  it's a bad deal (it was still the single best-ranked option on offer).
+  `autoDecide()` (`src/autoplay/strategy.ts`) no longer bounds the relief
+  to a fixed multiple of `autoMaxPaybackSec`; on a flush bank it instead
+  stretches the cap to at least cover the single best payback currently on
+  offer (x `autoGoodFactor`), computed fresh from that tick's candidates.
+  This still refuses a clearly worse deal sitting next to a much better
+  one (the cap tracks the best offer, not an arbitrary ceiling), and a
+  bank that isn't flush is unaffected either way. Removed the now-unused
+  `AUTO_PAYBACK_SURPLUS_CAP_MULT` constant. New unit tests in
+  `tests/unit/strategy.test.ts` cover the expensive-but-best-available
+  case and the still-refused clearly-worse-deal case.
+- **4.5.7** Fixed: auto play could report "nothing in reach" forever once
+  every remaining purchase's payback exceeded `autoMaxPaybackSec` (24h
+  default), even while sitting on a bank far larger than any income-based
+  savings plan would need — e.g. a bank fattened mostly by golden-cookie/
+  FTHOF windfalls rather than steady CpS, which this bot is specifically
+  good at producing. `autoDecide()` (`src/autoplay/strategy.ts`) now
+  computes a `paybackCap` that stretches past `autoMaxPaybackSec`, up to
+  `AUTO_PAYBACK_SURPLUS_CAP_MULT` (20×, `src/autoplay/valuation-tables.ts`)
+  x that, when the available bank holds more idle cash than the current
+  income could have produced within `autoMaxPaybackSec` itself — that
+  surplus isn't savings for anything specific, so a payback a few days
+  out still beats 0% return from hoarding. A bank only modestly ahead of
+  income is unaffected (the cap only ever stretches, never shrinks below
+  `autoMaxPaybackSec`), and the 20× ceiling still refuses truly bad deals
+  regardless of bank size. New unit tests in `tests/unit/strategy.test.ts`
+  cover both the relief and its ceiling.
 - **4.5.6** Fixed the real bug behind 4.5.2-4.5.5: `autoDecide()` itself
   (`src/autoplay/strategy.ts`) only ever populated `save` when `buy` was
   `null` for that call, so the overlay's `decision.buy ||

@@ -24,7 +24,6 @@ export interface Config {
   autoGoodFactor: number;
   autoBiggerImpact: number;
   autoReachSec: number;
-  autoMaxPaybackSec: number;
   autoReserveSec: number;
   autoWizardTowerTarget: number;
   autoHammer: boolean;
@@ -94,11 +93,10 @@ export const DEFAULTS: PersistedState = {
     keepAlive: true,
     autoPlay: false,
     autoDryRun: false,
-    autoInsignificantSec: 1,
+    autoInsignificantSec: 60,
     autoGoodFactor: 1.2,
     autoBiggerImpact: 3,
     autoReachSec: 1800,
-    autoMaxPaybackSec: 86400,
     autoReserveSec: 0,
     autoWizardTowerTarget: 57,
     autoHammer: true,

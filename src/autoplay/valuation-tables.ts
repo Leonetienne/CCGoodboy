@@ -65,10 +65,6 @@ export const AUTO_BUILDING_CAPS: Record<string, number> = { 'Wizard tower': 57 }
 export const AUTO_PREF_GOLDEN = 1;
 export const AUTO_PREF_WIZARD = 2;
 
-/** A purchase is also "insignificant" when it costs at most this fraction of the available
- * bank (0.1%): with a huge bank the price no longer matters, so anything useful gets bought. */
-export const AUTO_BANK_FRACTION = 0.001;
-
 /** The "fingers" series of cursor upgrades: [name, value, kind]. 'Thousand fingers' ADDS 0.1
  * cookies per non-cursor building to the mouse and every cursor; each further one MULTIPLIES
  * that bonus. */
