@@ -22,6 +22,7 @@ export interface IGameAdapter {
   getLumps(): number;
   getAskLumpsPref(): number;
   setAskLumpsPref(value: number): void;
+  isLumpRipe(): boolean;
 
   // ---- auto play raw accessors (business logic lives in autoplay/, not here) ----
   getBuildings(): GameBuilding[];
@@ -47,6 +48,7 @@ export interface IGameAdapter {
   resetLumpRefillCooldown(): 'ready' | 'overridden';
   earnCookies(n: number): void;
   gainLumps(n: number): void;
+  ripenLump(): void;
 }
 
 export class GameAdapter implements IGameAdapter {
@@ -199,6 +201,23 @@ export class GameAdapter implements IGameAdapter {
     if (Game && Game.prefs) {
       Game.prefs.askLumps = value;
     }
+  }
+
+  /** True while the growing sugar lump is truly ripe: age (since Game.lumpT) is between
+   * lumpRipeAge and lumpOverripeAge. Below that it is still growing/only "mature" (clicking
+   * gambles a 50% botched harvest); at/above lumpOverripeAge the game auto-harvests it on its
+   * own next tick, so there is nothing left to click. */
+  isLumpRipe(): boolean {
+    const Game = window.Game;
+    if (!Game || typeof Game.canLumps !== 'function' || !Game.canLumps()) return false;
+
+    const lumpT = Number(Game.lumpT);
+    const ripeAge = Number(Game.lumpRipeAge);
+    const overripeAge = Number(Game.lumpOverripeAge);
+    if (!Number.isFinite(lumpT) || !Number.isFinite(ripeAge) || !Number.isFinite(overripeAge)) return false;
+
+    const age = Date.now() - lumpT;
+    return age >= ripeAge && age < overripeAge;
   }
 
   getBuildings(): GameBuilding[] {
@@ -370,5 +389,34 @@ export class GameAdapter implements IGameAdapter {
       Game.lumps = (Number(Game.lumps) || 0) + n;
       Game.lumpsTotal = (Number(Game.lumpsTotal) || 0) + n;
     }
+  }
+
+  /** Debug-only: rewinds Game.lumpT so the growing sugar lump is put into its ripe window
+   * (just past lumpRipeAge), for testing the harvest module without waiting ~23 real hours. */
+  ripenLump(): void {
+    const Game = window.Game;
+
+    if (!Game) {
+      throw new Error('Game not available');
+    }
+
+    if (typeof Game.canLumps === 'function' && !Game.canLumps()) {
+      throw new Error('sugar lumps not unlocked yet (bake a billion cookies first)');
+    }
+
+    if (typeof Game.lumpT !== 'number') {
+      throw new Error('no sugar lump is growing yet');
+    }
+
+    if (typeof Game.computeLumpTimes === 'function') {
+      Game.computeLumpTimes();
+    }
+
+    const ripeAge = Number(Game.lumpRipeAge);
+    if (!Number.isFinite(ripeAge)) {
+      throw new Error('Game.lumpRipeAge is not available');
+    }
+
+    Game.lumpT = Date.now() - ripeAge - 1000;
   }
 }

@@ -37,6 +37,7 @@ export function moodText(action: string): string {
     'click-frenzy': 'click frenzy zoomies :3',
     fthof: 'casting FTHOF ^w^',
     'grimoire-refill': 'refilling the grimoire :3',
+    'lump-harvest': 'harvesting a ripe sugar lump :3',
   };
 
   return map[action] || action;

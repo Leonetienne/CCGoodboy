@@ -29,6 +29,11 @@ export class StatsRecorder {
     this.data.scheduleSave();
   }
 
+  recordLumpHarvest(): void {
+    this.data.stats.lumpHarvests += 1;
+    this.data.scheduleSave();
+  }
+
   recordAutoBuy(): void {
     this.data.stats.autoBuys += 1;
     this.data.scheduleSave();

@@ -11,10 +11,11 @@ export const JOB_PRIORITY = {
   CLICK_FRENZY: 1,
   FTHOF: 2,
   REFILL: 3,
-  AUTO_SHOP: 4,
-  HAMMER: 5,
-  HAPPY_DANCE: 6,
-  IDLE: 7,
+  LUMP_HARVEST: 4,
+  AUTO_SHOP: 5,
+  HAMMER: 6,
+  HAPPY_DANCE: 7,
+  IDLE: 8,
 } as const;
 
 /** The low-level cursor travel surface the CursorManager uses. CursorController satisfies

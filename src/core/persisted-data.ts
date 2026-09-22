@@ -38,6 +38,7 @@ export interface Stats {
   byKind: Record<string, number>;
   fthofCasts: number;
   grimoireRefills: number;
+  lumpHarvests: number;
   autoBuys: number;
 }
 
@@ -110,6 +111,7 @@ export const DEFAULTS: PersistedState = {
     byKind: {},
     fthofCasts: 0,
     grimoireRefills: 0,
+    lumpHarvests: 0,
     autoBuys: 0,
   },
   hourly: {},

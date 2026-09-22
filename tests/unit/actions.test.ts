@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { FthofAction, RefillAction } from '../../src/actions/fthof';
 import { GoldenCookieAction } from '../../src/actions/golden-cookie';
+import { LumpHarvestAction } from '../../src/actions/lump-harvest';
 import { RuntimeState } from '../../src/core/runtime-state';
 import type { GameShimmer } from '../../src/game/types';
 import { FakeGameAdapter } from './fakes/fake-game-adapter';
@@ -159,5 +160,58 @@ describe('RefillAction.abortIf', () => {
     game.lumps = 0;
 
     expect(make(game).abortIf()).toBe(true);
+  });
+});
+
+describe('LumpHarvestAction.abortIf', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    document.body.innerHTML = '';
+  });
+
+  function make(game: FakeGameAdapter, hasGoodGolden = () => false) {
+    const runtime = new RuntimeState();
+    return new LumpHarvestAction(runtime, game, null as never, null as never, hasGoodGolden);
+  }
+
+  function withLumpControl() {
+    const control = document.createElement('div');
+    control.id = 'lumps';
+    document.body.appendChild(control);
+  }
+
+  it('is false for a ripe lump with the control present, outside Click Frenzy, no good golden', () => {
+    const game = new FakeGameAdapter();
+    withLumpControl();
+    game.lumpRipe = true;
+
+    expect(make(game).abortIf()).toBe(false);
+  });
+
+  it('is true when the lump control is missing or disconnected', () => {
+    const game = new FakeGameAdapter();
+    game.lumpRipe = true;
+
+    expect(make(game).abortIf()).toBe(true);
+  });
+
+  it('is true when the lump is not ripe', () => {
+    const game = new FakeGameAdapter();
+    withLumpControl();
+    game.lumpRipe = false;
+
+    expect(make(game).abortIf()).toBe(true);
+  });
+
+  it('is true during Click Frenzy or when a good golden cookie is ready', () => {
+    const game = new FakeGameAdapter();
+    withLumpControl();
+    game.lumpRipe = true;
+    game.buffNames.add('Click frenzy');
+
+    expect(make(game).abortIf()).toBe(true);
+
+    game.buffNames.clear();
+    expect(make(game, () => true).abortIf()).toBe(true);
   });
 });

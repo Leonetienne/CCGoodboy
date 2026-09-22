@@ -6,6 +6,7 @@ import type { ClickGoldenTask } from '../../src/hunting/click-golden';
 import type { FthofActions } from '../../src/hunting/fthof';
 import type { GoldenQueueItem } from '../../src/hunting/golden-queue';
 import type { HappyDance } from '../../src/hunting/happy-dance';
+import type { LumpHarvestActions } from '../../src/hunting/lump-harvest';
 import type { IdleBehavior } from '../../src/idle/idle-behavior';
 import { JOB_PRIORITY } from '../../src/cursor/types';
 import { selectJobRequest, type PriorityDeps } from '../../src/scheduler/priority';
@@ -39,6 +40,11 @@ function makeDeps(overrides: Partial<PriorityDeps> = {}): PriorityDeps {
     refillJob: vi.fn().mockReturnValue({ action: { label: 'refill' }, priority: JOB_PRIORITY.REFILL, key: 'refill' }),
   } as unknown as FthofActions;
 
+  const lumpHarvest = {
+    pending: () => false,
+    harvestJob: vi.fn().mockReturnValue({ action: { label: 'lump-harvest' }, priority: JOB_PRIORITY.LUMP_HARVEST, key: 'lump-harvest' }),
+  } as unknown as LumpHarvestActions;
+
   const autoPlay = {
     shopReady: () => false,
     shopJob: vi.fn().mockReturnValue({ action: { label: 'auto-shop' }, priority: JOB_PRIORITY.AUTO_SHOP, key: 'auto-shop:x' }),
@@ -61,6 +67,7 @@ function makeDeps(overrides: Partial<PriorityDeps> = {}): PriorityDeps {
     clickGolden,
     clickBigCookie,
     fthof,
+    lumpHarvest,
     autoPlay,
     happyDance,
     idleBehavior,
@@ -121,6 +128,19 @@ describe('selectJobRequest', () => {
 
     const job = selectJobRequest(makeDeps({ game, buffs: game.positiveCpsBuffs() }));
     expect(job?.key).toBe('refill');
+  });
+
+  it('picks a ripe sugar lump below FTHOF/refill and above auto-shop', () => {
+    const lumpHarvest = {
+      pending: () => true,
+      harvestJob: vi.fn().mockReturnValue({ action: { label: 'lump-harvest' }, priority: JOB_PRIORITY.LUMP_HARVEST, key: 'lump-harvest' }),
+    } as unknown as LumpHarvestActions;
+
+    const autoPlay = { shopReady: () => true, shopJob: vi.fn() } as unknown as AutoPlayEngine;
+
+    const job = selectJobRequest(makeDeps({ lumpHarvest, autoPlay }));
+    expect(job?.key).toBe('lump-harvest');
+    expect(job?.priority).toBe(JOB_PRIORITY.LUMP_HARVEST);
   });
 
   it('falls back to auto-shop when nothing else is due', () => {

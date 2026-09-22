@@ -13,6 +13,7 @@ import { ClickGoldenTask } from './hunting/click-golden';
 import { FthofActions } from './hunting/fthof';
 import { GoldenQueue } from './hunting/golden-queue';
 import { danceEligible, HappyDance } from './hunting/happy-dance';
+import { LumpHarvestActions } from './hunting/lump-harvest';
 import { IdleBehavior } from './idle/idle-behavior';
 import { PendingWork } from './idle/pending-work';
 import { BackgroundClock } from './input/background-clock';
@@ -58,6 +59,9 @@ const hammerActive = () => autoHammer.hammerActive();
 const fthof = new FthofActions(runtime, game, stats, log, isGoodGoldenReady);
 const fthofOrRefillPending = () => fthof.fthofOrRefillPending();
 
+const lumpHarvest = new LumpHarvestActions(runtime, game, stats, log, isGoodGoldenReady);
+const lumpHarvestPending = () => lumpHarvest.pending();
+
 const autoPlay = new AutoPlayEngine(
   runtime,
   data,
@@ -72,7 +76,7 @@ const autoPlay = new AutoPlayEngine(
 );
 const autoShopReady = () => autoPlay.shopReady();
 
-const pendingWork = new PendingWork(game, isGoodGoldenReady, hammerActive, fthofOrRefillPending, autoShopReady, cursorManager);
+const pendingWork = new PendingWork(game, isGoodGoldenReady, hammerActive, fthofOrRefillPending, lumpHarvestPending, autoShopReady, cursorManager);
 
 const clickGolden = new ClickGoldenTask(runtime, game, stats, log, () =>
   danceEligible(data, game, () => hurryMode.cookieChainActive(), () => pendingWork.isPending()),
@@ -106,6 +110,7 @@ const scheduler = new Scheduler(runtime, game, log, buffLock, goldenCookieModel,
   clickGolden,
   clickBigCookie,
   fthof,
+  lumpHarvest,
   autoPlay,
   happyDance,
   idleBehavior,

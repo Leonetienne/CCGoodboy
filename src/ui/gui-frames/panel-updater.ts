@@ -94,6 +94,7 @@ export class PanelUpdater {
       ...kinds.map(([kind, count]) => `<span style="padding-left:8px;color:#e7c6ff">${escapeHtml(kind)}</span><span>${count}</span>`),
       `<span>FTHOF casts ^w^</span><b>${this.data.stats.fthofCasts}</b>`,
       `<span>Grimoire refills :3</span><b>${this.data.stats.grimoireRefills}</b>`,
+      `<span>Sugar lumps harvested :3</span><b>${this.data.stats.lumpHarvests || 0}</b>`,
       ...(this.data.config.autoPlay === true ? [`<span>Auto purchases ^w^</span><b>${this.data.stats.autoBuys || 0}</b>`] : []),
     ].join('');
   }

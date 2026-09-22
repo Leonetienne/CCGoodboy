@@ -30,8 +30,8 @@ Out of scope: wrinklers, seasons, garden, stock market, pantheon, ascending.
 Buying is only done by the optional, OFF-by-default "Auto play" mode
 (AUTO-\*) and even then only through the game's own buy functions. The bot
 NEVER clicks anything except: good golden cookies, the big cookie, the
-FTHOF spell button, and the lump-refill button (the paw only "visits"
-store items, AUTO-9).
+FTHOF spell button, the lump-refill button, and a ripe sugar lump (the paw
+only "visits" store items, AUTO-9).
 
 ## 2. Terms
 
@@ -47,6 +47,7 @@ store items, AUTO-9).
 | CpS buff | an active buff with `multCpS > 1` (Frenzy, Building special...). |
 | FTHOF | the Grimoire spell "Force the Hand of Fate". |
 | refill | spending a sugar lump to refill mana (15 min game cooldown). |
+| ripe | a growing sugar lump whose age (since `Game.lumpT`) is between `Game.lumpRipeAge` and `Game.lumpOverripeAge`: clicking it now harvests it reliably. Below that it is still growing/"mature" (clicking gambles a 50% botched harvest); at/above `lumpOverripeAge` the game auto-harvests it on its own next tick. |
 | LOCK_A | the bot's own lock that prevents a second lump refill until the CpS buff situation changes (see FT-6). |
 | hurry mode | reduced delays/thresholds and faster paw during a cookie storm or cookie chain (HURRY-1). |
 | hammer mode | button that clicks the big cookie non-stop (CF-4). |
@@ -144,16 +145,37 @@ refactor) which `tests/visual/scenarios.mjs` scenario exercises it.
 - **FT-7** If the real Grimoire buttons are not visible, the HUD "dock"
   chips (FTHOF / REFILL) serve as click targets for the paw's movement.
 
-### 3.5 Scheduling and priority
+### 3.5 Sugar lump harvesting
+
+- **LUMP-1** The moment a growing sugar lump turns ripe (see "ripe" in
+  §2), the paw clicks it (`#lumps`) to harvest it, instead of leaving it
+  for the game's own slower overripe auto-harvest roughly an hour later.
+- **LUMP-2** The bot never clicks a lump that is only "mature" (below
+  `lumpRipeAge`): that gambles a 50% chance of a botched harvest in the
+  live game, and GC/LUMP behavior is meant to be reliable, not lucky.
+- **LUMP-3** Both abort at once if a golden cookie becomes ready or a
+  Click Frenzy starts, and re-check ripeness right before clicking (same
+  FT-4 pattern).
+- **LUMP-4** Respects the click delay (before moving) and pre-click pause
+  (FT-5 pattern).
+- **LUMP-5** Priority: below FTHOF/refill, above auto play shopping (see
+  SCHED-1). Not gated by Auto play — it runs whether or not Auto play is
+  switched on, since it is not "buying" (§1).
+- **LUMP-6** Each successful harvest is recorded (`stats.lumpHarvests`,
+  shown in the HUD statistics row) and logged (`"harvest sugar lump"`).
+  Debug: "Ripen growing sugar lump" / DBG-8.
+
+### 3.6 Scheduling and priority
 
 - **SCHED-1** Priority, highest first:
   1. good golden cookies (queue)
   2. real Click Frenzy clicking
   3. FTHOF cast, then lump refill
-  4. auto play shopping (only when a purchase is due, AUTO-8)
-  5. hammer mode (manual button, or the auto hammer, AUTO-11)
-  6. happy dance (only right after a catch, DANCE-1)
-  7. idle behavior (IDLE-\*)
+  4. a ripe sugar lump (LUMP-\*)
+  5. auto play shopping (only when a purchase is due, AUTO-8)
+  6. hammer mode (manual button, or the auto hammer, AUTO-11)
+  7. happy dance (only right after a catch, DANCE-1)
+  8. idle behavior (IDLE-\*)
 - **SCHED-2** One task at a time; the scheduler ticks every 25ms; long
   tasks poll "abort" predicates so higher priorities interrupt them within
   about one frame.
@@ -163,7 +185,7 @@ refactor) which `tests/visual/scenarios.mjs` scenario exercises it.
 
 See [§7 State machine](#7-state-machine) for how this maps onto code.
 
-### 3.6 Idle behavior and happy dance
+### 3.7 Idle behavior and happy dance
 
 - **IDLE-1** When nothing needs doing the paw never sits still: it draws
   very slow figure-eights (11-24px, one eight per 9-16s) with hand jitter.
@@ -201,7 +223,7 @@ See [§7 State machine](#7-state-machine) for how this maps onto code.
   cookie appears or real work becomes pending.
 - **DANCE-4** Ends exactly where it started, then the paw ponders (IDLE-3).
 
-### 3.7 The paw (virtual cursor)
+### 3.8 The paw (virtual cursor)
 
 - **PAW-1** Drawn on a full-screen overlay canvas above the game;
   pointer-events none, so the real mouse is never blocked.
@@ -219,7 +241,7 @@ See [§7 State machine](#7-state-machine) for how this maps onto code.
   exact. Duration clamp 22..420ms (default).
 - **PAW-5** Visual overlays can be switched off ("Pretty overlays").
 
-### 3.8 Real-mouse compatibility
+### 3.9 Real-mouse compatibility
 
 - **MOUSE-1** Before the game handles the USER's mousedown/mouseup/click,
   the bot re-sends a mousemove at the real coordinates so the game's own
@@ -228,7 +250,7 @@ See [§7 State machine](#7-state-machine) for how this maps onto code.
   game. Bot clicks still put the number where the paw is (`humanClick`
   sends a mousemove at the click point right before pressing).
 
-### 3.9 User interface
+### 3.10 User interface
 
 - **UI-1** Draggable, minimizable panel (drag by the title bar; position
   saved and kept on screen). Title shows the script version.
@@ -247,7 +269,7 @@ See [§7 State machine](#7-state-machine) for how this maps onto code.
   font, ASCII emoticons only (no emoji), no external assets.
 - **UI-8** Debug tools sub panel (DBG-\*).
 
-### 3.10 Debug tools (cheats, for testing; use a test save)
+### 3.11 Debug tools (cheats, for testing; use a test save)
 
 - **DBG-1** Spawn: random golden, wrath, Frenzy, Click Frenzy, Building
   Frenzy, Cookie Chain (a real chain: spawn lead + forced `chain cookie`),
@@ -263,7 +285,10 @@ See [§7 State machine](#7-state-machine) for how this maps onto code.
 - **DBG-6** Give 10 sugar lumps.
 - **DBG-7** Each use shows a status line (errors in red) and is logged
   (`"debug tool"`).
-### 3.11 Persistence and API
+- **DBG-8** Ripen growing sugar lump: rewinds `Game.lumpT` so the current
+  lump is in its ripe window (LUMP-1), for testing the harvest module
+  without waiting ~23 real hours.
+### 3.12 Persistence and API
 
 - **DATA-1** State is stored in
   `localStorage["ccSmartGoldenComboBot.v2"]` as JSON
@@ -276,7 +301,7 @@ See [§7 State machine](#7-state-machine) for how this maps onto code.
 - **API-1** `window.__CCSmartGoldenComboBot = { version, pause(),
   resume(), state (runtime), clickFrenzySec(), data, save(), destroy() }`.
 
-### 3.12 Auto play mode ("full auto play": shopping)
+### 3.13 Auto play mode ("full auto play": shopping)
 
 - **AUTO-1** OFF by default. The "Auto play" button switches it on/off;
   the choice is stored with the settings (`config.autoPlay`). The button
@@ -348,7 +373,7 @@ See [§7 State machine](#7-state-machine) for how this maps onto code.
 - **AUTO-12** Opt-in UI: the auto play settings, the "Auto play" HUD row
   and the auto purchase counter are hidden until auto play is switched on.
 
-### 3.13 Background operation (browser tab not in front)
+### 3.14 Background operation (browser tab not in front)
 
 - **BG-1** The bot's own timing (`sleep()`, the 25ms scheduler) runs on a
   Web Worker clock. Browsers throttle the timers of a background PAGE, not
@@ -366,7 +391,7 @@ See [§7 State machine](#7-state-machine) for how this maps onto code.
 - **BG-4** HUD row "Background" shows the timer source and the keep-alive
   state.
 
-### 3.14 "How good is a buy" overlay (independent of auto play)
+### 3.15 "How good is a buy" overlay (independent of auto play)
 
 - **BUY-1** ON by default ("Show \"how good is a buy\" overlay"). Draws a
   bounding box directly over every building and upgrade the auto player
@@ -526,10 +551,10 @@ gainLumps) — still guarded, still the only path to those `Game.*` calls.
 | Area | Path | Contents |
 |---|---|---|
 | Core state | `src/core/` | `constants.ts` (VERSION, clamp helpers), `persisted-data.ts`, `runtime-state.ts`, `state-machine.ts` |
-| Game facade | `src/game/` | `game-adapter.ts` (IGameAdapter + GameAdapter), `types.ts` (GameShimmer/RawBuff/CpsBuff/GrimoireMinigame/GameBuilding/GameUpgrade), `golden-cookie-model.ts` (fade curve, shimmer classification, GC-2/GC-3), `hurry-mode.ts` (HURRY-\*), `buffs-lock.ts` (LOCK_A, FT-6), `grimoire.ts` (FTHOF spell/cost lookup), `grimoire-dom.ts` (real/dock Grimoire controls — FT-7), `dom-geometry.ts` (visibleRect/looseRect/clippedByAncestor — shared by every overlay box, GC-2/BUY-3) |
+| Game facade | `src/game/` | `game-adapter.ts` (IGameAdapter + GameAdapter), `types.ts` (GameShimmer/RawBuff/CpsBuff/GrimoireMinigame/GameBuilding/GameUpgrade), `golden-cookie-model.ts` (fade curve, shimmer classification, GC-2/GC-3), `hurry-mode.ts` (HURRY-\*), `buffs-lock.ts` (LOCK_A, FT-6), `grimoire.ts` (FTHOF spell/cost lookup), `grimoire-dom.ts` (real/dock Grimoire controls — FT-7), `lump-dom.ts` (`#lumps` control/centre — LUMP-\*), `dom-geometry.ts` (visibleRect/looseRect/clippedByAncestor — shared by every overlay box, GC-2/BUY-3) |
 | Cursor (queue) | `src/cursor/` | `types.ts` (`JOB_PRIORITY`, `CursorAction`, `CursorJob`, `CursorJobContext`, `CursorMover`, `CursorClickTiming`, `JobRequest`), `cursor-manager.ts` (owns the priority queue + all cursor motion: click gap → travel → pre-click pause → `cursor_at_position`, dedup by key, preemption, single cursor writer) |
-| Actions | `src/actions/` | `click-element.ts` (ClickElementAction/MoveAction/VisualPressAction), `golden-cookie.ts` (GoldenCookieAction, `effectPrettyName`), `hammer.ts` (HammerAction + big-cookie point helpers, CF-\*), `fthof.ts` (FthofAction/RefillAction), `dance.ts` (DanceAction + `danceEligible`/`anyGoldenPresent`/`getDanceMs`), `ponder.ts` (PonderAction), `idle.ts` (IdleWanderAction + `IDLE_SPOTS`/`pickIdleSpot`) |
-| Hunting (modules) | `src/hunting/` | `click-golden.ts` (golden hunter: `jobFor` → GoldenCookieAction), `click-big-cookie.ts` (hammer module: `job` → HammerAction), `golden-queue.ts` (route caching, wraps route-planner), `fthof.ts` (FthofActions: `fthofOrRefillPending` + `castJob`/`refillJob`), `happy-dance.ts` (HappyDance: `job` → DanceAction), `hitbox-overlay.ts` (GC-2) |
+| Actions | `src/actions/` | `click-element.ts` (ClickElementAction/MoveAction/VisualPressAction), `golden-cookie.ts` (GoldenCookieAction, `effectPrettyName`), `hammer.ts` (HammerAction + big-cookie point helpers, CF-\*), `fthof.ts` (FthofAction/RefillAction), `lump-harvest.ts` (LumpHarvestAction, LUMP-\*), `dance.ts` (DanceAction + `danceEligible`/`anyGoldenPresent`/`getDanceMs`), `ponder.ts` (PonderAction), `idle.ts` (IdleWanderAction + `IDLE_SPOTS`/`pickIdleSpot`) |
+| Hunting (modules) | `src/hunting/` | `click-golden.ts` (golden hunter: `jobFor` → GoldenCookieAction), `click-big-cookie.ts` (hammer module: `job` → HammerAction), `golden-queue.ts` (route caching, wraps route-planner), `fthof.ts` (FthofActions: `fthofOrRefillPending` + `castJob`/`refillJob`), `lump-harvest.ts` (LumpHarvestActions: `pending` + `harvestJob`), `happy-dance.ts` (HappyDance: `job` → DanceAction), `hitbox-overlay.ts` (GC-2) |
 | Routing | `src/routing/route-planner.ts` | `exactRoute` (Held-Karp DP, <= 11 cookies), `heuristicRoute` (nearest-neighbor + 2-opt/Or-opt + restarts), `planRoute` (GC-5) |
 | Idle | `src/idle/` | `idle-behavior.ts` (IdleBehavior module: `idleJob` → IdleWanderAction), `pending-work.ts` (conditions + queue state via `CursorManager.hasJobsAbove` — the shared "is anything more important pending?" predicate) |
 | Input synthesis | `src/input/` | `dispatch.ts` (dispatchMouse/dispatchMove — MOUSE-\*), `human-click.ts` (ClickTiming: delays, waitUntil, humanClick), `cursor-controller.ts` (CursorController: low-level PAW-4 arc/spline/warp travel, moveCursorTo/glideCursor — the only file that writes `runtime.cursor.x/y`), `background-clock.ts` (BackgroundClock: BG-1/BG-2 worker timer), `keep-alive.ts` (BG-3) |
@@ -574,7 +599,7 @@ target)`) instead of scattering direct field writes across every task.
 
 | State | Meaning | Set by |
 |---|---|---|
-| `idle` | scheduler found no job this tick (SCHED-1's tier 7 fell through with `idleWander` off, or genuinely nothing to do) | `Scheduler.tick()` |
+| `idle` | scheduler found no job this tick (SCHED-1's tier 8 fell through with `idleWander` off, or genuinely nothing to do) | `Scheduler.tick()` |
 | `idle-play` | idle wandering/pondering/drifting/visiting (IDLE-\*) | `IdleWanderAction` / `PonderAction` |
 | `bored-click` | idle "bored" clicks on the big cookie (part of IDLE-2) | `IdleWanderAction` |
 | `hammer` | hammer mode clicking outside a real frenzy (CF-4) | `HammerAction` |
@@ -582,6 +607,7 @@ target)`) instead of scattering direct field writes across every task.
 | `golden-cookie` | chasing/clicking a good golden cookie (GC-4) | `GoldenCookieAction` |
 | `fthof` | casting Force the Hand of Fate (FT-1) | `FthofAction` |
 | `grimoire-refill` | spending a sugar lump on mana (FT-3) | `RefillAction` |
+| `lump-harvest` | harvesting a ripe sugar lump (LUMP-1) | `LumpHarvestAction` |
 | `auto-shop` | visiting/buying a store item (AUTO-9) | auto-shop `CursorAction` from `AutoPlayEngine.shopJob()` |
 | `happy-dance` | post-catch celebration (DANCE-\*) | `DanceAction` |
 
@@ -685,8 +711,10 @@ an assertion — hence the visual suite instead.
   source/community docs: the shimmer fade formula,
   `Game.shimmerTypes.golden.chain`, the buff name "Cookie storm", the
   `force` names used by the debug spawns, `Game.lumpRefill`,
-  `Game.gainLumps`. If one is missing, the affected feature degrades
-  quietly (see NFR-4) and the Debug tools report an error in red.
+  `Game.gainLumps`, `Game.lumpT`/`Game.lumpRipeAge`/`Game.lumpOverripeAge`/
+  `Game.canLumps` (sugar lump ripeness, LUMP-\*). If one is missing, the
+  affected feature degrades quietly (see NFR-4) and the Debug tools report
+  an error in red.
 - In a hidden tab the bot itself keeps working (worker timers, BG-1/BG-2).
   The GAME's own loop is only unthrottled while the keep-alive audio runs
   (needs one real click on the page) or if the browser is configured that
@@ -720,12 +748,23 @@ Run `./run-vis-tests.sh` for the structured, repeatable version of this
 
 Not yet covered by a scripted scenario (do these by hand with Debug tools
 if you touch the relevant code): FTHOF/refill logic (FT-\*, needs mana +
-CpS buffs set up), settings staging (UI-4), log filter/export (UI-6),
-real-mouse compatibility (MOUSE-1/2 — move your own mouse while the bot
-runs and confirm the "+N" number follows your cursor, not the paw's).
+CpS buffs set up), sugar lump harvesting (LUMP-\*, "Ripen growing sugar
+lump" then watch the paw harvest it), settings staging (UI-4), log
+filter/export (UI-6), real-mouse compatibility (MOUSE-1/2 — move your own
+mouse while the bot runs and confirm the "+N" number follows your cursor,
+not the paw's).
 
 ## 12. Changelog
 
+- **4.5.0** New module: automatically harvests ripe sugar lumps. The paw
+  clicks the growing sugar lump icon (`#lumps`) the moment it turns ripe
+  (`Game.lumpT` age in `[lumpRipeAge, lumpOverripeAge)`), instead of
+  leaving it to the game's own slower overripe auto-harvest roughly an
+  hour later; it deliberately never clicks while only "mature" (that
+  gambles a 50% botched harvest). Priority: below FTHOF/refill, above
+  auto play shopping; not gated by Auto play. New debug tool "Ripen
+  growing sugar lump" forces the current lump into its ripe window for
+  testing. New HUD stat "Sugar lumps harvested".
 - **4.4.6** Simplified the non-shy behavior: removed the cursor-jump,
   ring trigger, slack averaging, wiggle detection and excited-magnitude
   changes. Non-shy now ignores the human cursor entirely, and a trusted

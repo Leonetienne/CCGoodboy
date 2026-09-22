@@ -10,6 +10,7 @@ import type { ClickGoldenTask } from '../hunting/click-golden';
 import type { FthofActions } from '../hunting/fthof';
 import type { GoldenQueueItem } from '../hunting/golden-queue';
 import type { HappyDance } from '../hunting/happy-dance';
+import type { LumpHarvestActions } from '../hunting/lump-harvest';
 import type { IdleBehavior } from '../idle/idle-behavior';
 
 export interface PriorityDeps {
@@ -21,6 +22,7 @@ export interface PriorityDeps {
   clickGolden: ClickGoldenTask;
   clickBigCookie: ClickBigCookieTask;
   fthof: FthofActions;
+  lumpHarvest: LumpHarvestActions;
   autoPlay: AutoPlayEngine;
   happyDance: HappyDance;
   idleBehavior: IdleBehavior;
@@ -31,15 +33,17 @@ export interface PriorityDeps {
  *   1 ready golden cookies   -> GoldenCookieAction (first cookie of the planned route)
  *   2 real Click Frenzy      -> HammerAction (only once within BIG_CLICK_LEAD_MS of due)
  *   3 FTHOF, else refill     -> FthofAction / RefillAction (only outside Click Frenzy)
- *   4 auto play shopping     -> auto-shop action (only when a purchase is due)
- *   5 hammer mode            -> HammerAction
- *   6 queued happy dance     -> DanceAction
- *   7 idle behaviour         -> IdleWanderAction
+ *   4 ripe sugar lump        -> LumpHarvestAction (harvest before the game auto-harvests it)
+ *   5 auto play shopping     -> auto-shop action (only when a purchase is due)
+ *   6 hammer mode            -> HammerAction
+ *   7 queued happy dance     -> DanceAction
+ *   8 idle behaviour         -> IdleWanderAction
  * Priorities 2 and 3 are mutually exclusive (an active Click Frenzy suppresses FTHOF/refill for
  * that tick, matching the original's if/else), but a Click Frenzy that isn't yet due to move
- * still falls through to auto-shop/hammer/dance/idle below it, exactly as the original did. */
+ * still falls through to lump harvest/auto-shop/hammer/dance/idle below it, exactly as the
+ * original did. */
 export function selectJobRequest(deps: PriorityDeps): JobRequest | null {
-  const { queue, buffs, runtime, data, game, clickGolden, clickBigCookie, fthof, autoPlay, happyDance, idleBehavior, hammerActive } = deps;
+  const { queue, buffs, runtime, data, game, clickGolden, clickBigCookie, fthof, lumpHarvest, autoPlay, happyDance, idleBehavior, hammerActive } = deps;
 
   let job: JobRequest | null = null;
 
@@ -71,6 +75,11 @@ export function selectJobRequest(deps: PriorityDeps): JobRequest | null {
     ) {
       job = fthof.refillJob();
     }
+  }
+
+  // A ripe sugar lump, below FTHOF/refill, above auto-shop.
+  if (!job && lumpHarvest.pending()) {
+    job = lumpHarvest.harvestJob();
   }
 
   // Auto play: buy something when the plan says so (below FTHOF/refill, above hammer mode).

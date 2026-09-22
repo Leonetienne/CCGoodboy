@@ -10,6 +10,7 @@ import type { ClickBigCookieTask } from '../../src/hunting/click-big-cookie';
 import type { ClickGoldenTask } from '../../src/hunting/click-golden';
 import type { FthofActions } from '../../src/hunting/fthof';
 import type { HappyDance } from '../../src/hunting/happy-dance';
+import type { LumpHarvestActions } from '../../src/hunting/lump-harvest';
 import type { IdleBehavior } from '../../src/idle/idle-behavior';
 import type { AutoPlayEngine } from '../../src/autoplay/shopping';
 import { JOB_PRIORITY, type CursorAction, type CursorJob, type EnqueueOpts } from '../../src/cursor/types';
@@ -51,6 +52,10 @@ function makeScheduler(game: FakeGameAdapter, overrides: Partial<SchedulerDeps> 
       castJob: vi.fn().mockReturnValue({ action: { label: 'fthof' }, priority: JOB_PRIORITY.FTHOF, key: 'fthof' }),
       refillJob: vi.fn().mockReturnValue({ action: { label: 'refill' }, priority: JOB_PRIORITY.REFILL, key: 'refill' }),
     } as unknown as FthofActions,
+    lumpHarvest: {
+      pending: () => false,
+      harvestJob: vi.fn().mockReturnValue({ action: { label: 'lump-harvest' }, priority: JOB_PRIORITY.LUMP_HARVEST, key: 'lump-harvest' }),
+    } as unknown as LumpHarvestActions,
     autoPlay: { shopReady: () => false } as unknown as AutoPlayEngine,
     happyDance: {
       job: vi.fn().mockReturnValue({ action: { label: 'dance' }, priority: JOB_PRIORITY.HAPPY_DANCE, key: 'happy-dance' }),

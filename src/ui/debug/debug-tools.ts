@@ -41,6 +41,7 @@ export class DebugTools {
       { label: 'Reset Filling Up Mana cooldown', run: () => this.resetRefillCooldown() },
       { label: 'Clear LOCK_A (bot refill lock)', run: () => this.clearLockA() },
       { label: 'Give 10 Sugar Lumps', run: () => this.giveLumps(10) },
+      { label: 'Ripen growing sugar lump', run: () => this.ripenLump() },
     ];
   }
 
@@ -102,6 +103,11 @@ export class DebugTools {
   private giveLumps(n: number): string {
     this.game.gainLumps(n);
     return `gave ${n} sugar lumps (now ${formatNum(this.game.getLumps())})`;
+  }
+
+  private ripenLump(): string {
+    this.game.ripenLump();
+    return 'sugar lump is now ripe: the paw should harvest it shortly';
   }
 }
 

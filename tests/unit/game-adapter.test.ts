@@ -56,4 +56,53 @@ describe('GameAdapter', () => {
       expect(game.clickFrenzyActive()).toBe(true);
     });
   });
+
+  describe('sugar lump ripeness', () => {
+    afterEach(() => {
+      delete (window as any).Game;
+    });
+
+    function withLump(age: number) {
+      (window as any).Game = {
+        canLumps: () => true,
+        lumpT: Date.now() - age,
+        lumpMatureAge: 1000,
+        lumpRipeAge: 2000,
+        lumpOverripeAge: 4000,
+      };
+    }
+
+    it('isLumpRipe is false when lumps are not unlocked', () => {
+      (window as any).Game = { canLumps: () => false, lumpT: Date.now(), lumpRipeAge: 2000, lumpOverripeAge: 3000 };
+      expect(game.isLumpRipe()).toBe(false);
+    });
+
+    it('isLumpRipe is false while still growing/mature (below lumpRipeAge)', () => {
+      withLump(1500); // mature but not yet ripe (< 2000)
+      expect(game.isLumpRipe()).toBe(false);
+    });
+
+    it('isLumpRipe is true inside the ripe window [lumpRipeAge, lumpOverripeAge)', () => {
+      withLump(3000);
+      expect(game.isLumpRipe()).toBe(true);
+    });
+
+    it('isLumpRipe is false once overripe (the game auto-harvests those itself)', () => {
+      withLump(4500);
+      expect(game.isLumpRipe()).toBe(false);
+    });
+
+    it('ripenLump sets lumpT so the lump becomes ripe', () => {
+      withLump(500); // still growing
+      expect(game.isLumpRipe()).toBe(false);
+
+      game.ripenLump();
+      expect(game.isLumpRipe()).toBe(true);
+    });
+
+    it('ripenLump throws when no lump is growing yet', () => {
+      (window as any).Game = { canLumps: () => true };
+      expect(() => game.ripenLump()).toThrow();
+    });
+  });
 });

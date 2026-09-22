@@ -8,7 +8,13 @@ interface FakeCursorManager {
 
 function makePendingWork(
   game: FakeGameAdapter,
-  overrides: Partial<{ hasGoodGolden: boolean; hammerActive: boolean; fthofOrRefillPending: boolean; autoShopReady: boolean }> = {},
+  overrides: Partial<{
+    hasGoodGolden: boolean;
+    hammerActive: boolean;
+    fthofOrRefillPending: boolean;
+    lumpHarvestPending: boolean;
+    autoShopReady: boolean;
+  }> = {},
   cursorManager: FakeCursorManager = { hasJobsAbove: () => false },
 ) {
   return new PendingWork(
@@ -16,6 +22,7 @@ function makePendingWork(
     () => overrides.hasGoodGolden ?? false,
     () => overrides.hammerActive ?? false,
     () => overrides.fthofOrRefillPending ?? false,
+    () => overrides.lumpHarvestPending ?? false,
     () => overrides.autoShopReady ?? false,
     cursorManager as never,
   );
@@ -45,10 +52,11 @@ describe('PendingWork', () => {
     expect(makePendingWork(game).isPending()).toBe(true);
   });
 
-  it('falls through to fthof/refill and auto-shop readiness', () => {
+  it('falls through to fthof/refill, lump harvest and auto-shop readiness', () => {
     const game = new FakeGameAdapter();
     expect(makePendingWork(game).isPending()).toBe(false);
     expect(makePendingWork(game, { fthofOrRefillPending: true }).isPending()).toBe(true);
+    expect(makePendingWork(game, { lumpHarvestPending: true }).isPending()).toBe(true);
     expect(makePendingWork(game, { autoShopReady: true }).isPending()).toBe(true);
   });
 

@@ -18,6 +18,7 @@ export class FakeGameAdapter implements IGameAdapter {
   refillable = false;
   lumps = 0;
   askLumpsPref = 0;
+  lumpRipe = false;
   buildings: GameBuilding[] = [];
   buildingsByName: Record<string, GameBuilding> = {};
   upgrades: GameUpgrade[] = [];
@@ -130,6 +131,10 @@ export class FakeGameAdapter implements IGameAdapter {
     this.askLumpsPref = value;
   }
 
+  isLumpRipe(): boolean {
+    return this.lumpRipe;
+  }
+
   getBuildings(): GameBuilding[] {
     return this.buildings;
   }
@@ -212,5 +217,9 @@ export class FakeGameAdapter implements IGameAdapter {
 
   gainLumps(n: number): void {
     this.lumps += n;
+  }
+
+  ripenLump(): void {
+    this.lumpRipe = true;
   }
 }
