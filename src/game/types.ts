@@ -4,6 +4,7 @@ export interface GameShimmer {
   type: string;
   popped?: boolean;
   force?: string;
+  forceObj?: { type?: string };
   wrath?: number;
   life?: number;
   dur?: number;
@@ -31,4 +32,6 @@ export interface CpsBuff {
 export interface GrimoireMinigame {
   spells?: Record<string, unknown>;
   getSpellCost?: (spell: unknown) => number;
+  magic?: number;
+  spellsCastTotal?: number;
 }

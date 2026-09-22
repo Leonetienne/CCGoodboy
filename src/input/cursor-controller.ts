@@ -218,4 +218,35 @@ export class CursorController {
       this.clock.nextFrame(frame);
     });
   }
+
+  /** Short smooth hop (timer based, so it also works in a background tab). With no time to
+   * spare (< 14ms) or almost no distance it just snaps. */
+  async glideCursor(x: number, y: number, ms: number, abortIf?: () => boolean): Promise<boolean> {
+    const sx = this.runtime.cursor.x;
+    const sy = this.runtime.cursor.y;
+
+    if (ms < 14 || Math.hypot(x - sx, y - sy) < 0.5) {
+      this.setPosition(x, y);
+      dispatchMove(this.runtime, x, y);
+      return true;
+    }
+
+    const t0 = performance.now();
+
+    for (;;) {
+      if (this.runtime.destroyed || !this.runtime.running || (abortIf && abortIf())) {
+        return false;
+      }
+
+      const t = clamp((performance.now() - t0) / ms, 0, 1);
+      const e = t * t * (3 - 2 * t);
+
+      this.setPosition(sx + (x - sx) * e, sy + (y - sy) * e);
+      dispatchMove(this.runtime, this.runtime.cursor.x, this.runtime.cursor.y);
+
+      if (t >= 1) return true;
+
+      await this.clock.sleep(6);
+    }
+  }
 }

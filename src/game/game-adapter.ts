@@ -4,6 +4,7 @@ import type { CpsBuff, GameShimmer, GrimoireMinigame, RawBuff } from './types';
  * the one mockable seam between our logic and the page's own global. */
 export interface IGameAdapter {
   isPresent(): boolean;
+  isReady(): boolean;
   getFps(): number;
   hasBuff(name: string): boolean;
   hasUpgrade(name: string): boolean;
@@ -12,15 +13,24 @@ export interface IGameAdapter {
   getRawBuffs(): Record<string, RawBuff>;
   getShimmers(): GameShimmer[];
   getGoldenChainCount(): number;
+  getLastGoldenEffect(): string;
   positiveCpsBuffs(): CpsBuff[];
   estimateClickFrenzySec(): number;
   cpsBuffOutlastsClickFrenzy(buffs?: CpsBuff[]): boolean;
   clickFrenzyActive(): boolean;
+  canRefillLump(): boolean;
+  getLumps(): number;
+  getAskLumpsPref(): number;
+  setAskLumpsPref(value: number): void;
 }
 
 export class GameAdapter implements IGameAdapter {
   isPresent(): boolean {
     return !!window.Game;
+  }
+
+  isReady(): boolean {
+    return !!(window.Game && window.Game.ready);
   }
 
   getFps(): number {
@@ -137,5 +147,32 @@ export class GameAdapter implements IGameAdapter {
 
   clickFrenzyActive(): boolean {
     return this.hasBuff('Click frenzy');
+  }
+
+  getLastGoldenEffect(): string {
+    const Game = window.Game;
+    return Game && Game.shimmerTypes && Game.shimmerTypes.golden ? Game.shimmerTypes.golden.last : '';
+  }
+
+  canRefillLump(): boolean {
+    const Game = window.Game;
+    return !!(Game && typeof Game.canRefillLump === 'function' && Game.canRefillLump());
+  }
+
+  getLumps(): number {
+    const Game = window.Game;
+    return Game ? Number(Game.lumps) || 0 : 0;
+  }
+
+  getAskLumpsPref(): number {
+    const Game = window.Game;
+    return Game && Game.prefs ? Game.prefs.askLumps : 0;
+  }
+
+  setAskLumpsPref(value: number): void {
+    const Game = window.Game;
+    if (Game && Game.prefs) {
+      Game.prefs.askLumps = value;
+    }
   }
 }

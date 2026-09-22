@@ -13,9 +13,18 @@ export class FakeGameAdapter implements IGameAdapter {
   rawBuffs: Record<string, RawBuff> = {};
   shimmers: GameShimmer[] = [];
   goldenChainCount = 0;
+  ready = true;
+  lastGoldenEffect = '';
+  refillable = false;
+  lumps = 0;
+  askLumpsPref = 0;
 
   isPresent(): boolean {
     return this.present;
+  }
+
+  isReady(): boolean {
+    return this.present && this.ready;
   }
 
   getFps(): number {
@@ -83,5 +92,25 @@ export class FakeGameAdapter implements IGameAdapter {
 
   clickFrenzyActive(): boolean {
     return this.hasBuff('Click frenzy');
+  }
+
+  getLastGoldenEffect(): string {
+    return this.lastGoldenEffect;
+  }
+
+  canRefillLump(): boolean {
+    return this.refillable;
+  }
+
+  getLumps(): number {
+    return this.lumps;
+  }
+
+  getAskLumpsPref(): number {
+    return this.askLumpsPref;
+  }
+
+  setAskLumpsPref(value: number): void {
+    this.askLumpsPref = value;
   }
 }
