@@ -16,6 +16,7 @@ export interface RawBuff {
   name?: string;
   dname?: string;
   multCpS?: number;
+  multClick?: number;
   time?: number;
 }
 
@@ -34,4 +35,32 @@ export interface GrimoireMinigame {
   getSpellCost?: (spell: unknown) => number;
   magic?: number;
   spellsCastTotal?: number;
+}
+
+/** A building (Game.Objects entry: Cursor, Grandma, Wizard tower, ...). */
+export interface GameBuilding {
+  name: string;
+  locked?: boolean;
+  price?: number;
+  amount?: number;
+  storedCps?: number;
+  storedTotalCps?: number;
+  id?: number;
+  plural?: string;
+  buy(n: number): void;
+}
+
+/** An upgrade (Game.Upgrades entry / a Game.UpgradesInStore row). */
+export interface GameUpgrade {
+  name: string;
+  desc?: string;
+  bought?: boolean | number;
+  pool?: string;
+  power?: number;
+  basePrice?: number;
+  getPrice?: () => number;
+  buy: () => void;
+  buildingTie1?: GameBuilding | null;
+  buildingTie2?: GameBuilding | null;
+  buildingTie?: GameBuilding | null;
 }

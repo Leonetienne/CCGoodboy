@@ -1,5 +1,5 @@
 import type { IGameAdapter } from '../../../src/game/game-adapter';
-import type { CpsBuff, GameShimmer, GrimoireMinigame, RawBuff } from '../../../src/game/types';
+import type { CpsBuff, GameBuilding, GameShimmer, GameUpgrade, GrimoireMinigame, RawBuff } from '../../../src/game/types';
 
 /** A hand-written stand-in for GameAdapter, settable per test. Everything defaults to the
  * "Game not ready" shape so a test only needs to override what it cares about. */
@@ -18,6 +18,22 @@ export class FakeGameAdapter implements IGameAdapter {
   refillable = false;
   lumps = 0;
   askLumpsPref = 0;
+  buildings: GameBuilding[] = [];
+  buildingsByName: Record<string, GameBuilding> = {};
+  upgrades: GameUpgrade[] = [];
+  upgradesByName: Record<string, GameUpgrade> = {};
+  upgradesInStore: GameUpgrade[] = [];
+  grandmaSynergyNames: string[] = [];
+  unbuffedCps = NaN;
+  cookiesPs = NaN;
+  handmadeCookies = NaN;
+  computedMouseCps = NaN;
+  cookies = 0;
+  buyMode = 1;
+  ascending = false;
+  promptOpen = false;
+  milkProgress: number | null = null;
+  achievementsOwned = 0;
 
   isPresent(): boolean {
     return this.present;
@@ -112,5 +128,69 @@ export class FakeGameAdapter implements IGameAdapter {
 
   setAskLumpsPref(value: number): void {
     this.askLumpsPref = value;
+  }
+
+  getBuildings(): GameBuilding[] {
+    return this.buildings;
+  }
+
+  getBuildingByName(name: string): GameBuilding | null {
+    return this.buildingsByName[name] || null;
+  }
+
+  getUpgrades(): GameUpgrade[] {
+    return this.upgrades;
+  }
+
+  getUpgradeByName(name: string): GameUpgrade | null {
+    return this.upgradesByName[name] || null;
+  }
+
+  getUpgradesInStore(): GameUpgrade[] {
+    return this.upgradesInStore;
+  }
+
+  getGrandmaSynergyNames(): string[] {
+    return this.grandmaSynergyNames;
+  }
+
+  getUnbuffedCps(): number {
+    return this.unbuffedCps;
+  }
+
+  getCookiesPs(): number {
+    return this.cookiesPs;
+  }
+
+  getHandmadeCookies(): number {
+    return this.handmadeCookies;
+  }
+
+  getComputedMouseCps(): number {
+    return this.computedMouseCps;
+  }
+
+  getCookies(): number {
+    return this.cookies;
+  }
+
+  getBuyMode(): number {
+    return this.buyMode;
+  }
+
+  isAscending(): boolean {
+    return this.ascending;
+  }
+
+  isPromptOpen(): boolean {
+    return this.promptOpen;
+  }
+
+  getMilkProgress(): number | null {
+    return this.milkProgress;
+  }
+
+  getAchievementsOwned(): number {
+    return this.achievementsOwned;
   }
 }

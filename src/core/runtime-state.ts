@@ -1,3 +1,6 @@
+import type { AutoPlan } from '../autoplay/shopping';
+import type { Decision } from '../autoplay/strategy';
+
 export interface CursorPoint {
   x: number;
   y: number;
@@ -64,13 +67,13 @@ export class RuntimeState {
   danceQueued = false;
 
   // ---- auto play (shopping) ----
-  autoPlan: Record<string, unknown> | null = null;
+  autoPlan: AutoPlan | null = null;
   autoNextEvalAt = 0;
   autoBlockUntil = 0;
   lastAutoBuyAt = 0;
   autoHand: AutoHandSample | null = null;
   autoWouldLog = new Map<string, number>();
-  buyValueCache: Record<string, unknown> | null = null;
+  buyValueCache: { decision: Decision } | null = null;
   buyValueAt = 0;
   autoHammerState: AutoHammerState = {
     on: false,

@@ -1,4 +1,4 @@
-import type { CpsBuff, GameShimmer, GrimoireMinigame, RawBuff } from './types';
+import type { CpsBuff, GameBuilding, GameShimmer, GameUpgrade, GrimoireMinigame, RawBuff } from './types';
 
 /** Every access to the live Cookie Clicker `Game` object goes through this interface. It is
  * the one mockable seam between our logic and the page's own global. */
@@ -22,6 +22,24 @@ export interface IGameAdapter {
   getLumps(): number;
   getAskLumpsPref(): number;
   setAskLumpsPref(value: number): void;
+
+  // ---- auto play raw accessors (business logic lives in autoplay/, not here) ----
+  getBuildings(): GameBuilding[];
+  getBuildingByName(name: string): GameBuilding | null;
+  getUpgrades(): GameUpgrade[];
+  getUpgradeByName(name: string): GameUpgrade | null;
+  getUpgradesInStore(): GameUpgrade[];
+  getGrandmaSynergyNames(): string[];
+  getUnbuffedCps(): number;
+  getCookiesPs(): number;
+  getHandmadeCookies(): number;
+  getComputedMouseCps(): number;
+  getCookies(): number;
+  getBuyMode(): number;
+  isAscending(): boolean;
+  isPromptOpen(): boolean;
+  getMilkProgress(): number | null;
+  getAchievementsOwned(): number;
 }
 
 export class GameAdapter implements IGameAdapter {
@@ -174,5 +192,88 @@ export class GameAdapter implements IGameAdapter {
     if (Game && Game.prefs) {
       Game.prefs.askLumps = value;
     }
+  }
+
+  getBuildings(): GameBuilding[] {
+    const Game = window.Game;
+    if (!Game) return [];
+    return Array.isArray(Game.ObjectsById) ? Game.ObjectsById : Object.values(Game.Objects || {});
+  }
+
+  getBuildingByName(name: string): GameBuilding | null {
+    const Game = window.Game;
+    return (Game && Game.Objects && Game.Objects[name]) || null;
+  }
+
+  getUpgrades(): GameUpgrade[] {
+    const Game = window.Game;
+    if (!Game) return [];
+    return Array.isArray(Game.UpgradesById) ? Game.UpgradesById : Object.values(Game.Upgrades || {});
+  }
+
+  getUpgradeByName(name: string): GameUpgrade | null {
+    const Game = window.Game;
+    return (Game && Game.Upgrades && Game.Upgrades[name]) || null;
+  }
+
+  getUpgradesInStore(): GameUpgrade[] {
+    const Game = window.Game;
+    return Game && Array.isArray(Game.UpgradesInStore) ? Game.UpgradesInStore : [];
+  }
+
+  getGrandmaSynergyNames(): string[] {
+    const Game = window.Game;
+    return Game && Array.isArray(Game.GrandmaSynergies) ? Game.GrandmaSynergies : [];
+  }
+
+  getUnbuffedCps(): number {
+    const Game = window.Game;
+    return Game ? Number(Game.unbuffedCps) : NaN;
+  }
+
+  getCookiesPs(): number {
+    const Game = window.Game;
+    return Game ? Number(Game.cookiesPs) : NaN;
+  }
+
+  getHandmadeCookies(): number {
+    const Game = window.Game;
+    return Game ? Number(Game.handmadeCookies) : NaN;
+  }
+
+  getComputedMouseCps(): number {
+    const Game = window.Game;
+    return Game ? Number(Game.computedMouseCps) : NaN;
+  }
+
+  getCookies(): number {
+    const Game = window.Game;
+    return Game ? Number(Game.cookies) || 0 : 0;
+  }
+
+  getBuyMode(): number {
+    const Game = window.Game;
+    return Game ? Number(Game.buyMode) : 1;
+  }
+
+  isAscending(): boolean {
+    const Game = window.Game;
+    return !!(Game && (Game.OnAscend || Number(Game.AscendTimer) > 0));
+  }
+
+  isPromptOpen(): boolean {
+    const Game = window.Game;
+    return !!(Game && Game.promptOn);
+  }
+
+  getMilkProgress(): number | null {
+    const Game = window.Game;
+    const v = Game ? Number(Game.milkProgress) : NaN;
+    return Number.isFinite(v) ? v : null;
+  }
+
+  getAchievementsOwned(): number {
+    const Game = window.Game;
+    return Game ? Number(Game.AchievementsOwned) || 0 : 0;
   }
 }
