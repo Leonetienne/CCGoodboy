@@ -1,12 +1,7 @@
 import pawOpenSvg from '../assets/paw-open.svg';
 import pawClosedSvg from '../assets/paw-closed.svg';
 import type { RuntimeState } from '../core/runtime-state';
-
-const SPRITE_W = 892; // sprite size in its own units
-const SPRITE_H = 1247;
-const SPRITE_HX = 257; // click point (middle claw tip), after mirroring
-const SPRITE_HY = 4;
-const SPRITE_DRAW_H = 60; // on-screen height in css px
+import { PAW_SPRITE_DRAW_H, PAW_SPRITE_H, PAW_SPRITE_HX, PAW_SPRITE_HY, PAW_SPRITE_W } from '../input/paw-bounds';
 
 /** Click pulse: the paw shows the fist and shrinks to `scale` around its click point within
  * downMs, then springs back within upMs (~80ms in total). */
@@ -53,8 +48,8 @@ export class PawCursor {
       img.onload = () => {
         try {
           const scale = Math.max(2, window.devicePixelRatio || 1);
-          const ph = Math.round(SPRITE_DRAW_H * scale);
-          const pw = Math.round((ph * SPRITE_W) / SPRITE_H);
+          const ph = Math.round(PAW_SPRITE_DRAW_H * scale);
+          const pw = Math.round((ph * PAW_SPRITE_W) / PAW_SPRITE_H);
 
           const c = document.createElement('canvas');
           c.width = pw;
@@ -131,12 +126,12 @@ export class PawCursor {
       return;
     }
 
-    const h = SPRITE_DRAW_H;
-    const w = (h * SPRITE_W) / SPRITE_H;
+    const h = PAW_SPRITE_DRAW_H;
+    const w = (h * PAW_SPRITE_W) / PAW_SPRITE_H;
 
     // relative to the click point, so the paw can tilt around it
-    const dx = -(SPRITE_HX / SPRITE_W) * w;
-    const dy = -(SPRITE_HY / SPRITE_H) * h;
+    const dx = -(PAW_SPRITE_HX / PAW_SPRITE_W) * w;
+    const dy = -(PAW_SPRITE_HY / PAW_SPRITE_H) * h;
 
     // Canvas shadow sizes are in device pixels.
     const dpr = window.devicePixelRatio || 1;

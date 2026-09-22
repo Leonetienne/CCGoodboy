@@ -1,20 +1,32 @@
 import { clamp } from '../core/constants';
 import type { CursorAction, CursorJobContext } from '../cursor/types';
 import type { CursorPoint } from '../core/runtime-state';
+import { clampPawPoint, PAW_CONTAIN_MARGIN_PX, pawSpriteCenterOffset } from '../input/paw-bounds';
+import { DanceAction } from './dance';
+import { pawMoodAt } from './paw-mood';
 
-/** When the real human cursor is within this many px of the paw the paw decides it is too
- * close for comfort and moves somewhere else entirely (one relocation, not a continuous
- * repulsion). */
+/** When the paw is shy and the real cursor gets this close to the paw centre, it moves away. */
 const TOO_CLOSE_PX = 60;
 
 /** New spot must be at least this far from the human cursor (and a decent hop from the paw)
- * so the relocation actually feels like "somewhere else entirely". */
+ * so a shy relocation actually feels like "somewhere else entirely". */
 const FLEE_CLEARANCE_PX = 320;
 const FLEE_MIN_HOP_PX = 160;
 
-/** After a relocation, ignore the human cursor for a moment so a stationary user doesn't
- * make the paw flee in a loop while it is already moving away. */
-const FLEE_COOLDOWN_MS = 2500;
+/** After a shy flee, ignore the cursor for a moment so a stationary user doesn't trigger
+ * another flee in a loop. */
+const REACTION_COOLDOWN_MS = 2500;
+
+/** A click on the paw counts if it is within this many px of the paw centre... */
+const CLICK_DANCE_RADIUS_PX = 160;
+/** ...and happened within this many ms. */
+const CLICK_DANCE_WINDOW_MS = 800;
+/** After a click dance, don't immediately dance (or flee) again. */
+const DANCE_GRACE_MS = 3000;
+
+/** The click-triggered dance is a smaller, shorter version of the normal happy dance. */
+const CUDDLE_DANCE_MS = 2200;
+const CUDDLE_DANCE_SCALE = 0.7;
 
 function randBetween(a: number, b: number): number {
   return a + Math.random() * (b - a);
@@ -23,9 +35,10 @@ function randBetween(a: number, b: number): number {
 /** Very slow figure-eights (lemniscate) around the current position with a bit of hand
  * jitter and a slow drift of the centre, so the paw never sits perfectly still. Eases in so
  * it starts exactly where it is. Runs for holdMs or until real work is pending / the job is
- * preempted. If the real human cursor gets really close, the paw relocates to a random far
- * spot and keeps pondering there. The animation writes the cursor only through
- * ctx.cursor.setPosition. */
+ * preempted. Shy mood: relocates somewhere far away when the real cursor gets really close.
+ * Non-shy mood: ignores the cursor entirely, but does a small happy dance in place when the
+ * paw itself is clicked. The animation writes the cursor only through ctx.cursor primitives
+ * and keeps the whole paw sprite inside the viewport. */
 export class PonderAction implements CursorAction {
   readonly label = 'ponder';
   readonly target = null;
@@ -50,12 +63,15 @@ export class PonderAction implements CursorAction {
     let ph = [0, 1, 2, 3, 4, 5].map(() => Math.random() * TAU);
     let startTs = performance.now();
     let endAt = startTs + this.holdMs;
-    let lastFleeAt = 0;
-    let fleeing = false;
+    let nextFleeAt = 0;
+    let nextDanceAt = 0;
+    let reacting = false;
+
+    const idleSpeed = () => this.opts.fleeSpeed ?? clamp(Number(ctx.data.config.cursorSpeedPxPerSec) || 4200, 500, 20000);
 
     return new Promise<void>((resolve) => {
       const restartFigure = () => {
-        const pos = runtime.cursor;
+        const pos = clampPawPoint(runtime.cursor.x, runtime.cursor.y);
 
         cx0 = pos.x;
         cy0 = pos.y;
@@ -67,31 +83,36 @@ export class PonderAction implements CursorAction {
         endAt = startTs + this.holdMs;
       };
 
-      const flee = async (): Promise<boolean> => {
-        const human = runtime.userMouse;
+      const flee = async (human: CursorPoint): Promise<boolean> => {
         const from = { x: runtime.cursor.x, y: runtime.cursor.y };
-        if (!human) return false;
-
-        const now = performance.now();
-        if (now - lastFleeAt < FLEE_COOLDOWN_MS) return false;
-        if (Math.hypot(human.x - from.x, human.y - from.y) >= TOO_CLOSE_PX) return false;
-
         const target = pickFleePoint(from, human);
-        const speed = this.opts.fleeSpeed ?? clamp(Number(ctx.data.config.cursorSpeedPxPerSec) || 4200, 500, 20000);
-
-        fleeing = true;
-        lastFleeAt = now;
 
         try {
           return await ctx.cursor.moveCursorTo(target.x, target.y, true, {
-            speed,
+            speed: idleSpeed(),
             maxMs: 6000,
             abortIf: () => ctx.abortRequested() || this.pendingWork(),
           });
         } catch {
           return false;
+        }
+      };
+
+      const dance = async (): Promise<void> => {
+        try {
+          runtime.currentAction = 'happy-dance';
+          runtime.currentTarget = 'a click dance';
+
+          await new DanceAction(
+            ctx.data,
+            ctx.game,
+            () => ctx.game.getGoldenChainCount() > 0,
+            () => this.pendingWork(),
+            { durationMs: CUDDLE_DANCE_MS, scale: CUDDLE_DANCE_SCALE },
+          ).cursor_at_position(ctx);
         } finally {
-          fleeing = false;
+          runtime.currentAction = 'idle-play';
+          runtime.currentTarget = 'drawing eights';
         }
       };
 
@@ -101,15 +122,59 @@ export class PonderAction implements CursorAction {
           return;
         }
 
-        if (fleeing) {
+        if (reacting) {
           ctx.clock.nextFrame(frame);
           return;
         }
 
-        if (await flee()) {
-          restartFigure();
-          ctx.clock.nextFrame(frame);
-          return;
+        const now = performance.now();
+        const paw = runtime.cursor;
+        const center = pawSpriteCenterOffset();
+        const pawX = paw.x + center.x;
+        const pawY = paw.y + center.y;
+        const human = runtime.userMouse;
+        const mood = pawMoodAt(now);
+
+        // Shy: move away when the cursor gets really close.
+        if (mood === 'shy' && human && now >= nextFleeAt && Math.hypot(human.x - pawX, human.y - pawY) < TOO_CLOSE_PX) {
+          nextFleeAt = now + REACTION_COOLDOWN_MS;
+          reacting = true;
+
+          try {
+            if (await flee(human)) {
+              restartFigure();
+              ctx.clock.nextFrame(frame);
+              return;
+            }
+          } catch {
+            // fall through and keep pondering
+          } finally {
+            reacting = false;
+          }
+        }
+
+        // Non-shy: ignore the cursor, but dance when the paw itself is clicked.
+        if (mood !== 'shy' && now >= nextDanceAt) {
+          const clicked = runtime.userClicks.some(
+            (c) => now - c.t <= CLICK_DANCE_WINDOW_MS && Math.hypot(c.x - pawX, c.y - pawY) <= CLICK_DANCE_RADIUS_PX,
+          );
+
+          if (clicked) {
+            nextDanceAt = now + DANCE_GRACE_MS;
+            nextFleeAt = now + DANCE_GRACE_MS;
+            reacting = true;
+
+            try {
+              await dance();
+              restartFigure();
+              ctx.clock.nextFrame(frame);
+              return;
+            } catch {
+              // fall through and keep pondering
+            } finally {
+              reacting = false;
+            }
+          }
         }
 
         if (ts >= endAt) {
@@ -140,10 +205,8 @@ export class PonderAction implements CursorAction {
         const jx = 0.6 * Math.sin(t / 173 + ph[4]!) + 0.4 * Math.sin(t / 61 + ph[5]!);
         const jy = 0.6 * Math.sin(t / 149 + ph[5]!) + 0.4 * Math.sin(t / 53 + ph[4]!);
 
-        ctx.cursor.setPosition(
-          clamp(cx0 + k * (rx + drx + jx), 2, window.innerWidth - 2),
-          clamp(cy0 + k * (ry + dry + jy), 2, window.innerHeight - 2),
-        );
+        const pos = clampPawPoint(cx0 + k * (rx + drx + jx), cy0 + k * (ry + dry + jy));
+        ctx.cursor.setPosition(pos.x, pos.y);
 
         ctx.clock.nextFrame(frame);
       };
@@ -154,16 +217,17 @@ export class PonderAction implements CursorAction {
 }
 
 /** A random point far from the human cursor (and a decent hop from the paw). Falls back to
- * the corner opposite the human cursor if the window is small. */
+ * the corner opposite the human cursor if the window is small. Always fully inside the
+ * viewport. */
 function pickFleePoint(from: CursorPoint, awayFrom: CursorPoint): CursorPoint {
-  const m = 40;
+  const m = PAW_CONTAIN_MARGIN_PX + 8;
   const w = Math.max(1, window.innerWidth - m * 2);
   const h = Math.max(1, window.innerHeight - m * 2);
 
-  let best = {
-    x: awayFrom.x < window.innerWidth / 2 ? window.innerWidth - m : m,
-    y: awayFrom.y < window.innerHeight / 2 ? window.innerHeight - m : m,
-  };
+  let best = clampPawPoint(
+    awayFrom.x < window.innerWidth / 2 ? window.innerWidth - m : m,
+    awayFrom.y < window.innerHeight / 2 ? window.innerHeight - m : m,
+  );
   let bestScore = Math.hypot(best.x - awayFrom.x, best.y - awayFrom.y) + Math.hypot(best.x - from.x, best.y - from.y) * 0.5;
 
   for (let i = 0; i < 14; i++) {
@@ -173,13 +237,13 @@ function pickFleePoint(from: CursorPoint, awayFrom: CursorPoint): CursorPoint {
     const dFrom = Math.hypot(x - from.x, y - from.y);
 
     if (dHuman >= FLEE_CLEARANCE_PX && dFrom >= FLEE_MIN_HOP_PX) {
-      return { x, y };
+      return clampPawPoint(x, y);
     }
 
     const score = dHuman + dFrom * 0.5;
     if (score > bestScore) {
       bestScore = score;
-      best = { x, y };
+      best = clampPawPoint(x, y);
     }
   }
 

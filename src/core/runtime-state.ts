@@ -95,6 +95,8 @@ export class RuntimeState {
   cursor: CursorPoint;
   /** Last trusted (real human) mouse position, or null until one has been seen. */
   userMouse: CursorPoint | null = null;
+  /** Recent trusted (real human) clicks, used for the click-triggered paw dance. */
+  userClicks: Array<{ x: number; y: number; t: number }> = [];
 
   // ---- timers / lifecycle ----
   panelTimer = 0;

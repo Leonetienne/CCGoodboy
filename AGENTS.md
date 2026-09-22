@@ -176,11 +176,21 @@ See [§7 State machine](#7-state-machine) for how this maps onto code.
   the game (MOUSE-2). It yields to any real work within a frame.
 - **IDLE-5** Setting "Idle playtime" switches all of this off; "Paw idle
   speed" (default 320px/s) sets the travel speed.
-- **IDLE-6** While pondering, if the REAL human cursor gets really close
-  (within 60px of the paw), the paw stops pondering there and moves away to
-  a random spot far from the human cursor (one relocation, not a continuous
-  repulsion), then keeps pondering. It ignores the human cursor for 2.5s
-  after a relocation so it doesn't flee in a loop.
+- **IDLE-6** While pondering, the paw's social mood is derived from the
+  wall-clock time by passing the timestamp through a sine function with a
+  threshold (`pawMoodAt()`, period 120s, threshold 0):
+  - **shy** — if the real cursor gets within 60px of the paw centre the
+    paw stops pondering and moves away to a random spot far from the human
+    cursor (one relocation, not a continuous repulsion), then keeps
+    pondering.
+  - **not shy** — the paw ignores the human cursor entirely.
+- **IDLE-7** Click dance: while the paw is not shy, a trusted click within
+  160px of the paw centre and 800ms makes it do a small happy dance in
+  place (2200ms, 0.7 scale). After the dance it won't dance (or flee)
+  again for 3s.
+- **IDLE-8** Idle ponder/drift/visit motion keeps the WHOLE paw sprite
+  inside the viewport (`clampPawPoint`, 68px margin around the click
+  point), not just the click point itself.
 - **DANCE-1** After catching a golden cookie the paw does a small happy
   dance (hops + sway + tilt, default 2200ms, 0 = off) ONLY IF that very
   moment is idle: no other golden/wrath cookie present, nothing for
@@ -382,11 +392,14 @@ See [§7 State machine](#7-state-machine) for how this maps onto code.
 ## 4. Non-functional requirements
 
 - **NFR-1** Versioning: MAJOR.MINOR.PATCH, shown in the panel. Bump with
-  EVERY change (fix = patch, feature = minor), no exceptions: this
+  EVERY change, no exceptions: this
   includes a follow-up correction to work made earlier in the same
   session and even work that hasn't been committed yet — bump again
   rather than editing an already-written VERSION/changelog entry in
-  place. Keep `package.json`'s `version` and `src/core/constants.ts`'s
+  place. Use PATCH for fixes AND for small, contained behavior tweaks;
+  reserve MINOR for genuinely substantial features (2026-08: a shy/cuddly
+  idle mood is a patch, not a minor). Keep `package.json`'s `version` and
+  `src/core/constants.ts`'s
   `VERSION` identical, and add a changelog entry (§12) for every bump, not
   just the ones that ship.
 - **NFR-2** No dependencies at runtime, no network, no external assets.
@@ -713,6 +726,40 @@ runs and confirm the "+N" number follows your cursor, not the paw's).
 
 ## 12. Changelog
 
+- **4.4.6** Simplified the non-shy behavior: removed the cursor-jump,
+  ring trigger, slack averaging, wiggle detection and excited-magnitude
+  changes. Non-shy now ignores the human cursor entirely, and a trusted
+  click on the paw (within 160px/800ms) triggers a small happy dance in
+  place. Shy still flees when the cursor gets within 60px.
+- **4.4.5** Petting made much easier to trigger: any 25px of mouse path
+  within 1000ms and 180px of the paw centre counts as a wiggle (no
+  back-and-forth requirement), click-petting window widened to 3000ms and
+  180px, the cuddle dance lasts 2600ms, and excited hop/sway/tilt now
+  reaches ~1.9x.
+- **4.4.4** Petting is easier and has a click alternative: wiggle
+  detection is now 35px of wiggle within 1000ms and 160px of the paw
+  centre (was 60px/700ms/120px), and clicking the paw 3 times within
+  2500ms and 160px also triggers the excited dance. Trusted clicks are
+  recorded by the bootstrap and pruned after 5s.
+- **4.4.3** Cuddle targeting fixes: the paw now lands with its sprite
+  centre exactly on the (slack-averaged) human cursor instead of next to
+  it; the cuddle trigger is a ring (60-120px from the paw centre) instead
+  of a close circle, so an already-close cursor doesn't cause a pointless
+  jump; the approach is a calmer 800px/s (max 1200ms) and only starts
+  after the real mouse has been still for 500ms.
+- **4.4.2** Pondering polish: the cuddle approach is now a quick hop
+  (2000px/s, max 600ms) toward a slack-averaged cursor position (350ms
+  window) instead of an idle-speed stroll toward the raw position, and a
+  4.5s grace period after a cuddle keeps petting wiggles from immediately
+  shooing the paw away. Idle ponder/drift/visit motion now keeps the whole
+  paw sprite inside the viewport (`clampPawPoint`, 68px margin).
+- **4.4.1** The paw now has a time-based social mood while pondering:
+  `pawMoodAt()` passes the timestamp through a sine function with a
+  threshold (120s period, threshold 0). When the real cursor gets close,
+  a shy paw relocates somewhere far away (as before) while a cuddly paw
+  comes over and does a small happy dance next to the cursor. Wiggling the
+  mouse near the paw during that cuddle dance pets it and makes the dance
+  faster and bigger (warped dance clock, up to ~1.5x hop/sway/tilt).
 - **4.4.0** While pondering, the paw now relocates somewhere else entirely
   when the real human cursor gets within 60px of it (tracked from trusted
   mousemove events only) — one relocation rather than a continuous

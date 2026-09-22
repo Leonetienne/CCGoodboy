@@ -80,6 +80,25 @@ export class Bootstrap {
     this.deps.runtime.userMouse = { x: me.clientX, y: me.clientY };
   };
 
+  /** Records trusted (real human) clicks with a small bounded history so the ponder action
+   * can detect a click on the paw. Synthetic bot clicks are ignored. */
+  private trackUserClick = (e: Event): void => {
+    const me = e as MouseEvent;
+    const clicks = this.deps.runtime.userClicks;
+
+    if (!isUserEvent(me) || this.deps.runtime.destroyed) {
+      return;
+    }
+
+    const now = performance.now();
+    clicks.push({ x: me.clientX, y: me.clientY, t: now });
+
+    const cutoff = now - 5000;
+    while (clicks.length && clicks[0]!.t < cutoff) {
+      clicks.shift();
+    }
+  };
+
   /** Before the game handles one of the USER's mouse events, tells it where the real mouse is
    * (the game reads Game.mouseX/Y for the floating click numbers) by re-sending a mousemove at
    * the event's coordinates. Otherwise a manual click would show its number wherever the paw
@@ -172,6 +191,7 @@ export class Bootstrap {
 
     USER_SYNC_EVENTS.forEach((type) => window.addEventListener(type, this.syncGameMouseFromUser, true));
     window.addEventListener('mousemove', this.trackUserMouse, true);
+    window.addEventListener('click', this.trackUserClick, true);
 
     log.log('bot started', `v${VERSION}`);
 
@@ -188,6 +208,7 @@ export class Bootstrap {
 
     USER_SYNC_EVENTS.forEach((type) => window.removeEventListener(type, this.syncGameMouseFromUser, true));
     window.removeEventListener('mousemove', this.trackUserMouse, true);
+    window.removeEventListener('click', this.trackUserClick, true);
 
     clock.stop(runtime.schedulerTimer || null);
     keepAlive.stop();

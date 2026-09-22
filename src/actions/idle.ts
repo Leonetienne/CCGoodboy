@@ -3,6 +3,7 @@ import type { PersistedData } from '../core/persisted-data';
 import { visibleRect } from '../game/dom-geometry';
 import type { CursorAction, CursorJobContext } from '../cursor/types';
 import type { MoveCursorOpts } from '../input/cursor-controller';
+import { clampPawPoint } from '../input/paw-bounds';
 import { randomPointInBigCookie } from './hammer';
 import { PonderAction } from './ponder';
 
@@ -103,7 +104,8 @@ export class IdleWanderAction implements CursorAction {
     ctx.runtime.currentAction = 'idle-play';
     ctx.runtime.currentTarget = `sniffing ${spot.label}`;
 
-    if (!(await ctx.cursor.moveCursorTo(spot.x, spot.y, true, this.idleTravelOpts(ctx)))) {
+    const pos = clampPawPoint(spot.x, spot.y);
+    if (!(await ctx.cursor.moveCursorTo(pos.x, pos.y, true, this.idleTravelOpts(ctx)))) {
       return;
     }
 
@@ -114,10 +116,12 @@ export class IdleWanderAction implements CursorAction {
     ctx.runtime.currentAction = 'idle-play';
     ctx.runtime.currentTarget = 'drifting about';
 
-    const x = window.innerWidth * (0.1 + Math.random() * 0.8);
-    const y = window.innerHeight * (0.12 + Math.random() * 0.76);
+    const pos = clampPawPoint(
+      window.innerWidth * (0.1 + Math.random() * 0.8),
+      window.innerHeight * (0.12 + Math.random() * 0.76),
+    );
 
-    if (!(await ctx.cursor.moveCursorTo(x, y, true, this.idleTravelOpts(ctx)))) {
+    if (!(await ctx.cursor.moveCursorTo(pos.x, pos.y, true, this.idleTravelOpts(ctx)))) {
       return;
     }
 

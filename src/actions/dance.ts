@@ -24,6 +24,15 @@ export function danceEligible(
   return getDanceMs(data) > 0 && !cookieChainActive() && !anyGoldenPresent(game) && !pendingPriorityWork();
 }
 
+/** Tuning for the small cuddle-click variant of the dance (used by the ponder action, not
+ * the post-catch happy dance). */
+export interface DanceOptions {
+  /** Dance length override. Defaults to the configured happy-dance length. */
+  durationMs?: number;
+  /** Scales hop/sway amplitudes (1 = the normal happy dance). */
+  scale?: number;
+}
+
 function randBetween(a: number, b: number): number {
   return a + Math.random() * (b - a);
 }
@@ -44,25 +53,27 @@ export class DanceAction implements CursorAction {
     private readonly game: IGameAdapter,
     private readonly cookieChainActive: () => boolean,
     private readonly pendingPriorityWork: () => boolean,
+    private readonly opts: DanceOptions = {},
   ) {}
 
   cursor_at_position(ctx: CursorJobContext): Promise<void> {
     const runtime = ctx.runtime;
     runtime.danceQueued = false;
 
-    const ms = getDanceMs(this.data);
+    const ms = this.opts.durationMs ?? getDanceMs(this.data);
 
     if (ms <= 0 || this.cookieChainActive() || anyGoldenPresent(this.game) || this.pendingPriorityWork()) {
       return Promise.resolve();
     }
 
+    const scale = clamp(this.opts.scale ?? 1, 0.2, 3);
     const TAU = Math.PI * 2;
     const cx0 = runtime.cursor.x;
     const cy0 = runtime.cursor.y;
     const swayP = randBetween(600, 740); // ms per sway
     const hopP = swayP / 2; // two hops per sway
-    const sway = randBetween(9, 13); // px
-    const hop = randBetween(12, 18); // px
+    const sway = randBetween(9, 13) * scale; // px
+    const hop = randBetween(12, 18) * scale; // px
     const startTs = performance.now();
 
     return new Promise<void>((resolve) => {
