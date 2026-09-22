@@ -164,6 +164,10 @@ function panelBodyHtml(version: string): string {
                 <input data-setting="autoReserveSec" type="number" min="0" max="1000000" step="60">
             </div>
             <div class="ccsb-setting">
+                <span>Auto: wizard tower target</span>
+                <input data-setting="autoWizardTowerTarget" type="number" min="0" max="500" step="1">
+            </div>
+            <div class="ccsb-setting">
                 <span>Auto: hammer when clicks add >= (x CpS)</span>
                 <input data-setting="autoHammerMinShare" type="number" min="0" max="1000" step="0.01">
             </div>

@@ -51,6 +51,9 @@ export function normalizeSetting(key: string, raw: string): number {
     case 'autoReserveSec':
       return Number.isFinite(value) && raw !== '' ? clamp(value, 0, 1000000) : 0;
 
+    case 'autoWizardTowerTarget':
+      return Number.isFinite(value) && raw !== '' ? clampInt(value, 0, 500, 57) : 57;
+
     case 'panicFactor':
       return Number.isFinite(value) && raw !== '' ? clamp(value, 0.01, 1) : 0.2;
 

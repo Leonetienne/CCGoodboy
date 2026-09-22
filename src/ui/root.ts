@@ -72,7 +72,7 @@ export class UiRoot {
     this.logsPanel = new LogsPanel(data);
     document.body.appendChild(this.logsPanel.element);
 
-    this.debugTools = new DebugTools(runtime, data, game, incomeTracker, log);
+    this.debugTools = new DebugTools(runtime, game);
     this.debugPanel = new DebugPanel(this.debugTools);
     document.body.appendChild(this.debugPanel.element);
 

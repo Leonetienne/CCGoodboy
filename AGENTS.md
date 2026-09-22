@@ -248,10 +248,6 @@ See [§7 State machine](#7-state-machine) for how this maps onto code.
 - **DBG-6** Give 10 sugar lumps.
 - **DBG-7** Each use shows a status line (errors in red) and is logged
   (`"debug tool"`).
-- **DBG-8** "Auto play: explain store (log)": lists every store upgrade
-  with how the auto player classifies it (type, cost, CpS gain, payback)
-  or why it is ignored, in the log (`"auto explain"`), the console and a
-  summary line.
 ### 3.11 Persistence and API
 
 - **DATA-1** State is stored in
@@ -276,8 +272,9 @@ See [§7 State machine](#7-state-machine) for how this maps onto code.
   recognised by their description); KITTEN upgrades; ALL cookie (biscuit)
   upgrades; golden cookie upgrades (Lucky day, Serendipity, Get lucky,
   Lasting fortune, Lucky digit, Lucky number, Lucky payout, Green yeast
-  digestives) — but never more than 57 Wizard towers
-  (`AUTO_BUILDING_CAPS`); cursor and CLICKING upgrades: the "mouse and
+  digestives) — but never more Wizard towers than the configured target
+  (`autoWizardTowerTarget`, default 57 — the ideal mana count for FTHOF);
+  cursor and CLICKING upgrades: the "mouse and
   cursors twice as efficient" upgrades, the Thousand/Million/Billion/...
   fingers series and the mouse upgrades ("Clicking gains +1% of your
   CpS"). It NEVER buys the grandma research center ("Bingo
@@ -296,8 +293,15 @@ See [§7 State machine](#7-state-machine) for how this maps onto code.
   0.1% of the bank) -> buy at once. (B) good deal (payback incl. waiting
   <= 1.2× the best in reach) -> buy, UNLESS an option that is not
   affordable yet, in reach and good has >= 3× the impact and this one
-  costs more than 10% of it: then save up. Otherwise nothing is bought and
-  the target is shown.
+  costs more than 10% of it: then save up. (C) preferred candidates —
+  golden cookie upgrades and Wizard towers below `autoWizardTowerTarget` —
+  are bought while affordable even when they are not a good deal; Wizard
+  towers ignore `autoMaxPaybackSec` (they are mana, not CpS) but are only
+  considered when they are in reach (`wait <= autoReachSec`), so the bot
+  never saves for them for years. Preferred candidates sort before
+  ordinary ones (Wizard towers first), are exempt from postponement, and
+  are preferred as the save target. Otherwise nothing is bought and the
+  target is shown.
 - **AUTO-5** "In reach" = affordable within 1800s at the income and
   payback <= 24h (both are settings).
 - **AUTO-6** Optional bank reserve: keep N seconds of CpS in the bank
@@ -445,6 +449,7 @@ saved (see `normalizeSetting()` in
 | `autoReachSec` | Auto: in reach within (s) | 1800 | 0-86400 |
 | `autoMaxPaybackSec` | Auto: max payback (s) | 86400 | 60-10000000 |
 | `autoReserveSec` | Auto: bank reserve (s of CpS) | 0 | 0-1000000 |
+| `autoWizardTowerTarget` | Auto: wizard tower target | 57 | 0-500 |
 | `autoHammer` | Auto: manage hammering [checkbox] | true | – |
 | `autoHammerMinShare` | Auto: hammer when clicks add >= (× CpS) | 0.05 | 0-1000 |
 | `autoProbeIntervalSec` | Auto: probe hammering every (s, 0=never) | 300 | 0-86400 |
@@ -703,6 +708,16 @@ runs and confirm the "+N" number follows your cursor, not the paw's).
 
 ## 12. Changelog
 
+- **4.3.1** Renamed the Wizard tower limit setting to
+  `autoWizardTowerTarget` and made Wizard towers below that target top
+  purchase priority: they are bought whenever affordable, ignoring
+  `autoMaxPaybackSec` (mana value), but only while in reach
+  (`wait <= autoReachSec`) so the bot never saves up for them indefinitely.
+- **4.3.0** Auto play now prefers Wizard towers until their cap and golden
+  cookie upgrades over ordinary purchases; the Wizard tower cap is exposed
+  as the setting `autoWizardTowerCap` (default 57, range 0-500).
+- **4.2.1** Removed the debug tool "Auto play: explain store (log)" and
+  its handler.
 - **4.2.0** All UI frames (main HUD, Graphs, Logs, Debug tools) are now
   draggable by their title/header bar; each frame remembers its own
   position in the saved UI state.

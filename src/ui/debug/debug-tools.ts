@@ -1,10 +1,5 @@
-import type { PersistedData } from '../../core/persisted-data';
 import type { RuntimeState } from '../../core/runtime-state';
 import type { IGameAdapter } from '../../game/game-adapter';
-import { autoCollect } from '../../autoplay/collector';
-import type { IncomeTracker } from '../../autoplay/income-tracker';
-import { autoDecide } from '../../autoplay/strategy';
-import { AUTO_BLOCKED_NAMES, AUTO_BLOCKED_RE, AUTO_NON_STORE_POOLS, autoStripHtml } from '../../autoplay/valuation-tables';
 import type { LogStore } from '../../stats/log';
 import { escapeHtml, formatNum } from '../format';
 
@@ -21,10 +16,7 @@ export class DebugTools {
 
   constructor(
     private readonly runtime: RuntimeState,
-    private readonly data: PersistedData,
     private readonly game: IGameAdapter,
-    private readonly incomeTracker: IncomeTracker,
-    private readonly log: LogStore,
   ) {
     this.tools = [
       { label: 'Spawn random Golden Cookie', run: () => this.spawnGolden('random golden cookie', {}) },
@@ -49,7 +41,6 @@ export class DebugTools {
       { label: 'Reset Filling Up Mana cooldown', run: () => this.resetRefillCooldown() },
       { label: 'Clear LOCK_A (bot refill lock)', run: () => this.clearLockA() },
       { label: 'Give 10 Sugar Lumps', run: () => this.giveLumps(10) },
-      { label: 'Auto play: explain store (log)', run: () => this.explainStore() },
     ];
   }
 
@@ -111,48 +102,6 @@ export class DebugTools {
   private giveLumps(n: number): string {
     this.game.gainLumps(n);
     return `gave ${n} sugar lumps (now ${formatNum(this.game.getLumps())})`;
-  }
-
-  /** Lists every upgrade currently in the store with what the auto player makes of it (type,
-   * cost, estimated CpS gain, payback, or why it is ignored). Written to the log
-   * ('auto explain') and the console; the status line shows a summary. Use it to find out why
-   * something is not bought. */
-  private explainStore(): string {
-    const g = autoCollect(this.game, this.data, this.runtime, this.incomeTracker);
-
-    if ('skip' in g) return `cannot plan: ${g.skip}`;
-
-    const store = this.game.getUpgradesInStore();
-    const byName = new Map(g.cands.map((c) => [c.name, c]));
-    const decision = autoDecide(g.cands, g.ctx);
-
-    let known = 0;
-    const rows: Array<{ name: string; status: string }> = [];
-
-    for (const up of store) {
-      const c = byName.get(up.name);
-      let status: string;
-
-      if (c) {
-        known++;
-        status = `${c.type}: cost ${Math.round(c.cost)}, +${c.dCps.toFixed(2)} CpS, payback ${Math.round(c.cost / c.dCps)}s`;
-      } else if (AUTO_BLOCKED_NAMES.has(up.name) || AUTO_BLOCKED_RE.test(String(up.name))) {
-        status = 'blocked on purpose';
-      } else if (AUTO_NON_STORE_POOLS.has(up.pool ?? '')) {
-        status = `ignored (pool ${up.pool})`;
-      } else {
-        status = `NOT RECOGNISED - ${autoStripHtml(up.desc).slice(0, 110)}`;
-      }
-
-      rows.push({ name: up.name, status });
-      this.log.log('auto explain', up.name, { status });
-    }
-
-    if (window.console && console.table) console.table(rows);
-
-    return `${store.length} store upgrades, ${known} recognised. Decision now: ${
-      decision.buy ? 'buy ' + decision.buy.name : decision.save ? 'save for ' + decision.save.name : decision.note || 'nothing'
-    }. Details in the log (action "auto explain").`;
   }
 }
 

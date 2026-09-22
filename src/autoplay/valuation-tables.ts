@@ -54,8 +54,16 @@ export const AUTO_KITTEN_POWER: Record<string, number> = {
 };
 
 /** Upper limits per building for the auto player: it never buys more than this many of them.
- * 57 Wizard towers is the sweet spot for mana, more only makes spells pricier. */
+ * 57 Wizard towers is the sweet spot for mana, more only makes spells pricier. The wizard
+ * target is exposed as the setting `autoWizardTowerTarget`; this constant is only the fallback
+ * default. */
 export const AUTO_BUILDING_CAPS: Record<string, number> = { 'Wizard tower': 57 };
+
+/** Preference tiers for candidates the auto player should buy before ordinary ones.
+ * Higher = more preferred. Wizard towers below their target are TOP priority (they are bought
+ * for mana, not CpS payback); golden cookie upgrades are preferred too. */
+export const AUTO_PREF_GOLDEN = 1;
+export const AUTO_PREF_WIZARD = 2;
 
 /** A purchase is also "insignificant" when it costs at most this fraction of the available
  * bank (0.1%): with a huge bank the price no longer matters, so anything useful gets bought. */

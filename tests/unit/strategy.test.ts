@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { AutoCollectCtx, PurchaseCandidate } from '../../src/autoplay/collector';
 import { autoDecide } from '../../src/autoplay/strategy';
 
-function candidate(name: string, cost: number, dCps: number): PurchaseCandidate {
-  return { kind: 'building', type: 'building', name, obj: { name, buy: () => {} }, cost, dCps };
+function candidate(name: string, cost: number, dCps: number, pref = 0): PurchaseCandidate {
+  return { kind: 'building', type: 'building', name, obj: { name, buy: () => {} }, cost, dCps, pref };
 }
 
 function ctx(overrides: Partial<AutoCollectCtx> = {}): AutoCollectCtx {
@@ -107,6 +107,70 @@ describe('autoDecide', () => {
     // the much bigger, much higher-impact one.
     expect(d.buy).toBeNull();
     expect(d.save?.name).toBe('Big upgrade');
+  });
+
+  it('buys an affordable preferred candidate even when its payback is not a good deal', () => {
+    // A golden-cookie upgrade: affordable, payback 100 (not good next to the cheap ordinary
+    // candidate), but preferred so it is bought anyway with reason "preferred".
+    const ordinary = candidate('Fast payback building', 100, 10); // payback 10
+    const golden = candidate('Golden upgrade', 100, 1, 1); // payback 100
+
+    // Bank 1000: affordable, but cost 100 is above 0.1% of the bank (1) and above 1s of
+    // income (10), so it is NOT insignificant and the "preferred" path decides the buy.
+    const d = autoDecide([ordinary, golden], ctx({ bank: 1000, income: 10 }));
+
+    expect(d.buy?.name).toBe('Golden upgrade');
+    expect(d.why).toBe('preferred');
+  });
+
+  it('sorts preferred candidates before ordinary ones regardless of payback', () => {
+    const ordinary = candidate('Fast payback building', 100, 10); // payback 10
+    const golden = candidate('Golden upgrade', 100, 1, 1); // payback 100
+
+    const d = autoDecide([ordinary, golden], ctx({ bank: 100000, income: 10000 }));
+
+    expect(d.buy?.name).toBe('Golden upgrade');
+  });
+
+  it('buys an affordable wizard tower below target even when its payback exceeds maxPaybackSec', () => {
+    const ordinary = candidate('Fast payback building', 100, 10); // payback 10
+    const wizard = candidate('Wizard tower', 100, 0.001, 2); // payback 100,000s > max
+
+    const d = autoDecide([ordinary, wizard], ctx({ bank: 1000, income: 10 }));
+
+    expect(d.buy?.name).toBe('Wizard tower');
+    expect(d.why).toBe('wizard target');
+  });
+
+  it('does not save for a wizard tower beyond the in-reach window', () => {
+    const wizard = candidate('Wizard tower', 10000, 1, 2); // wait = 100s at income 100
+
+    // reachSec = 10: 100s to afford it is NOT in reach, so the bot does not queue it as a
+    // save target and buys nothing.
+    const d = autoDecide([wizard], ctx({ bank: 0, income: 100, reserve: 0, cfg: { insignificantSec: 1, goodFactor: 1.2, biggerImpact: 3, reachSec: 10, maxPaybackSec: 86400 } }));
+
+    expect(d.buy).toBeNull();
+    expect(d.save).toBeNull();
+    expect(d.note).toBe('nothing in reach');
+  });
+
+  it('still refuses a preferred candidate whose payback exceeds maxPaybackSec', () => {
+    const forever = candidate('Wizard tower', 1000, 0.001, 1); // payback 1,000,000s
+    const d = autoDecide([forever], ctx({ bank: 100000 }));
+
+    expect(d.buy).toBeNull();
+    expect(d.save).toBeNull();
+    expect(d.note).toBe('nothing in reach');
+  });
+
+  it('saves for a preferred candidate first when nothing is affordable', () => {
+    const ordinary = candidate('Big building', 10000, 100); // pp 100
+    const wizard = candidate('Wizard tower', 5000, 25, 1); // pp 200
+
+    const d = autoDecide([ordinary, wizard], ctx({ bank: 0, income: 100, reserve: 0 }));
+
+    expect(d.buy).toBeNull();
+    expect(d.save?.name).toBe('Wizard tower');
   });
 
   it('buys the small item once a cheaper option makes the big one no longer the best deal', () => {

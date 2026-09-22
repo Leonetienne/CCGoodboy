@@ -5,7 +5,7 @@ import type { GameBuilding, GameUpgrade } from '../game/types';
 import { autoBuildingGain, autoFingerBonus, autoPerClick, autoUnbuffedCps } from './building-valuation';
 import type { IncomeTracker } from './income-tracker';
 import { autoPrice, autoUpgradeGain } from './upgrade-classifier';
-import { AUTO_BLOCKED_NAMES, AUTO_BLOCKED_RE, AUTO_BUILDING_CAPS, AUTO_CURSOR_DOUBLERS, AUTO_NON_STORE_POOLS, autoStripHtml } from './valuation-tables';
+import { AUTO_BLOCKED_NAMES, AUTO_BLOCKED_RE, AUTO_BUILDING_CAPS, AUTO_CURSOR_DOUBLERS, AUTO_NON_STORE_POOLS, AUTO_PREF_GOLDEN, AUTO_PREF_WIZARD, autoStripHtml } from './valuation-tables';
 
 export interface AutoConfig {
   insignificantSec: number;
@@ -36,6 +36,9 @@ export interface PurchaseCandidate {
   obj: GameBuilding | GameUpgrade;
   cost: number;
   dCps: number;
+  /** > 0 for candidates the bot should buy before ordinary ones (golden upgrades, Wizard
+   * towers below their target). Higher = more preferred; Wizard towers use the top tier. */
+  pref?: number;
 }
 
 export type CollectResult = { skip: string } | { cands: PurchaseCandidate[]; ctx: AutoCollectCtx };
@@ -128,11 +131,16 @@ export function autoCollect(game: IGameAdapter, data: PersistedData, runtime: Ru
   const cands: PurchaseCandidate[] = [];
 
   // Buildings (never while the store is in sell mode: buy() would SELL then).
+  const caps: Record<string, number> = {
+    ...AUTO_BUILDING_CAPS,
+    'Wizard tower': Math.max(0, Math.floor(num(data.config.autoWizardTowerTarget, 57))),
+  };
+
   if (game.getBuyMode() !== -1) {
     for (const me of objs) {
       if (!me || me.locked) continue;
 
-      const cap = AUTO_BUILDING_CAPS[me.name];
+      const cap = caps[me.name];
       if (cap != null && (Number(me.amount) || 0) >= cap) continue;
 
       const cost = Number(me.price);
@@ -141,7 +149,15 @@ export function autoCollect(game: IGameAdapter, data: PersistedData, runtime: Ru
       const gain = autoBuildingGain(game, me, ctx);
 
       if (gain > 0) {
-        cands.push({ kind: 'building', type: 'building', name: me.name, obj: me, cost, dCps: gain });
+        cands.push({
+          kind: 'building',
+          type: 'building',
+          name: me.name,
+          obj: me,
+          cost,
+          dCps: gain,
+          pref: me.name === 'Wizard tower' ? AUTO_PREF_WIZARD : 0,
+        });
       }
     }
   }
@@ -159,7 +175,15 @@ export function autoCollect(game: IGameAdapter, data: PersistedData, runtime: Ru
     const cost = autoPrice(up);
     if (!(cost > 0)) continue;
 
-    cands.push({ kind: 'upgrade', type: g.type, name: up.name, obj: up, cost, dCps: g.gain });
+    cands.push({
+      kind: 'upgrade',
+      type: g.type,
+      name: up.name,
+      obj: up,
+      cost,
+      dCps: g.gain,
+      pref: g.type === 'golden' ? AUTO_PREF_GOLDEN : 0,
+    });
   }
 
   return { cands, ctx };

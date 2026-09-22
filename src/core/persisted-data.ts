@@ -26,6 +26,7 @@ export interface Config {
   autoReachSec: number;
   autoMaxPaybackSec: number;
   autoReserveSec: number;
+  autoWizardTowerTarget: number;
   autoHammer: boolean;
   autoHammerMinShare: number;
   autoProbeIntervalSec: number;
@@ -98,6 +99,7 @@ export const DEFAULTS: PersistedState = {
     autoReachSec: 1800,
     autoMaxPaybackSec: 86400,
     autoReserveSec: 0,
+    autoWizardTowerTarget: 57,
     autoHammer: true,
     autoHammerMinShare: 0.05,
     autoProbeIntervalSec: 300,
