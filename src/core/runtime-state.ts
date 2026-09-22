@@ -1,5 +1,6 @@
 import type { AutoPlan } from '../autoplay/shopping';
 import type { Decision } from '../autoplay/strategy';
+import type { WrinklerPopPlan } from '../autoplay/wrinkler-strategy';
 import type { IntervalHandle } from '../input/background-clock';
 
 export interface CursorPoint {
@@ -83,6 +84,12 @@ export class RuntimeState {
   fthofPrepBlockUntil = 0;
   /** "Show grimoire" debug goal is active until then (0 = off). */
   showGrimoireGoalUntil = 0;
+  /** Wrinkler popping (WRINK-*): the last plan, when to re-plan, and a pause after a failure. */
+  wrinklerPlan: WrinklerPopPlan | null = null;
+  wrinklerNextEvalAt = 0;
+  wrinklerBlockUntil = 0;
+  /** Debug tool "Pop a wrinkler": force one pop through the normal pipeline until then. */
+  wrinklerForcePopUntil = 0;
   autoHammerState: AutoHammerState = {
     on: false,
     wanted: null,

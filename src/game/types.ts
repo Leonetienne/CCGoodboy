@@ -64,8 +64,25 @@ export interface GameUpgrade {
   power?: number;
   basePrice?: number;
   getPrice?: () => number;
-  buy: () => void;
+  /** `bypass` skips the upgrade's confirmation prompt (e.g. One mind), exactly like the
+   * prompt's own "Yes" button does. */
+  buy: (bypass?: number) => void;
   buildingTie1?: GameBuilding | null;
   buildingTie2?: GameBuilding | null;
   buildingTie?: GameBuilding | null;
+}
+
+/** One slot of Game.wrinklers. `phase` 0 = empty slot, 1 = crawling in, 2 = attached and
+ * digesting. `x`/`y` are the anchor on #backgroundLeftCanvas (canvas pixels, near the big
+ * cookie); `r` is the angle around the cookie in degrees. `type` 1 = shiny. */
+export interface GameWrinkler {
+  id: number;
+  phase: number;
+  sucked: number;
+  hp?: number;
+  type?: number;
+  close?: number;
+  x: number;
+  y: number;
+  r: number;
 }

@@ -34,6 +34,11 @@ export class StatsRecorder {
     this.data.scheduleSave();
   }
 
+  recordWrinklerPop(): void {
+    this.data.stats.wrinklersPopped = (this.data.stats.wrinklersPopped || 0) + 1;
+    this.data.scheduleSave();
+  }
+
   recordAutoBuy(): void {
     this.data.stats.autoBuys += 1;
     this.data.scheduleSave();

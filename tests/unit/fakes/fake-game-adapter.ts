@@ -1,5 +1,5 @@
 import type { IGameAdapter } from '../../../src/game/game-adapter';
-import type { CpsBuff, GameBuilding, GameShimmer, GameUpgrade, GrimoireMinigame, RawBuff } from '../../../src/game/types';
+import type { CpsBuff, GameBuilding, GameShimmer, GameUpgrade, GameWrinkler, GrimoireMinigame, RawBuff } from '../../../src/game/types';
 
 /** A hand-written stand-in for GameAdapter, settable per test. Everything defaults to the
  * "Game not ready" shape so a test only needs to override what it cares about. */
@@ -37,6 +37,12 @@ export class FakeGameAdapter implements IGameAdapter {
   promptOpen = false;
   milkProgress: number | null = null;
   achievementsOwned = 0;
+  elderWrath = 0;
+  wrinklers: GameWrinkler[] = [];
+  wrinklersMax = 10;
+  cpsSucked = 0;
+  wrinklerSpawnChance = 0;
+  wrinklerPopMult = 1.1;
 
   isPresent(): boolean {
     return this.present;
@@ -209,6 +215,30 @@ export class FakeGameAdapter implements IGameAdapter {
     return this.achievementsOwned;
   }
 
+  getElderWrath(): number {
+    return this.elderWrath;
+  }
+
+  getWrinklers(): GameWrinkler[] {
+    return this.wrinklers;
+  }
+
+  getWrinklersMax(): number {
+    return this.wrinklersMax;
+  }
+
+  getCpsSucked(): number {
+    return this.cpsSucked;
+  }
+
+  getWrinklerSpawnChance(stage?: number): number {
+    return stage != null ? 0.00001 * stage : this.wrinklerSpawnChance;
+  }
+
+  getWrinklerPopMult(shiny: boolean): number {
+    return shiny ? this.wrinklerPopMult * 3 : this.wrinklerPopMult;
+  }
+
   spawnGoldenShimmer(_opts: { wrath?: boolean }): Record<string, unknown> {
     throw new Error('Game.shimmer is not available');
   }
@@ -231,5 +261,16 @@ export class FakeGameAdapter implements IGameAdapter {
 
   ripenLump(): void {
     this.lumpRipe = true;
+  }
+
+  spawnFedWrinklers(_fedSec: number): number {
+    return 0;
+  }
+
+  spawnWrinkler(): number {
+    const w = this.wrinklers.find((x) => x.id < this.wrinklersMax && x.phase === 0);
+    if (!w) throw new Error('every wrinkler slot is taken');
+    w.phase = 1;
+    return w.id;
   }
 }

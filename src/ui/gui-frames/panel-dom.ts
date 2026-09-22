@@ -44,6 +44,10 @@ function panelBodyHtml(version: string): string {
         <span class="ccsb-label">Background</span>
         <span class="ccsb-value" id="ccsb-bg">...</span>
     </div>
+    <div class="ccsb-row" id="ccsb-wrinkler-row">
+        <span class="ccsb-label">Wrinklers</span>
+        <span class="ccsb-value" id="ccsb-wrinklers">none</span>
+    </div>
     <div class="ccsb-row" id="ccsb-auto-row">
         <span class="ccsb-label">Auto play</span>
         <span class="ccsb-value" id="ccsb-auto">off</span>
@@ -174,6 +178,10 @@ function panelBodyHtml(version: string): string {
                 <input data-setting="autoWizardTowerTarget" type="number" min="0" max="500" step="1">
             </div>
             <div class="ccsb-setting">
+                <span>Auto: pop a wrinkler after (x its respawn time)</span>
+                <input data-setting="autoWrinklerMaturity" type="number" min="1" max="50" step="0.5">
+            </div>
+            <div class="ccsb-setting">
                 <span>Auto: hammer when clicks add >= (x CpS)</span>
                 <input data-setting="autoHammerMinShare" type="number" min="0" max="1000" step="0.01">
             </div>
@@ -188,6 +196,14 @@ function panelBodyHtml(version: string): string {
             <label style="display:flex;gap:6px;align-items:center;margin-top:5px">
                 <input id="ccsb-auto-hammer" type="checkbox">
                 Auto: manage hammering :3
+            </label>
+            <label style="display:flex;gap:6px;align-items:center;margin-top:5px" title="Buys the grandma research up to One mind (Grandmapocalypse stage 1: wrinklers, 1 in 3 golden cookies turns wrath). Never Communal brainsweep or Elder Pact. There is no way back from stage 1 short of stage 3 + Elder Covenant.">
+                <input id="ccsb-auto-grandmapocalypse" type="checkbox">
+                Auto: grandmapocalypse stage 1 (wrinklers) owo
+            </label>
+            <label style="display:flex;gap:6px;align-items:center;margin-top:5px" title="Pops mature wrinklers when auto play needs their cookies for a purchase">
+                <input id="ccsb-auto-pop-wrinklers" type="checkbox">
+                Auto: pop wrinklers for purchases :3
             </label>
             <label style="display:flex;gap:6px;align-items:center;margin-top:5px">
                 <input id="ccsb-auto-dry" type="checkbox">

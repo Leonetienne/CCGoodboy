@@ -40,6 +40,7 @@ export function moodText(action: string): string {
     'lump-harvest': 'harvesting a ripe sugar lump :3',
     'buildings-view': 'tidying up the view :3',
     'grimoire-unlock': 'unlocking the grimoire ^w^',
+    'wrinkler-pop': 'popping a wrinkler owo',
   };
 
   return map[action] || action;

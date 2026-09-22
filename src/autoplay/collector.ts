@@ -4,8 +4,18 @@ import type { IGameAdapter } from '../game/game-adapter';
 import type { GameBuilding, GameUpgrade } from '../game/types';
 import { autoBuildingGain, autoFingerBonus, autoPerClick, autoUnbuffedCps } from './building-valuation';
 import type { IncomeTracker } from './income-tracker';
-import { autoPrice, autoUpgradeGain } from './upgrade-classifier';
-import { AUTO_BLOCKED_NAMES, AUTO_BLOCKED_RE, AUTO_BUILDING_CAPS, AUTO_CURSOR_DOUBLERS, AUTO_NON_STORE_POOLS, AUTO_PREF_GOLDEN, AUTO_PREF_WIZARD, autoStripHtml } from './valuation-tables';
+import { autoPrice, autoResearchCandidateGain, autoUpgradeGain } from './upgrade-classifier';
+import {
+  AUTO_BLOCKED_RE,
+  AUTO_BUILDING_CAPS,
+  AUTO_CURSOR_DOUBLERS,
+  AUTO_ESCALATION_NAMES,
+  AUTO_NON_STORE_POOLS,
+  AUTO_PREF_GOLDEN,
+  AUTO_PREF_WIZARD,
+  AUTO_RESEARCH,
+  autoStripHtml,
+} from './valuation-tables';
 
 export interface AutoConfig {
   insignificantSec: number;
@@ -81,10 +91,14 @@ export function autoCollect(game: IGameAdapter, data: PersistedData, runtime: Ru
     reachSec: Math.max(0, num(data.config.autoReachSec, 1800)),
   };
 
+  // Attached wrinklers wither part of the CpS before it reaches the bank (their share only
+  // comes back when they are popped, WRINK-*), so saving up takes that much longer.
+  const withered = Math.min(1, Math.max(0, num(game.getCpsSucked(), 0)));
+
   const ctx: AutoCollectCtx = {
     cps,
     mult: raw > 0 ? cps / raw : 1,
-    income: cps + incomeTracker.update(Date.now()),
+    income: cps * (1 - withered) + incomeTracker.update(Date.now()),
     bank: num(game.getCookies(), 0),
     reserve: Math.max(0, num(data.config.autoReserveSec, 0)) * cps,
     cfg,
@@ -160,10 +174,29 @@ export function autoCollect(game: IGameAdapter, data: PersistedData, runtime: Ru
     }
   }
 
+  // Grandmapocalypse stage 1 (WRINK-1): the research chain up to One mind, on by default.
+  const grandmapocalypse = data.config.autoGrandmapocalypse !== false;
+
   for (const up of game.getUpgradesInStore()) {
     if (!up || up.bought) continue;
 
-    if (AUTO_BLOCKED_NAMES.has(up.name) || AUTO_BLOCKED_RE.test(String(up.name)) || AUTO_NON_STORE_POOLS.has(up.pool ?? '')) {
+    // Stage 2/3 and the pledge switches: never, whatever the settings.
+    if (AUTO_ESCALATION_NAMES.has(up.name)) continue;
+
+    if (Object.prototype.hasOwnProperty.call(AUTO_RESEARCH, up.name)) {
+      if (!grandmapocalypse) continue;
+
+      const gain = autoResearchCandidateGain(game, up, ctx, Math.max(1, num(data.config.autoWrinklerMaturity, 5)));
+      const cost = autoPrice(up);
+
+      if (gain != null && gain > 0 && cost > 0) {
+        cands.push({ kind: 'upgrade', type: 'research', name: up.name, obj: up, cost, dCps: gain, pref: 0 });
+      }
+
+      continue;
+    }
+
+    if (AUTO_BLOCKED_RE.test(String(up.name)) || AUTO_NON_STORE_POOLS.has(up.pool ?? '')) {
       continue;
     }
 

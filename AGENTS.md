@@ -26,14 +26,16 @@ Frenzy, keeps a Grimoire "Force the Hand of Fate" (FTHOF) combo going, and
 shows all of that through a little paw cursor, a HUD, charts and logs. It
 also ships "debug tools" (cheats) to test the hunter on a test save.
 
-Out of scope: wrinklers, seasons, garden, stock market, pantheon, ascending.
+Out of scope: seasons, garden, stock market, pantheon, ascending, and any
+Grandmapocalypse beyond stage 1 (WRINK-1).
 Buying is only done by the optional, OFF-by-default "Auto play" mode
 (AUTO-\*) and even then only through the game's own buy functions. The bot
 NEVER clicks anything except: good golden cookies, the big cookie, the
 FTHOF spell button, the lump-refill button, a ripe sugar lump, the
 Options/Stats menu buttons and the "View Grimoire" button needed to get the
 FTHOF spell on screen (FT-8), and — in auto play only — the Wizard tower's
-"lvl" button (AUTO-13) (the paw only "visits" store items, AUTO-9).
+"lvl" button (AUTO-13) and mature wrinklers (WRINK-5) (the paw only
+"visits" store items, AUTO-9).
 
 ## 2. Terms
 
@@ -58,6 +60,10 @@ FTHOF spell on screen (FT-8), and — in auto play only — the Wizard tower's
 | payback | cost / approximate CpS gain of a purchase, in seconds ("rentability"; lower is better). |
 | impact | CpS gain / current CpS (how much it changes production, regardless of its cost). |
 | in reach | affordable within a set time at the current income. |
+| stage | `Game.elderWrath`, the Grandmapocalypse stage: 0 calm, 1 awoken (One mind), 2 displeased (Communal brainsweep), 3 angered (Elder Pact). Stage 1 turns 1 in 3 golden cookies into wrath cookies and lets wrinklers spawn. |
+| wrinkler | a creature attached to the big cookie from stage 1 on (max 10, 12 with Elder spice). n attached wrinklers each digest n × 5% of CpS (n² × 5% together) while the bank only gets CpS × (1 − n × 5%); popping one returns what it digested × 1.1 (more with upgrades, × 3 for a shiny one). 10 wrinklers ≈ 6× the income, but only once popped. |
+| respawn time | how long an emptied wrinkler slot takes to digest again: `1 / (spawn chance per frame × fps) + 10s` crawl (~56 min at stage 1: 0.00001 per frame). |
+| mature | a wrinkler that has digested for >= "maturity" × the respawn time (estimated as `sucked / (CpS × cpsSucked)`). |
 
 ## 3. Functional requirements
 
@@ -194,7 +200,8 @@ refactor) which `tests/visual/scenarios.mjs` scenario exercises it.
   4. a ripe sugar lump (LUMP-\*)
   5. a buildings-view recipe already under way / the "Show grimoire"
      debug goal (DBG-9/11), then auto play: Grimoire unlock (AUTO-13),
-     then shopping (only when a purchase is due, AUTO-8)
+     then popping a wrinkler for a purchase (WRINK-3), then shopping (only
+     when a purchase is due, AUTO-8)
   6. hammer mode (manual button, or the auto hammer, AUTO-11)
   7. happy dance (only right after a catch, DANCE-1)
   8. idle behavior (IDLE-\*)
@@ -277,8 +284,8 @@ See [§7 State machine](#7-state-machine) for how this maps onto code.
 - **UI-1** Draggable, minimizable panel (drag by the title bar; position
   saved and kept on screen). Title shows the script version.
 - **UI-2** Rows: Mood, Chasing, Shinies waiting (ready / fading in /
-  wrath), Click Frenzy, Buffies, Grimoire, LOCK_A, Click cooldown, Auto
-  play, statistics.
+  wrath), Click Frenzy, Buffies, Grimoire, LOCK_A, Click cooldown,
+  Background, Wrinklers (WRINK-7), Auto play, statistics.
 - **UI-3** Buttons: Pause/Resume, Hammer cookie, Auto play, Graphs, Logs,
   Debug tools, Settings.
 - **UI-4** Settings are STAGED: editing only marks "unsaved"; "Save
@@ -331,6 +338,23 @@ See [§7 State machine](#7-state-machine) for how this maps onto code.
   scrolled into view. Works without auto play; gives up after 30s. The
   outcome (`"Show grimoire: done"` / `"failed"`) is logged as `"debug
   tool"`.
+- **DBG-12** Spawn fed wrinklers (sets stage 1): fills every empty
+  wrinkler slot with an attached wrinkler that has already digested 6
+  hours' worth (mature at stage 1 with the default maturity), and sets
+  `Game.elderWrath` to 1 if it is 0 so they respawn. Fails in red without a
+  grandma or without CpS. Changes the save: use a test save.
+- **DBG-13** Spawn a wrinkler: one wrinkler crawls into the first free slot
+  through the game's own `Game.SpawnWrinkler` (attached after ~10s, starts
+  digesting from 0). Leaves the stage alone. Fails in red when every slot
+  is taken.
+- **DBG-14** Pop a wrinkler: forces ONE pop through the real runtime path
+  (WRINK-3..6: `WrinklerPopper.plan()` → scheduler tier 5 → `job()` →
+  `WrinklerPopAction` → the normal result handling, stats and log) for the
+  fattest attached normal wrinkler. Skips only maturity, the "a purchase
+  needs it" check and the auto play switches; the WRINK-4 safety gates
+  (golden cookie, Click Frenzy, CpS buff, ...) still hold it back, for up to
+  30s. Works without auto play; dry run only logs. Fails in red when no
+  normal wrinkler is attached.
 ### 3.12 Persistence and API
 
 - **DATA-1** State is stored in
@@ -360,9 +384,10 @@ See [§7 State machine](#7-state-machine) for how this maps onto code.
   cursor and CLICKING upgrades: the "mouse and
   cursors twice as efficient" upgrades, the Thousand/Million/Billion/...
   fingers series and the mouse upgrades ("Clicking gains +1% of your
-  CpS"). It NEVER buys the grandma research center ("Bingo
-  center/Research facility") or anything that starts/feeds the
-  Grandmapocalypse, and nothing it cannot classify.
+  CpS"); and, with "Auto: grandmapocalypse stage 1" on (the default), the
+  grandma research chain up to stage 1 (WRINK-1). It NEVER buys Communal
+  brainsweep, Elder Pact, Elder Pledge/Covenant or anything else that pushes
+  the Grandmapocalypse past stage 1, and nothing it cannot classify.
 - **AUTO-3** Value model per option: cost; approximate CpS gain `dCps`
   (buildings: per-building CpS × global multiplier; "twice as efficient":
   that building's CpS; biscuit: its power % of CpS; golden upgrades: an
@@ -370,8 +395,8 @@ See [§7 State machine](#7-state-machine) for how this maps onto code.
   hammer rate: click power × clicks per second, so the cursor doubling
   upgrades are worth their click gain even with 0 cursors); payback = cost
   / `dCps` ("rentability"); impact = `dCps` / CpS; wait = time to afford it
-  at the income (CpS without buffs + smoothed clicking income) after the
-  reserve.
+  at the income (CpS without buffs, minus the share withered by attached
+  wrinklers, + smoothed clicking income) after the reserve.
 - **AUTO-4** Strategy: there is no absolute payback ceiling. Every
   candidate reaching `autoDecide()` already passed AUTO-2/AUTO-3's
   classification (never the research center, always a positive `dCps`),
@@ -385,7 +410,8 @@ See [§7 State machine](#7-state-machine) for how this maps onto code.
   of payback, also exempt from postponement, and sort before ordinary
   ones (Wizard towers first). (C) every other affordable candidate is
   bought too, UNLESS an option that is not affordable yet, in reach and a
-  good deal (payback incl. waiting <= 1.2× the best in reach) or preferred
+  good deal (payback incl. waiting <= 1.2× the best of ALL options, in
+  reach or not — pp already charges the wait) or preferred
   has >= 3× the impact and this one costs more than 10% of it: then it is
   postponed in favor of saving up for the big one (else a stream of small
   purchases keeps the bank too low to ever afford it). Among everything
@@ -393,9 +419,10 @@ See [§7 State machine](#7-state-machine) for how this maps onto code.
   with one purchase per task (AUTO-7), later ticks work down the same
   ranking, so the store empties out highest score first whenever nothing
   is being saved for. Otherwise nothing is bought and the target is shown
-  (preferred first, then lowest pp — this report is deliberately broader
-  than the postponement check: it names whatever is next even when
-  nothing is currently a strict "good deal").
+  (preferred first, then lowest pp): only an option that is itself worth
+  saving up for (in reach, good deal or preferred) is ever named, so a
+  bad deal that merely happens to be in reach is never "saved for" while
+  a far better one sits just past the window.
 - **AUTO-5** "In reach" = affordable within 1800s (`autoReachSec`) at the
   income — purely a time-window check, not a profitability one: a
   candidate outside it is just too far off to reason about yet, not "too
@@ -493,6 +520,73 @@ See [§7 State machine](#7-state-machine) for how this maps onto code.
   the same way as an off-screen element (shared with every other overlay
   box: golden cookies, the Grimoire buttons, ...).
 
+### 3.16 Grandmapocalypse stage 1 and wrinklers (auto play)
+
+- **WRINK-1** Stage 1 only. With "Auto: grandmapocalypse stage 1 (wrinklers)"
+  on (`config.autoGrandmapocalypse`, DEFAULT ON) auto play treats the
+  research chain as candidates (AUTO-2): Bingo center/Research facility
+  (grandmas ×4), Specialized chocolate chips (+1%), Designer cocoa beans
+  (+2%), Ritual rolling pins (grandmas ×2), Underworld ovens (+3%), One mind
+  (each grandma +0.02 base CpS per grandma; starts stage 1) and Exotic nuts
+  (+4%, only makes Communal brainsweep appear in the store). Nobody buys
+  the Bingo center for "grandmas ×4": up to One mind a step is valued as
+  part of ONE project, finishing the chain, and competes on payback like
+  anything else (not preferred): payback = (cost of every step still to
+  buy) / (stage 1 gain + the steps' own gains) + the delay until the
+  wrinklers pay out; the step gets `dCps = its cost / that payback`. Stage 1
+  gain = CpS × ((1 − 0.05n) + popMult × 0.05n² × m/(m+1) − 1 − 0.2/3)
+  (n wrinkler slots, m = maturity, WRINK-2; minus the 1 in 3 golden
+  cookies that turn wrath, golden cookies assumed worth 20% of CpS like
+  Lucky day's valuation): about +400% with 10 wrinklers. Delay = the
+  research still ahead (30 min each, 3 min with Persistent memory) + one
+  respawn time (a slot filling) + m respawn times (digesting to maturity):
+  ~8h from the Bingo center with the defaults. After One mind, Exotic nuts
+  (or a step bought late) counts only its own gain
+  (`src/autoplay/grandmapocalypse-valuation.ts`,
+  `autoResearchCandidateGain()`). One mind's "are you
+  sure?" prompt is confirmed like its own "Yes" button (buy with bypass).
+  Communal brainsweep (stage 2), Elder Pact (stage 3), Elder Pledge, Elder
+  Covenant and Revoke Elder Covenant are NEVER bought, whatever the
+  settings: `autoCollect()` skips them and `autoBuy()` refuses them as a
+  second guard. The game itself never escalates past what was bought (its
+  random stage shifts are capped by the owned upgrades). Setting it off
+  stops buying the chain; it does not undo a stage already reached (Elder
+  Pledge only unlocks with Elder Pact, so there is no way back from stage 1
+  short of stage 3 + Elder Covenant). Golden cookie rules are unchanged: the
+  1 in 3 wrath cookies of stage 1 are ignored (GC-1).
+- **WRINK-2** A wrinkler is only popped once it is mature (§2):
+  "Auto: pop a wrinkler after (× its respawn time)"
+  (`autoWrinklerMaturity`, default 5, so a slot spends >= ~83% of its time
+  digesting). Never a shiny one. Never while nothing respawns (stage 0:
+  a pop would lose the slot for good).
+- **WRINK-3** Only when a purchase needs it: auto play is asked what it
+  would buy with the mature wrinklers' cookies added to the bank
+  (`AutoPlayEngine.decideWithExtraBank()`, the unchanged `autoDecide()`).
+  If that purchase is not affordable from the bank alone, the fewest mature
+  wrinklers that cover the gap are popped, fattest first, one per job. The
+  normal shopping (AUTO-4) then spends the cookies.
+- **WRINK-4** Safety: only with auto play and "Auto: pop wrinklers for
+  purchases" (`autoPopWrinklers`, default on) on; same gates as AUTO-7
+  (golden cookie ready, Click Frenzy, storm/chain, FTHOF/refill pending,
+  ascending, prompt open, paused); never while a CpS buff runs (wrinklers
+  digest the buffed CpS, so that is exactly when they must stay attached).
+  Planned at most once a second. A wrinkler that did not pop pauses popping
+  3s, an error 30s. Dry run only logs "would pop".
+- **WRINK-5** Popping is a real poke (NFR-8): the paw moves onto the
+  wrinkler's body (90 canvas px out from its anchor along its angle, the
+  middle of the game's hit box), hovers 260ms (the game re-checks what is
+  under its mouse only every 5th frame), then clicks `#backgroundLeftCanvas`
+  until it bursts (3 pokes: 2.1 hp, −0.75 per click; at most 10).
+  Priority: tier 5, after the Grimoire unlock, before shopping; a due pop
+  interrupts hammering and idle play like a due purchase (AUTO-8).
+- **WRINK-6** Each pop is counted (`stats.wrinklersPopped`, "Wrinklers
+  popped" in the HUD statistics once > 0) and logged (`"pop wrinkler"`
+  with the cookies gained and the purchase it was for).
+- **WRINK-7** HUD row "Wrinklers" (only while the stage is > 0 or a
+  wrinkler is around): attached/max, the cookies they would give now, how
+  many are mature, and a shiny one if present.
+  Debug: DBG-12.
+
 ## 4. Non-functional requirements
 
 - **NFR-1** Versioning: MAJOR.MINOR.PATCH, shown in the panel. Bump with
@@ -577,6 +671,9 @@ saved (see `normalizeSetting()` in
 | `autoHammerMinShare` | Auto: hammer when clicks add >= (× CpS) | 0.05 | 0-1000 |
 | `autoProbeIntervalSec` | Auto: probe hammering every (s, 0=never) | 300 | 0-86400 |
 | `autoProbeSec` | Auto: probe length (s) | 10 | 2-120 |
+| `autoWrinklerMaturity` | Auto: pop a wrinkler after (x its respawn time) | 5 | 1-50 |
+| `autoGrandmapocalypse` | Auto: grandmapocalypse stage 1 (wrinklers) [checkbox] | true | – |
+| `autoPopWrinklers` | Auto: pop wrinklers for purchases [checkbox] | true | – |
 
 (all "Auto" settings are only shown while Auto play is on)
 
@@ -631,14 +728,14 @@ gainLumps) — still guarded, still the only path to those `Game.*` calls.
 | Area | Path | Contents |
 |---|---|---|
 | Core state | `src/core/` | `constants.ts` (VERSION, clamp helpers), `persisted-data.ts`, `runtime-state.ts`, `state-machine.ts` |
-| Game facade | `src/game/` | `game-adapter.ts` (IGameAdapter + GameAdapter), `types.ts` (GameShimmer/RawBuff/CpsBuff/GrimoireMinigame/GameBuilding/GameUpgrade), `golden-cookie-model.ts` (fade curve, shimmer classification, GC-2/GC-3), `hurry-mode.ts` (HURRY-\*), `buffs-lock.ts` (LOCK_A, FT-6), `grimoire.ts` (FTHOF spell/cost lookup), `grimoire-dom.ts` (real Grimoire controls — FT-7), `lump-dom.ts` (`#lumps` control/centre — LUMP-\*), `buildings-view-dom.ts` (`#centerArea`, menu buttons, building rows/level buttons, the Options/Stats/Stats recipe, `centeredScrollTop` — AUTO-13), `dom-geometry.ts` (visibleRect/looseRect/clippedByAncestor — shared by every overlay box, GC-2/BUY-3) |
+| Game facade | `src/game/` | `game-adapter.ts` (IGameAdapter + GameAdapter), `types.ts` (GameShimmer/RawBuff/CpsBuff/GrimoireMinigame/GameBuilding/GameUpgrade), `golden-cookie-model.ts` (fade curve, shimmer classification, GC-2/GC-3), `hurry-mode.ts` (HURRY-\*), `buffs-lock.ts` (LOCK_A, FT-6), `grimoire.ts` (FTHOF spell/cost lookup), `grimoire-dom.ts` (real Grimoire controls — FT-7), `lump-dom.ts` (`#lumps` control/centre — LUMP-\*), `wrinkler-dom.ts` (`#backgroundLeftCanvas`, a wrinkler's body point — WRINK-5), `buildings-view-dom.ts` (`#centerArea`, menu buttons, building rows/level buttons, the Options/Stats/Stats recipe, `centeredScrollTop` — AUTO-13), `dom-geometry.ts` (visibleRect/looseRect/clippedByAncestor — shared by every overlay box, GC-2/BUY-3) |
 | Cursor (queue) | `src/cursor/` | `types.ts` (`JOB_PRIORITY`, `CursorAction`, `CursorJob`, `CursorJobContext`, `CursorMover`, `CursorClickTiming`, `JobRequest`), `cursor-manager.ts` (owns the priority queue + all cursor motion: click gap → travel → pre-click pause → `cursor_at_position`, dedup by key, preemption, single cursor writer) |
-| Actions | `src/actions/` | `click-element.ts` (ClickElementAction/MoveAction/VisualPressAction), `golden-cookie.ts` (GoldenCookieAction, `effectPrettyName`), `hammer.ts` (HammerAction + big-cookie point helpers, CF-\*), `fthof.ts` (FthofAction/RefillAction), `lump-harvest.ts` (LumpHarvestAction, LUMP-\*), `buildings-view.ts` (MenuButtonAction, ScrollIntoViewAction, MinigameButtonAction — FT-8/AUTO-13/DBG-9..11), `grimoire-unlock.ts` (GrimoireUnlockAction, AUTO-13), `dance.ts` (DanceAction + `danceEligible`/`anyGoldenPresent`/`getDanceMs`), `ponder.ts` (PonderAction), `idle.ts` (IdleWanderAction + `IDLE_SPOTS`/`pickIdleSpot`) |
+| Actions | `src/actions/` | `click-element.ts` (ClickElementAction/MoveAction/VisualPressAction), `golden-cookie.ts` (GoldenCookieAction, `effectPrettyName`), `hammer.ts` (HammerAction + big-cookie point helpers, CF-\*), `fthof.ts` (FthofAction/RefillAction), `lump-harvest.ts` (LumpHarvestAction, LUMP-\*), `buildings-view.ts` (MenuButtonAction, ScrollIntoViewAction, MinigameButtonAction — FT-8/AUTO-13/DBG-9..11), `grimoire-unlock.ts` (GrimoireUnlockAction, AUTO-13), `wrinkler-pop.ts` (WrinklerPopAction, WRINK-5), `dance.ts` (DanceAction + `danceEligible`/`anyGoldenPresent`/`getDanceMs`), `ponder.ts` (PonderAction), `idle.ts` (IdleWanderAction + `IDLE_SPOTS`/`pickIdleSpot`) |
 | Hunting (modules) | `src/hunting/` | `click-golden.ts` (golden hunter: `jobFor` → GoldenCookieAction), `click-big-cookie.ts` (hammer module: `job` → HammerAction), `golden-queue.ts` (route caching, wraps route-planner), `fthof.ts` (FthofActions: `fthofOrRefillPending` + `castJob`/`refillJob`), `lump-harvest.ts` (LumpHarvestActions: `pending` + `harvestJob`), `happy-dance.ts` (HappyDance: `job` → DanceAction), `buildings-view.ts` (BuildingsViewNavigator: Options/Stats/Stats recipe + scroll-into-view steps, `PrepStep`), `grimoire-view.ts` (GrimoireView: step planner to an unlocked/open, on-screen Grimoire — FT-8/AUTO-13 — plus the DBG-9..11 tools and their scheduler tier), `hitbox-overlay.ts` (GC-2) |
 | Routing | `src/routing/route-planner.ts` | `exactRoute` (Held-Karp DP, <= 11 cookies), `heuristicRoute` (nearest-neighbor + 2-opt/Or-opt + restarts), `planRoute` (GC-5) |
 | Idle | `src/idle/` | `idle-behavior.ts` (IdleBehavior module: `idleJob` → IdleWanderAction), `pending-work.ts` (conditions + queue state via `CursorManager.hasJobsAbove` — the shared "is anything more important pending?" predicate) |
 | Input synthesis | `src/input/` | `dispatch.ts` (dispatchMouse/dispatchMove — MOUSE-\*), `human-click.ts` (ClickTiming: delays, waitUntil, humanClick), `cursor-controller.ts` (CursorController: low-level PAW-4 arc/spline/warp travel, moveCursorTo/glideCursor — the only file that writes `runtime.cursor.x/y`), `background-clock.ts` (BackgroundClock: BG-1/BG-2 worker timer), `keep-alive.ts` (BG-3) |
-| Auto play | `src/autoplay/` | `valuation-tables.ts` (AUTO_BLOCKED_\*, AUTO_GOLDEN_UPGRADES, AUTO_KITTEN_POWER, AUTO_FINGER_STEPS, AUTO_BUILDING_CAPS — AUTO-2 data), `building-valuation.ts` + `upgrade-classifier.ts` (AUTO-3 gain math per candidate type), `collector.ts` (`autoCollect`: gathers candidates + ctx, AUTO-7 safety gates), `strategy.ts` (`autoDecide`: the pure insignificant/good/postpone/save decision, AUTO-4 — flagship unit-test target), `shopping.ts` (`AutoPlayEngine`: evaluate/shopJob/statusText, AUTO-1/8/9/10/12), `auto-hammer.ts` (AUTO-11), `grimoire-unlock.ts` (`GrimoireUnlocker`: AUTO-13 gating, steps from GrimoireView), `income-tracker.ts` (smoothed clicking income for AUTO-3's `income`), `buy-value-overlay.ts` (BUY-\*) |
+| Auto play | `src/autoplay/` | `valuation-tables.ts` (AUTO_BLOCKED_\*, AUTO_GOLDEN_UPGRADES, AUTO_KITTEN_POWER, AUTO_FINGER_STEPS, AUTO_BUILDING_CAPS — AUTO-2 data), `building-valuation.ts` + `upgrade-classifier.ts` (AUTO-3 gain math per candidate type), `collector.ts` (`autoCollect`: gathers candidates + ctx, AUTO-7 safety gates), `strategy.ts` (`autoDecide`: the pure insignificant/good/postpone/save decision, AUTO-4 — flagship unit-test target), `shopping.ts` (`AutoPlayEngine`: evaluate/shopJob/statusText, AUTO-1/8/9/10/12), `auto-hammer.ts` (AUTO-11), `grimoire-unlock.ts` (`GrimoireUnlocker`: AUTO-13 gating, steps from GrimoireView), `wrinkler-strategy.ts` (pure: respawn time, maturity, fewest-fattest pick — WRINK-2/3), `grandmapocalypse-valuation.ts` (pure: stage 1 gain, delay, chain-step dCps — WRINK-1), `wrinkler-popper.ts` (`WrinklerPopper`: WRINK-3/4 gating, plan, job, HUD text), `income-tracker.ts` (smoothed clicking income for AUTO-3's `income`), `buy-value-overlay.ts` (BUY-\*) |
 | Scheduler | `src/scheduler/` | `priority.ts` (`selectJobRequest`: the SCHED-1 cascade as pure data), `scheduler.ts` (`Scheduler.tick()`: wrath logging, queue build, enqueues ONE job via CursorManager), `overlay-loop.ts` (`OverlayLoop`: the requestAnimationFrame draw loop — hitboxes, buy-value overlay, paw) |
 | Rendering | `src/rendering/` | `paw-cursor.ts` (`PawCursor`: PAW-1..3, sprite rasterizing, click pulse, fallback drawn paw), `overlay-canvas.ts` (resize/DPR handling) |
 | Stats | `src/stats/` | `log.ts` (`LogStore`), `stats.ts` (`StatsRecorder`: GC-6/AUTO-10 counters + hourly buckets) |
@@ -690,6 +787,7 @@ target)`) instead of scattering direct field writes across every task.
 | `lump-harvest` | harvesting a ripe sugar lump (LUMP-1) | `LumpHarvestAction` |
 | `buildings-view` | clicking Options/Stats back to the buildings, scrolling `#centerArea`, or clicking "View Grimoire" (FT-8, AUTO-13, DBG-9..11) | `MenuButtonAction` / `ScrollIntoViewAction` / `MinigameButtonAction` |
 | `grimoire-unlock` | spending a sugar lump on Wizard tower level 1 (AUTO-13) | `GrimoireUnlockAction` |
+| `wrinkler-pop` | poking a mature wrinkler until it bursts (WRINK-5) | `WrinklerPopAction` |
 | `auto-shop` | visiting/buying a store item (AUTO-9) | auto-shop `CursorAction` from `AutoPlayEngine.shopJob()` |
 | `happy-dance` | post-catch celebration (DANCE-\*) | `DanceAction` |
 
@@ -712,8 +810,8 @@ file.**
 
 Three layers, each catching a different class of bug:
 
-1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 235 tests
-   across 30 files. Pure functions (route planner, `autoDecide`, the chart
+1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 265 tests
+   across 31 files. Pure functions (route planner, `autoDecide`, the chart
    engine, `normalizeSetting`) are tested directly with plain data; the
    cursor queue/actions have their own fake mover/timing tests. Classes
    that depend on the game are tested against `FakeGameAdapter`
@@ -796,7 +894,11 @@ an assertion — hence the visual suite instead.
   `Game.gainLumps`, `Game.lumpT`/`Game.lumpRipeAge`/`Game.lumpOverripeAge`/
   `Game.canLumps` (sugar lump ripeness, LUMP-\*), `Game.onMenu`, the
   `#centerArea`/`#prefsButton`/`#statsButton`/`#row{id}`/`#productLevel{id}`
-  DOM and building `level` (Grimoire unlock, AUTO-13). If one is missing, the
+  DOM and building `level` (Grimoire unlock, AUTO-13), `Game.elderWrath`,
+  `Game.wrinklers` (`phase`/`sucked`/`type`/`x`/`y`/`r`), `Game.cpsSucked`,
+  `Game.getWrinklersMax()`, the wrinkler spawn/pop formulas and hit box
+  (WRINK-\*; read from the game's `main.js` 2.058, and one pop verified live:
+  3 pokes, digested × 1.1 gained). If one is missing, the
   affected feature degrades quietly (see NFR-4) and the Debug tools report
   an error in red.
 - In a hidden tab the bot itself keeps working (worker timers, BG-1/BG-2).
@@ -810,6 +912,11 @@ an assertion — hence the visual suite instead.
 - Auto play does not click the big cookie for you (combine with Hammer
   mode), does not buy kittens/mouse upgrades/dragon/seasonal switches, and
   has no ascension logic.
+- Grandmapocalypse stage 1 is on by default (WRINK-1) and cannot be undone
+  by the bot. Its cost: 1 in 3 golden cookies becomes a wrath cookie that
+  the bot ignores (GC-1), and the visible CpS drops by n × 5% while n
+  wrinklers are attached. Shiny wrinklers are never popped; pop them by
+  hand if you want them.
 - FTHOF has no cooldown in the game; only mana limits it.
 - Route planning is Euclidean and ignores click time (constant per
   cookie).
@@ -834,7 +941,10 @@ Not yet covered by a scripted scenario (do these by hand with Debug tools
 if you touch the relevant code): FTHOF/refill logic (FT-\*, needs mana +
 CpS buffs set up; for FT-8 close the Grimoire, open Options and scroll the
 building list to the top before spawning a Frenzy + "Fill Up Mana"), sugar lump harvesting (LUMP-\*, "Ripen growing sugar
-lump" then watch the paw harvest it), Grimoire unlock (AUTO-13: on a test
+lump" then watch the paw harvest it), wrinkler popping (WRINK-\*: auto
+play on, "Spawn fed wrinklers", then make the next purchase need them —
+e.g. spend the bank down; watch the paw poke one wrinkler 3 times and the
+purchase follow; a Frenzy must hold it back), Grimoire unlock (AUTO-13: on a test
 save with a Wizard tower at level 0, give lumps, open Options, switch auto
 play on, scroll the building list to the top; watch Options/Stats/Stats,
 the wheel-scroll and the "lvl" click; DBG-9/10 exercise the first two
@@ -844,6 +954,66 @@ mouse while the bot runs and confirm the "+N" number follows your cursor,
 not the paw's).
 
 ## 12. Changelog
+
+- **4.10.3** Two new debug tools: "Spawn a wrinkler" (DBG-13, one wrinkler
+  crawls in via `Game.SpawnWrinkler`; `IGameAdapter.spawnWrinkler()`) and
+  "Pop a wrinkler" (DBG-14), which does not pop anything itself: it sets
+  `runtime.wrinklerForcePopUntil` so the real `WrinklerPopper` plans the
+  fattest attached normal wrinkler and the scheduler runs the normal pop
+  job — the same code the runtime pops with, minus only the
+  maturity/purchase-need checks and the auto play switches (safety gates
+  still apply). Unit tests in `tests/unit/wrinklers.test.ts`.
+
+- **4.10.2** Fixed: auto play could "save for" a terrible deal (e.g.
+  the 101st Shipment, worth ~0.003% CpS) while a far better purchase
+  (+2% CpS, slightly more expensive) sat right next to it — whenever the
+  better one was just outside the 30-minute "in reach" window, the bad
+  one was the only unaffordable option left in reach, and the save
+  target was chosen from those without any quality bar. `autoDecide()`
+  (`src/autoplay/strategy.ts`) now measures "good deal" against the best
+  pp of ALL options (pp includes the wait, so an out-of-reach option only
+  raises the bar when it is genuinely better), and the save target must
+  be a real target (good deal or preferred); otherwise the HUD reads
+  "nothing worth saving for in reach". Once the better option comes into
+  reach it becomes the target and the bad one is postponed as before.
+  New unit tests in `tests/unit/strategy.test.ts`.
+
+- **4.10.1** The research chain is no longer "preferred" with its own
+  effects as its value (the Bingo center scored as "grandmas ×4", which is
+  not why anyone buys it). Up to One mind every step is now valued by the
+  payback of finishing the chain: everything still to buy against what
+  stage 1 is worth (wrinklers, ~+400% CpS with 10 slots, minus the 1 in 3
+  golden cookies that turn wrath) plus the steps' own gains, delayed until
+  the wrinklers pay out (research left + a slot filling + maturity). It now
+  competes on payback like any purchase, and the "how good is a buy"
+  overlay scores it by that. New `src/autoplay/grandmapocalypse-valuation.ts`,
+  `autoResearchCandidateGain()`/`autoResearchSec()`, `AUTO_STAGE1_CHAIN`;
+  `AUTO_PREF_RESEARCH` removed; `getWrinklerSpawnChance()` takes an
+  optional stage. Unit tests in `tests/unit/wrinklers.test.ts`.
+
+- **4.10.0** Grandmapocalypse stage 1 and wrinkler popping (WRINK-\*).
+  Auto play now buys the grandma research chain up to One mind (stage 1:
+  wrinklers, 1 in 3 golden cookies turns wrath), on by default via the new
+  setting "Auto: grandmapocalypse stage 1 (wrinklers)"; Communal brainsweep,
+  Elder Pact and the pledge/covenant switches stay blocked in
+  `autoCollect()` AND `autoBuy()` (`AUTO_ESCALATION_NAMES`, replacing
+  `AUTO_BLOCKED_NAMES`; new `AUTO_RESEARCH`, `autoResearchGain()`; One mind
+  bought with the prompt bypass). New module `WrinklerPopper`
+  (`src/autoplay/wrinkler-popper.ts`, pure logic in `wrinkler-strategy.ts`)
+  pops mature wrinklers (digested >= 5× their ~56 min respawn time, setting
+  "Auto: pop a wrinkler after") only when auto play's next purchase needs
+  their cookies — asked through the unchanged `autoDecide()` with the
+  mature stash added to the bank — fewest and fattest first, never a shiny
+  one, never during a CpS buff; new setting "Auto: pop wrinklers for
+  purchases". `WrinklerPopAction` pokes the wrinkler on
+  `#backgroundLeftCanvas` like a human (tier 5, before shopping). Auto
+  play's saving-up income now subtracts the CpS withered by wrinklers. New
+  HUD row "Wrinklers", stat "Wrinklers popped", mood `wrinkler-pop`, debug
+  tool "Spawn fed wrinklers (sets stage 1)" (DBG-12). `IGameAdapter` gains
+  `getElderWrath`/`getWrinklers`/`getWrinklersMax`/`getCpsSucked`/
+  `getWrinklerSpawnChance`/`getWrinklerPopMult` and `spawnFedWrinklers`.
+  Unit tests in `tests/unit/wrinklers.test.ts` and
+  `tests/unit/priority.test.ts`.
 
 - **4.9.0** FTHOF now gets the spell in front of the paw before casting
   (FT-8): back to the buildings view (Options, Stats, Stats) if a menu is

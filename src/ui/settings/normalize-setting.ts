@@ -51,6 +51,9 @@ export function normalizeSetting(key: string, raw: string): number {
     case 'autoWizardTowerTarget':
       return Number.isFinite(value) && raw !== '' ? clampInt(value, 0, 500, 57) : 57;
 
+    case 'autoWrinklerMaturity':
+      return Number.isFinite(value) && raw !== '' ? clamp(value, 1, 50) : 5;
+
     case 'panicFactor':
       return Number.isFinite(value) && raw !== '' ? clamp(value, 0.01, 1) : 0.2;
 

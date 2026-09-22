@@ -3,6 +3,7 @@ import type { PersistedData } from '../core/persisted-data';
 import type { RuntimeState } from '../core/runtime-state';
 import type { GrimoireView } from '../hunting/grimoire-view';
 import type { AutoPlayEngine } from '../autoplay/shopping';
+import type { WrinklerPopper } from '../autoplay/wrinkler-popper';
 import type { IncomeTracker } from '../autoplay/income-tracker';
 import type { IGameAdapter } from '../game/game-adapter';
 import type { GoldenCookieModel } from '../game/golden-cookie-model';
@@ -32,6 +33,7 @@ export interface UiRootDeps {
   clickTiming: ClickTiming;
   hurryMode: HurryMode;
   autoPlay: AutoPlayEngine;
+  wrinklerPopper: WrinklerPopper;
   grimoireView: GrimoireView;
   clock: BackgroundClock;
   keepAlive: KeepAliveController;
@@ -56,7 +58,7 @@ export class UiRoot {
 
   constructor(deps: UiRootDeps) {
     this.deps = deps;
-    const { runtime, data, game, log, goldenCookieModel, goldenQueue, clickTiming, hurryMode, autoPlay, grimoireView, clock, keepAlive, incomeTracker } = deps;
+    const { runtime, data, game, log, goldenCookieModel, goldenQueue, clickTiming, hurryMode, autoPlay, wrinklerPopper, grimoireView, clock, keepAlive, incomeTracker } = deps;
 
     injectStyles();
     applyFrameOpacity(data.config.frameOpacity ?? 0.95);
@@ -75,11 +77,11 @@ export class UiRoot {
     this.logsPanel = new LogsPanel(data);
     document.body.appendChild(this.logsPanel.element);
 
-    this.debugTools = new DebugTools(runtime, game, grimoireView);
+    this.debugTools = new DebugTools(runtime, game, grimoireView, wrinklerPopper);
     this.debugPanel = new DebugPanel(this.debugTools);
     document.body.appendChild(this.debugPanel.element);
 
-    this.panelUpdater = new PanelUpdater(this.panel, runtime, data, game, goldenCookieModel, goldenQueue, clickTiming, hurryMode, autoPlay, clock, keepAlive);
+    this.panelUpdater = new PanelUpdater(this.panel, runtime, data, game, goldenCookieModel, goldenQueue, clickTiming, hurryMode, autoPlay, wrinklerPopper, clock, keepAlive);
 
     this.settingsPanel = new SettingsPanel(this.panel, data, runtime, keepAlive, () => {
       applyFrameOpacity(data.config.frameOpacity);
@@ -125,6 +127,8 @@ export class UiRoot {
     bindCheckbox('ccsb-buyvalue', data.config.showBuyValue !== false);
     bindCheckbox('ccsb-keepalive', data.config.keepAlive !== false);
     bindCheckbox('ccsb-auto-hammer', data.config.autoHammer !== false);
+    bindCheckbox('ccsb-auto-grandmapocalypse', data.config.autoGrandmapocalypse !== false);
+    bindCheckbox('ccsb-auto-pop-wrinklers', data.config.autoPopWrinklers !== false);
 
     autoPlay.applyVisibility();
 

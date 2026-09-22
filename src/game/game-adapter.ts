@@ -1,4 +1,4 @@
-import type { CpsBuff, GameBuilding, GameShimmer, GameUpgrade, GrimoireMinigame, RawBuff } from './types';
+import type { CpsBuff, GameBuilding, GameShimmer, GameUpgrade, GameWrinkler, GrimoireMinigame, RawBuff } from './types';
 
 /** Every access to the live Cookie Clicker `Game` object goes through this interface. It is
  * the one mockable seam between our logic and the page's own global. */
@@ -45,6 +45,20 @@ export interface IGameAdapter {
   getMilkProgress(): number | null;
   getAchievementsOwned(): number;
 
+  // ---- Grandmapocalypse / wrinklers (WRINK-*) ----
+  /** Game.elderWrath: 0 = calm, 1 awoken (One mind), 2 displeased, 3 angered. */
+  getElderWrath(): number;
+  getWrinklers(): GameWrinkler[];
+  getWrinklersMax(): number;
+  /** Share of CpS every attached wrinkler digests (Game.cpsSucked, n x 5%). */
+  getCpsSucked(): number;
+  /** Chance per game frame that ONE empty wrinkler slot spawns a wrinkler, at the current
+   * stage (0 while elderWrath is 0) or at `stage` if given. */
+  getWrinklerSpawnChance(stage?: number): number;
+  /** Multiplier applied to a wrinkler's digested cookies when it pops (1.1 base, upgrades,
+   * Dragon Guts, Pantheon; x3 for a shiny one). */
+  getWrinklerPopMult(shiny: boolean): number;
+
   // ---- debug-tools-only raw operations (see ui/debug/debug-tools.ts) ----
   spawnGoldenShimmer(opts: { wrath?: boolean }): Record<string, unknown>;
   spawnCookieChain(): Record<string, unknown>;
@@ -52,6 +66,8 @@ export interface IGameAdapter {
   earnCookies(n: number): void;
   gainLumps(n: number): void;
   ripenLump(): void;
+  spawnFedWrinklers(fedSec: number): number;
+  spawnWrinkler(): number;
 }
 
 export class GameAdapter implements IGameAdapter {
@@ -320,6 +336,89 @@ export class GameAdapter implements IGameAdapter {
     return Game ? Number(Game.AchievementsOwned) || 0 : 0;
   }
 
+  getElderWrath(): number {
+    const Game = window.Game;
+    return Game ? Number(Game.elderWrath) || 0 : 0;
+  }
+
+  getWrinklers(): GameWrinkler[] {
+    const Game = window.Game;
+    return Game && Array.isArray(Game.wrinklers) ? Game.wrinklers : [];
+  }
+
+  getWrinklersMax(): number {
+    try {
+      const Game = window.Game;
+      if (Game && typeof Game.getWrinklersMax === 'function') {
+        return Number(Game.getWrinklersMax()) || 0;
+      }
+    } catch (_e) {
+      /* fall through */
+    }
+    return 10;
+  }
+
+  getCpsSucked(): number {
+    const Game = window.Game;
+    return Game ? Number(Game.cpsSucked) || 0 : 0;
+  }
+
+  /** Mirrors Game.UpdateWrinklers: 0.00001 x elderWrath per frame, x eff('wrinklerSpawn'),
+   * x5 with Unholy bait, x2.5/2/1.5 with Scorn in the Pantheon; 0.1 with the debug-only
+   * Wrinkler doormat. */
+  getWrinklerSpawnChance(stage?: number): number {
+    try {
+      const Game = window.Game;
+      if (!Game) return 0;
+
+      const wrath = stage != null ? stage : Number(Game.elderWrath) || 0;
+      if (wrath <= 0) return 0;
+
+      let chance = 0.00001 * wrath;
+
+      if (typeof Game.eff === 'function') chance *= Number(Game.eff('wrinklerSpawn')) || 1;
+      if (this.hasUpgrade('Unholy bait')) chance *= 5;
+
+      const scorn = this.godLevel('scorn');
+      if (scorn === 1) chance *= 2.5;
+      else if (scorn === 2) chance *= 2;
+      else if (scorn === 3) chance *= 1.5;
+
+      if (this.hasUpgrade('Wrinkler doormat')) chance = 0.1;
+
+      return chance;
+    } catch (_e) {
+      return 0;
+    }
+  }
+
+  /** Mirrors the pop branch of Game.UpdateWrinklers. */
+  getWrinklerPopMult(shiny: boolean): number {
+    let m = 1.1;
+
+    if (this.hasUpgrade('Sacrilegious corruption')) m *= 1.05;
+    m *= 1 + this.getAuraMult('Dragon Guts') * 0.2;
+    if (shiny) m *= 3;
+    if (this.hasUpgrade('Wrinklerspawn')) m *= 1.05;
+
+    const scorn = this.godLevel('scorn');
+    if (scorn === 1) m *= 1.15;
+    else if (scorn === 2) m *= 1.1;
+    else if (scorn === 3) m *= 1.05;
+
+    return m;
+  }
+
+  /** Pantheon slot (1-3) of a god, 0 when not slotted or the Pantheon isn't loaded. */
+  private godLevel(god: string): number {
+    try {
+      const Game = window.Game;
+      return Game && typeof Game.hasGod === 'function' ? Number(Game.hasGod(god)) || 0 : 0;
+    } catch (_e) {
+      return 0;
+    }
+  }
+
   spawnGoldenShimmer(opts: { wrath?: boolean }): Record<string, unknown> {
     const Game = window.Game;
 
@@ -435,5 +534,72 @@ export class GameAdapter implements IGameAdapter {
     }
 
     Game.lumpT = Date.now() - ripeAge - 1000;
+  }
+
+  /** Debug-only: spawns ONE wrinkler into the first free slot through the game's own
+   * Game.SpawnWrinkler, so it crawls in (~10s) like a natural one. Leaves the stage alone.
+   * Returns its slot id. */
+  spawnWrinkler(): number {
+    const Game = window.Game;
+
+    if (!Game || !Array.isArray(Game.wrinklers) || typeof Game.SpawnWrinkler !== 'function') {
+      throw new Error('Game.SpawnWrinkler is not available');
+    }
+
+    const max = this.getWrinklersMax();
+    const w = (Game.wrinklers as GameWrinkler[]).find((x) => x.id < max && x.phase === 0);
+
+    if (!w) {
+      throw new Error(`every wrinkler slot is taken (${max})`);
+    }
+
+    Game.SpawnWrinkler(w);
+
+    return w.id;
+  }
+
+  /** Debug-only: fills every empty wrinkler slot with an attached wrinkler that has already
+   * digested `fedSec` seconds' worth (at the full slot count), and puts the Grandmapocalypse
+   * at stage 1 if it is calm, so wrinklers keep respawning. Returns how many were added. */
+  spawnFedWrinklers(fedSec: number): number {
+    const Game = window.Game;
+
+    if (!Game || !Array.isArray(Game.wrinklers)) {
+      throw new Error('Game.wrinklers is not available');
+    }
+
+    if (!(Number(Game.Objects && Game.Objects.Grandma && Game.Objects.Grandma.amount) >= 1)) {
+      throw new Error('needs at least one grandma (no grandmas = no Grandmapocalypse)');
+    }
+
+    const cps = Number(Game.cookiesPs) || 0;
+    if (!(cps > 0)) {
+      throw new Error('needs some CpS first (wrinklers digest a share of it)');
+    }
+
+    if (!(Number(Game.elderWrath) > 0)) {
+      Game.elderWrath = 1;
+    }
+
+    const max = this.getWrinklersMax();
+    let added = 0;
+
+    for (const w of Game.wrinklers as GameWrinkler[]) {
+      if (w.id >= max || w.phase !== 0) continue;
+
+      if (typeof Game.SpawnWrinkler === 'function') {
+        Game.SpawnWrinkler(w);
+      }
+
+      w.type = 0;
+      w.close = 1;
+      w.phase = 2;
+      w.sucked = fedSec * cps * 0.05 * max;
+      added++;
+    }
+
+    Game.recalculateGains = 1;
+
+    return added;
   }
 }

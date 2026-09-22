@@ -6,10 +6,11 @@ import type { IGameAdapter } from '../game/game-adapter';
 import { JOB_PRIORITY, type CursorAction, type CursorJobContext, type JobRequest } from '../cursor/types';
 import type { LogStore } from '../stats/log';
 import type { StatsRecorder } from '../stats/stats';
-import { autoCollect, type PurchaseCandidate } from './collector';
+import { autoCollect, type AutoCollectCtx, type PurchaseCandidate } from './collector';
 import type { Decision, DecisionRow } from './strategy';
 import { autoDecide } from './strategy';
 import type { IncomeTracker } from './income-tracker';
+import { AUTO_CONFIRM_BYPASS, AUTO_ESCALATION_NAMES } from './valuation-tables';
 
 export interface AutoPlan {
   at: number;
@@ -78,13 +79,18 @@ export function autoBuy(game: IGameAdapter, c: PurchaseCandidate): boolean {
     return (Number(me.amount) || 0) > before;
   }
 
-  const up = c.obj as { bought?: boolean | number; buy: () => void };
+  const up = c.obj as { bought?: boolean | number; buy: (bypass?: number) => void };
 
-  if (up.bought || !(game.getCookies() >= c.cost)) {
+  // Second guard behind autoCollect(): never past Grandmapocalypse stage 1 (WRINK-1).
+  if (up.bought || AUTO_ESCALATION_NAMES.has(c.name) || !(game.getCookies() >= c.cost)) {
     return false;
   }
 
-  up.buy();
+  if (AUTO_CONFIRM_BYPASS.has(c.name)) {
+    up.buy(1);
+  } else {
+    up.buy();
+  }
 
   return !!up.bought;
 }
@@ -125,6 +131,16 @@ export class AutoPlayEngine {
     }
 
     return this.runtime.buyValueCache;
+  }
+
+  /** What would auto play buy right now if `extra` more cookies were in the bank? Used by the
+   * wrinkler popper (WRINK-3) with the mature wrinklers' cookies as `extra`. `ctx` is the
+   * REAL one (bank without `extra`). Null when auto play can't plan (game not ready, ...). */
+  decideWithExtraBank(extra: number): { decision: Decision; ctx: AutoCollectCtx } | null {
+    const g = autoCollect(this.game, this.data, this.runtime, this.incomeTracker);
+    if ('skip' in g) return null;
+
+    return { decision: autoDecide(g.cands, { ...g.ctx, bank: g.ctx.bank + Math.max(0, extra) }), ctx: g.ctx };
   }
 
   /** Computes (at most once per second, unless forced) the shopping plan and keeps it in

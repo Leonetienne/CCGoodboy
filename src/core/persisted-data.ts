@@ -32,6 +32,9 @@ export interface Config {
   autoHammerMinShare: number;
   autoProbeIntervalSec: number;
   autoProbeSec: number;
+  autoGrandmapocalypse: boolean;
+  autoPopWrinklers: boolean;
+  autoWrinklerMaturity: number;
 }
 
 export interface Stats {
@@ -41,6 +44,7 @@ export interface Stats {
   grimoireRefills: number;
   lumpHarvests: number;
   autoBuys: number;
+  wrinklersPopped: number;
 }
 
 export interface HourlyBucket {
@@ -107,6 +111,9 @@ export const DEFAULTS: PersistedState = {
     autoHammerMinShare: 0.05,
     autoProbeIntervalSec: 300,
     autoProbeSec: 10,
+    autoGrandmapocalypse: true,
+    autoPopWrinklers: true,
+    autoWrinklerMaturity: 5,
   },
   stats: {
     totalGolden: 0,
@@ -115,6 +122,7 @@ export const DEFAULTS: PersistedState = {
     grimoireRefills: 0,
     lumpHarvests: 0,
     autoBuys: 0,
+    wrinklersPopped: 0,
   },
   hourly: {},
   logs: [],

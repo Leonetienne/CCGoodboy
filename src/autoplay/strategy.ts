@@ -40,7 +40,9 @@ export interface Decision {
  *   2) Otherwise: if nothing is not-yet-affordable and worth deliberately saving up for, buy
  *      every other affordable candidate too — highest score (lowest payback) first. "Worth
  *      saving up for" means in reach, not affordable yet, and a good deal (pp <= goodFactor x
- *      the best pp in reach) or preferred.
+ *      the best pp of ALL options, in reach or not) or preferred. Measuring "good" against
+ *      everything matters: a clearly better option just past reachSec must not leave a terrible
+ *      one that happens to be in reach looking like "the best deal in reach".
  *   3) A save target holds back an ordinary (non-insignificant, non-preferred) affordable
  *      purchase specifically when the target has >= biggerImpact x its impact AND it costs more
  *      than 10% of the target's cost (otherwise a stream of small purchases would keep the bank
@@ -48,7 +50,8 @@ export interface Decision {
  *   Among everything bought this tick, the single best (lowest payback) one goes out; on an
  *   idle-game timescale of one purchase per tick (AUTO-7), the rest follow on later ticks in the
  *   same order, so the store empties out highest score first whenever nothing is being saved
- *   for. Report what we are saving for otherwise (preferred first, then lowest pp). */
+ *   for. The save target is the best of those "worth saving up for" (preferred first, then
+ *   lowest pp); a bad deal is never reported as one, even when it is the only thing in reach. */
 export function autoDecide(cands: PurchaseCandidate[], ctx: AutoCollectCtx): Decision {
   const cfg = ctx.cfg;
   const cpsEff = Math.max(ctx.cps, 0.1);
@@ -82,7 +85,9 @@ export function autoDecide(cands: PurchaseCandidate[], ctx: AutoCollectCtx): Dec
     return { buy: null, save: null, note: 'nothing in reach', rows };
   }
 
-  const bestPP = Math.min(...inReach.map((r) => r.pp));
+  // Best pp over EVERY option, not just those in reach: pp already charges the waiting time, so
+  // an option past reachSec only lowers the bar when it is genuinely the better deal.
+  const bestPP = Math.min(...rows.map((r) => r.pp));
   const good = (r: DecisionRow) => r.pp <= cfg.goodFactor * bestPP;
 
   const affordable = inReach.filter((r) => r.affordable);
@@ -105,12 +110,10 @@ export function autoDecide(cands: PurchaseCandidate[], ctx: AutoCollectCtx): Dec
   // tick: an affordable insignificant/preferred purchase (e.g. a Wizard tower) can go out this
   // very tick while the bot is still accumulating for something bigger it isn't affording yet
   // (that's exactly what `postponed()` above is protecting) — both should be reported, not just
-  // whichever one `autoDecide` happens to act on this call. Deliberately broader than `targets`
-  // (no `good()` bar): this is just "what would be bought next," not a postponement trigger, so
-  // it still names something even when nothing is currently good enough to hold other buys back.
-  const save = inReach
-    .filter((r) => !r.affordable)
-    .sort((a, b) => prefOf(b) - prefOf(a) || a.pp - b.pp)[0] || null;
+  // whichever one `autoDecide` happens to act on this call. Only a real target qualifies: a
+  // merely-in-reach option with a terrible payback is not "saved for" (it would still be bought
+  // once affordable if nothing better holds it back, like any other purchase).
+  const save = [...targets].sort((a, b) => prefOf(b) - prefOf(a) || a.pp - b.pp)[0] || null;
 
   if (buyable.length) {
     const p = buyable[0]!;
@@ -129,7 +132,7 @@ export function autoDecide(cands: PurchaseCandidate[], ctx: AutoCollectCtx): Dec
     buy: null,
     save: save ? save.c : null,
     saveRow: save,
-    note: save ? 'saving' : 'waiting',
+    note: save ? 'saving' : 'nothing worth saving for in reach',
     rows,
   };
 }

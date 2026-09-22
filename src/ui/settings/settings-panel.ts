@@ -64,6 +64,9 @@ export class SettingsPanel {
 
     this.data.config.autoDryRun = (document.getElementById('ccsb-auto-dry') as HTMLInputElement).checked;
     this.data.config.autoHammer = (document.getElementById('ccsb-auto-hammer') as HTMLInputElement).checked;
+    this.data.config.autoGrandmapocalypse = (document.getElementById('ccsb-auto-grandmapocalypse') as HTMLInputElement).checked;
+    this.data.config.autoPopWrinklers = (document.getElementById('ccsb-auto-pop-wrinklers') as HTMLInputElement).checked;
+    this.runtime.wrinklerNextEvalAt = 0;
 
     this.runtime.autoNextEvalAt = 0;
 

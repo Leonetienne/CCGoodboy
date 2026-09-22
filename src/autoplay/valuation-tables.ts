@@ -1,9 +1,7 @@
-/** Names the auto player must NEVER buy: the grandma research center and everything that
- * starts or feeds the Grandmapocalypse. (The auto player only ever considers upgrades it can
- * classify, see autoUpgradeGain(); this list is an extra hard stop.) */
-export const AUTO_BLOCKED_NAMES = new Set([
-  'Bingo center/Research facility',
-  'One mind',
+/** Names the auto player must NEVER buy, whatever the settings: everything that pushes the
+ * Grandmapocalypse past stage 1 (Communal brainsweep = stage 2, Elder Pact = stage 3) and the
+ * pledge/covenant switches. autoBuy() refuses them too, as a second guard (WRINK-1). */
+export const AUTO_ESCALATION_NAMES = new Set([
   'Communal brainsweep',
   'Elder Pact',
   'Elder Pledge',
@@ -11,8 +9,42 @@ export const AUTO_BLOCKED_NAMES = new Set([
   'Revoke Elder Covenant',
 ]);
 
-/** Name pattern that is blocked as well (covers spelling variants of the research center). */
+/** Name pattern of the grandma research center (covers spelling variants). Only bought as
+ * part of AUTO_RESEARCH, i.e. only with `autoGrandmapocalypse` on. */
 export const AUTO_BLOCKED_RE = /bingo center|research (center|centre|facility)/i;
+
+/** Gain model of one research upgrade: `grandma` multiplies Grandma CpS by `x`, `cps` adds
+ * `pct`% to all production, `oneMind` gives every grandma +0.02 base CpS per grandma. */
+export type ResearchGain = { kind: 'grandma'; x: number } | { kind: 'cps'; pct: number } | { kind: 'oneMind' };
+
+/** The grandma research chain up to Grandmapocalypse stage 1 (WRINK-1), in the order the game
+ * unlocks it (one every 30 min of research). Only bought with `autoGrandmapocalypse` on; One
+ * mind starts stage 1 (wrinklers). Exotic nuts, the step after it, is a harmless +4%: it only
+ * makes Communal brainsweep show up in the store, which stays blocked. */
+export const AUTO_RESEARCH: Record<string, ResearchGain> = {
+  'Bingo center/Research facility': { kind: 'grandma', x: 4 },
+  'Specialized chocolate chips': { kind: 'cps', pct: 1 },
+  'Designer cocoa beans': { kind: 'cps', pct: 2 },
+  'Ritual rolling pins': { kind: 'grandma', x: 2 },
+  'Underworld ovens': { kind: 'cps', pct: 3 },
+  'One mind': { kind: 'oneMind' },
+  'Exotic nuts': { kind: 'cps', pct: 4 },
+};
+
+/** The steps to stage 1, in order. Up to One mind a step is valued as part of the whole
+ * project (grandmapocalypse-valuation.ts); after it, Exotic nuts only by its own +4%. */
+export const AUTO_STAGE1_CHAIN = [
+  'Bingo center/Research facility',
+  'Specialized chocolate chips',
+  'Designer cocoa beans',
+  'Ritual rolling pins',
+  'Underworld ovens',
+  'One mind',
+];
+
+/** Upgrades that ask "are you sure?" when bought normally; autoBuy() confirms them like the
+ * prompt's "Yes" button (buy with bypass). */
+export const AUTO_CONFIRM_BYPASS = new Set(['One mind']);
 
 /** Golden cookie upgrades the auto player may buy, with the assumed extra CpS they are worth,
  * as a share of the current CpS. These are ESTIMATES (a golden cookie upgrade does not add CpS

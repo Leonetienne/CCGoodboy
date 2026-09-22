@@ -190,14 +190,41 @@ describe('autoDecide', () => {
 
   it('reports a save target alongside an unrelated buy happening the same tick', () => {
     // A cheap, affordable, preferred candidate (exempt from postponement) buys immediately...
-    const wizard = candidate('Wizard tower', 50, 5, 2); // affordable, preferred (top tier)
-    // ...while a big, not-yet-affordable, good-deal candidate is independently being saved for.
-    // It must not be crowded out of `save` just because something else is bought this tick.
+    const wizard = candidate('Wizard tower', 50, 0.5, 2); // affordable, preferred (top tier), payback 100
+    // ...while a big, not-yet-affordable, good-deal candidate (pp 99 + 10 <= 1.2 x 100) is
+    // independently being saved for. It must not be crowded out of `save` just because something
+    // else is bought this tick.
     const big = candidate('Big building', 10000, 1000); // payback 10, not affordable
 
     const d = autoDecide([wizard, big], ctx({ bank: 50, income: 100, reserve: 0 }));
 
     expect(d.buy?.name).toBe('Wizard tower');
     expect(d.save?.name).toBe('Big building');
+  });
+
+  it('does not save for a terrible deal just because a far better one is slightly out of reach', () => {
+    // The shipment-101 case: at 3.5 CpS a 6000 shipment worth 0.003% of CpS is in reach
+    // (1714s), an 8000 upgrade worth +2% CpS is just past reachSec (2286s). Measured only
+    // against what is in reach, the shipment would be "the best deal" and the save target.
+    const shipment = candidate('Shipment', 6000, 0.00003 * 3.5);
+    const upgrade = candidate('+2% upgrade', 8000, 0.02 * 3.5);
+
+    const d = autoDecide([shipment, upgrade], ctx({ cps: 3.5, income: 3.5, bank: 0, reserve: 0 }));
+
+    expect(d.buy).toBeNull();
+    expect(d.save).toBeNull();
+    expect(d.note).toBe('nothing worth saving for in reach');
+  });
+
+  it('saves for the far better option once it comes into reach, holding the bad one back', () => {
+    // Same pair with 6000 banked: the shipment is affordable, but the upgrade is now 571s away,
+    // a good deal with ~670x the impact, so the shipment is postponed in favor of saving for it.
+    const shipment = candidate('Shipment', 6000, 0.00003 * 3.5);
+    const upgrade = candidate('+2% upgrade', 8000, 0.02 * 3.5);
+
+    const d = autoDecide([shipment, upgrade], ctx({ cps: 3.5, income: 3.5, bank: 6000, reserve: 0 }));
+
+    expect(d.buy).toBeNull();
+    expect(d.save?.name).toBe('+2% upgrade');
   });
 });

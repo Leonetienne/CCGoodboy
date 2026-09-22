@@ -8,6 +8,7 @@ import type { BackgroundClock } from '../../input/background-clock';
 import type { ClickTiming } from '../../input/human-click';
 import { backgroundStatusText, type KeepAliveController } from '../../input/keep-alive';
 import type { AutoPlayEngine } from '../../autoplay/shopping';
+import type { WrinklerPopper } from '../../autoplay/wrinkler-popper';
 import type { GoldenQueue } from '../../hunting/golden-queue';
 import { escapeHtml, formatNum, moodText, targetText } from '../format';
 
@@ -25,6 +26,7 @@ export class PanelUpdater {
     private readonly clickTiming: ClickTiming,
     private readonly hurryMode: HurryMode,
     private readonly autoPlay: AutoPlayEngine,
+    private readonly wrinklerPopper: WrinklerPopper,
     private readonly clock: BackgroundClock,
     private readonly keepAlive: KeepAliveController,
   ) {}
@@ -75,6 +77,16 @@ export class PanelUpdater {
 
     el('ccsb-auto')!.textContent = this.autoPlay.statusText();
 
+    // Only while the Grandmapocalypse is on or wrinklers are around (WRINK-7).
+    const wrinklerRow = el('ccsb-wrinkler-row')!;
+    const wrinklersOn = this.game.getElderWrath() > 0 || this.game.getWrinklers().some((w) => w && w.phase > 0);
+
+    wrinklerRow.style.display = wrinklersOn ? '' : 'none';
+
+    if (wrinklersOn) {
+      el('ccsb-wrinklers')!.textContent = this.wrinklerPopper.statusText();
+    }
+
     el('ccsb-bg')!.textContent = backgroundStatusText(this.clock, this.runtime, this.data);
 
     const autoBtn = el('ccsb-auto-toggle')!;
@@ -95,6 +107,7 @@ export class PanelUpdater {
       `<span>FTHOF casts ^w^</span><b>${this.data.stats.fthofCasts}</b>`,
       `<span>Grimoire refills :3</span><b>${this.data.stats.grimoireRefills}</b>`,
       `<span>Sugar lumps harvested :3</span><b>${this.data.stats.lumpHarvests || 0}</b>`,
+      ...(this.data.stats.wrinklersPopped ? [`<span>Wrinklers popped owo</span><b>${this.data.stats.wrinklersPopped}</b>`] : []),
       ...(this.data.config.autoPlay === true ? [`<span>Auto purchases ^w^</span><b>${this.data.stats.autoBuys || 0}</b>`] : []),
     ].join('');
   }

@@ -15,6 +15,7 @@ import type { IdleBehavior } from '../../src/idle/idle-behavior';
 import type { GrimoireUnlocker } from '../../src/autoplay/grimoire-unlock';
 import type { GrimoireView } from '../../src/hunting/grimoire-view';
 import type { AutoPlayEngine } from '../../src/autoplay/shopping';
+import type { WrinklerPopper } from '../../src/autoplay/wrinkler-popper';
 import { JOB_PRIORITY, type CursorAction, type CursorJob, type EnqueueOpts } from '../../src/cursor/types';
 import { Scheduler, type SchedulerDeps } from '../../src/scheduler/scheduler';
 import { LogStore } from '../../src/stats/log';
@@ -61,6 +62,7 @@ function makeScheduler(game: FakeGameAdapter, overrides: Partial<SchedulerDeps> 
     grimoireView: { pending: () => false } as unknown as GrimoireView,
     grimoireUnlock: { pending: () => false } as unknown as GrimoireUnlocker,
     autoPlay: { shopReady: () => false } as unknown as AutoPlayEngine,
+    wrinklerPopper: { pending: () => false } as unknown as WrinklerPopper,
     happyDance: {
       job: vi.fn().mockReturnValue({ action: { label: 'dance' }, priority: JOB_PRIORITY.HAPPY_DANCE, key: 'happy-dance' }),
     } as unknown as HappyDance,

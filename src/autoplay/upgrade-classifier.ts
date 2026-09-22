@@ -1,7 +1,9 @@
 import type { IGameAdapter } from '../game/game-adapter';
 import type { GameBuilding, GameUpgrade } from '../game/types';
 import { autoFingerGain } from './building-valuation';
-import { AUTO_CURSOR_DOUBLERS, AUTO_FINGER_STEPS, AUTO_KITTEN_POWER, autoStripHtml } from './valuation-tables';
+import { wrinklerRespawnSec } from './wrinkler-strategy';
+import { chainStepGain } from './grandmapocalypse-valuation';
+import { AUTO_CURSOR_DOUBLERS, AUTO_FINGER_STEPS, AUTO_KITTEN_POWER, AUTO_RESEARCH, AUTO_STAGE1_CHAIN, autoStripHtml } from './valuation-tables';
 import { AUTO_GOLDEN_UPGRADES } from './valuation-tables';
 
 export interface UpgradeClassifyCtx {
@@ -137,4 +139,73 @@ export function autoUpgradeGain(game: IGameAdapter, up: GameUpgrade, ctx: Upgrad
   }
 
   return null;
+}
+
+/** A research upgrade's OWN CpS gain (null for anything not in AUTO_RESEARCH). Grandma
+ * multipliers scale the Grandmas' current total; One mind adds 0.02 x grandmas to each
+ * grandma's base CpS of 1 (Communal brainsweep/Elder Pact, the only other "add" terms, are
+ * never owned here), i.e. the Grandmas' total grows by that factor. Not included: the
+ * wrinklers stage 1 brings — see autoResearchCandidateGain(). */
+export function autoResearchGain(game: IGameAdapter, name: string, ctx: Pick<UpgradeClassifyCtx, 'cps' | 'mult'>): number | null {
+  const r = Object.prototype.hasOwnProperty.call(AUTO_RESEARCH, name) ? AUTO_RESEARCH[name]! : null;
+  if (!r) return null;
+
+  if (r.kind === 'cps') {
+    return ctx.cps * (r.pct / 100);
+  }
+
+  const g = game.getBuildingByName('Grandma');
+  const total = (Number(g && g.storedTotalCps) || 0) * ctx.mult;
+
+  if (r.kind === 'grandma') {
+    return total * (r.x - 1);
+  }
+
+  return total * 0.02 * (Number(g && g.amount) || 0);
+}
+
+/** Game seconds of one research (30 min, a tenth with Persistent memory, 5s with Ultrascience). */
+export function autoResearchSec(game: IGameAdapter): number {
+  if (game.hasUpgrade('Ultrascience')) return 5;
+  return game.hasUpgrade('Persistent memory') ? 180 : 1800;
+}
+
+/** dCps the auto player gives a research candidate. Up to One mind (while stage 1 isn't
+ * reached) that is the payback of finishing the whole chain from this step — every step still
+ * to buy, against the wrinklers of stage 1 plus their own gains, delayed until the wrinklers
+ * pay out (grandmapocalypse-valuation.ts). Exotic nuts, or a step bought after One mind,
+ * counts only its own gain. */
+export function autoResearchCandidateGain(game: IGameAdapter, up: GameUpgrade, ctx: Pick<UpgradeClassifyCtx, 'cps' | 'mult'>, maturity: number): number | null {
+  const name = up.name;
+  const own = autoResearchGain(game, name, ctx);
+  if (own == null) return null;
+
+  const at = AUTO_STAGE1_CHAIN.indexOf(name);
+  if (at < 0 || game.hasUpgrade('One mind')) return own;
+
+  let remainingCost = 0;
+  let ownGain = 0;
+  let steps = 0;
+
+  for (const step of AUTO_STAGE1_CHAIN.slice(at)) {
+    const u = step === name ? up : game.getUpgradeByName(step);
+    if (u && u.bought) continue;
+
+    remainingCost += u ? autoPrice(u) : 0;
+    ownGain += autoResearchGain(game, step, ctx) || 0;
+    steps++;
+  }
+
+  return chainStepGain({
+    cps: ctx.cps,
+    wrinklersMax: game.getWrinklersMax(),
+    popMult: game.getWrinklerPopMult(false),
+    maturity,
+    respawnSec: wrinklerRespawnSec(game.getWrinklerSpawnChance(1), game.getFps() || 30),
+    cost: autoPrice(up),
+    remainingCost,
+    ownGain,
+    researchesLeft: Math.max(0, steps - 1),
+    researchSec: autoResearchSec(game),
+  });
 }

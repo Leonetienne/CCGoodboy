@@ -15,6 +15,7 @@ import { FakeGameAdapter } from './fakes/fake-game-adapter';
 import type { AutoPlayEngine } from '../../src/autoplay/shopping';
 import type { GrimoireUnlocker } from '../../src/autoplay/grimoire-unlock';
 import type { GrimoireView } from '../../src/hunting/grimoire-view';
+import type { WrinklerPopper } from '../../src/autoplay/wrinkler-popper';
 
 function makeDeps(overrides: Partial<PriorityDeps> = {}): PriorityDeps {
   const runtime = overrides.runtime ?? new RuntimeState();
@@ -57,6 +58,11 @@ function makeDeps(overrides: Partial<PriorityDeps> = {}): PriorityDeps {
     shopJob: vi.fn().mockReturnValue({ action: { label: 'auto-shop' }, priority: JOB_PRIORITY.AUTO_SHOP, key: 'auto-shop:x' }),
   } as unknown as AutoPlayEngine;
 
+  const wrinklerPopper = {
+    pending: () => false,
+    job: vi.fn().mockReturnValue({ action: { label: 'wrinkler-pop' }, priority: JOB_PRIORITY.AUTO_SHOP, key: 'wrinkler-pop:3' }),
+  } as unknown as WrinklerPopper;
+
   const happyDance = {
     job: vi.fn().mockReturnValue({ action: { label: 'dance' }, priority: JOB_PRIORITY.HAPPY_DANCE, key: 'happy-dance' }),
   } as unknown as HappyDance;
@@ -78,6 +84,7 @@ function makeDeps(overrides: Partial<PriorityDeps> = {}): PriorityDeps {
     grimoireView: { pending: () => false } as unknown as GrimoireView,
     grimoireUnlock,
     autoPlay,
+    wrinklerPopper,
     happyDance,
     idleBehavior,
     hammerActive: () => false,
@@ -202,6 +209,29 @@ describe('selectJobRequest', () => {
     const grimoireUnlock = { pending: () => true, job: () => null } as unknown as GrimoireUnlocker;
     const autoPlay = { shopReady: () => true, shopJob: vi.fn().mockReturnValue({ action: { label: 'auto-shop' }, priority: JOB_PRIORITY.AUTO_SHOP, key: 'auto-shop:x' }) } as unknown as AutoPlayEngine;
     expect(selectJobRequest(makeDeps({ grimoireUnlock, autoPlay }))?.key).toBe('auto-shop:x');
+  });
+
+  it('pops a wrinkler before auto-shop, after the Grimoire unlock', () => {
+    const wrinklerPopper = {
+      pending: () => true,
+      job: vi.fn().mockReturnValue({ action: { label: 'wrinkler-pop' }, priority: JOB_PRIORITY.AUTO_SHOP, key: 'wrinkler-pop:3' }),
+    } as unknown as WrinklerPopper;
+    const autoPlay = { shopReady: () => true, shopJob: vi.fn() } as unknown as AutoPlayEngine;
+
+    expect(selectJobRequest(makeDeps({ wrinklerPopper, autoPlay }))?.key).toBe('wrinkler-pop:3');
+    expect(autoPlay.shopJob).not.toHaveBeenCalled();
+
+    const grimoireUnlock = {
+      pending: () => true,
+      job: vi.fn().mockReturnValue({ action: { label: 'grimoire-unlock' }, priority: JOB_PRIORITY.AUTO_SHOP, key: 'grimoire-unlock:level' }),
+    } as unknown as GrimoireUnlocker;
+    expect(selectJobRequest(makeDeps({ grimoireUnlock, wrinklerPopper, autoPlay }))?.key).toBe('grimoire-unlock:level');
+  });
+
+  it('falls through to auto-shop when the wrinkler popper has no job to hand out', () => {
+    const wrinklerPopper = { pending: () => true, job: () => null } as unknown as WrinklerPopper;
+    const autoPlay = { shopReady: () => true, shopJob: vi.fn().mockReturnValue({ action: { label: 'auto-shop' }, priority: JOB_PRIORITY.AUTO_SHOP, key: 'auto-shop:x' }) } as unknown as AutoPlayEngine;
+    expect(selectJobRequest(makeDeps({ wrinklerPopper, autoPlay }))?.key).toBe('auto-shop:x');
   });
 
   it('falls back to auto-shop when nothing else is due', () => {

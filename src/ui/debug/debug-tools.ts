@@ -1,4 +1,5 @@
 import type { GrimoireView } from '../../hunting/grimoire-view';
+import type { WrinklerPopper } from '../../autoplay/wrinkler-popper';
 import type { RuntimeState } from '../../core/runtime-state';
 import type { IGameAdapter } from '../../game/game-adapter';
 import type { LogStore } from '../../stats/log';
@@ -19,6 +20,7 @@ export class DebugTools {
     private readonly runtime: RuntimeState,
     private readonly game: IGameAdapter,
     private readonly buildingsNav: Pick<GrimoireView, 'debugShowBuildingsView' | 'debugScrollToWizardTowers' | 'debugShowGrimoire'>,
+    private readonly wrinklers: Pick<WrinklerPopper, 'debugPopWrinkler'>,
   ) {
     this.tools = [
       { label: 'Spawn random Golden Cookie', run: () => this.spawnGolden('random golden cookie', {}) },
@@ -44,6 +46,9 @@ export class DebugTools {
       { label: 'Clear LOCK_A (bot refill lock)', run: () => this.clearLockA() },
       { label: 'Give 10 Sugar Lumps', run: () => this.giveLumps(10) },
       { label: 'Ripen growing sugar lump', run: () => this.ripenLump() },
+      { label: 'Spawn fed wrinklers (sets stage 1)', run: () => this.spawnFedWrinklers() },
+      { label: 'Spawn a wrinkler', run: () => this.spawnWrinkler() },
+      { label: 'Pop a wrinkler', run: () => this.wrinklers.debugPopWrinkler() },
       { label: 'Show buildings view', run: () => this.buildingsNav.debugShowBuildingsView() },
       { label: 'Scroll to Wizard towers', run: () => this.buildingsNav.debugScrollToWizardTowers() },
       { label: 'Show grimoire', run: () => this.buildingsNav.debugShowGrimoire() },
@@ -108,6 +113,20 @@ export class DebugTools {
   private giveLumps(n: number): string {
     this.game.gainLumps(n);
     return `gave ${n} sugar lumps (now ${formatNum(this.game.getLumps())})`;
+  }
+
+  /** DBG-12: every empty slot gets an attached wrinkler that has digested 6 hours' worth, which
+   * is mature at stage 1 with the default setting (5 x ~56 min respawn). */
+  private spawnFedWrinklers(): string {
+    const n = this.game.spawnFedWrinklers(6 * 3600);
+
+    return n > 0 ? `spawned ${n} fed wrinklers (6h of digesting each)` : 'every wrinkler slot is already taken';
+  }
+
+  /** DBG-13: one wrinkler crawls into the first free slot. */
+  private spawnWrinkler(): string {
+    const id = this.game.spawnWrinkler();
+    return `wrinkler ${id} is crawling in (~10s) owo`;
   }
 
   private ripenLump(): string {
