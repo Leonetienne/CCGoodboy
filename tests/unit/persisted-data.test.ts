@@ -80,8 +80,8 @@ describe('PersistedData', () => {
     data.pruneStoredData();
 
     expect(data.logs).toHaveLength(100);
-    expect(data.logs[0].action).toBe('a5');
-    expect(data.logs[data.logs.length - 1].action).toBe('a104');
+    expect(data.logs[0]?.action).toBe('a5');
+    expect(data.logs.at(-1)?.action).toBe('a104');
   });
 
   it('ensureBucket creates and reuses one bucket per hour', () => {
