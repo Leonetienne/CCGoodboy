@@ -1,5 +1,22 @@
 import type { PersistedData } from '../../core/persisted-data';
-import { chartColor, drawChartBase, getChartHours, type ChartSeries } from './chart-engine';
+import {
+  chartColor,
+  chartHitTest,
+  drawChartBase,
+  getChartHours,
+  type ChartHover,
+  type ChartLayout,
+  type ChartSeries,
+} from './chart-engine';
+
+/** What a chart last drew, so hovering can redraw it without rebuilding the series. */
+interface ChartState {
+  series: ChartSeries[];
+  hours: number[];
+  title: string;
+  layout: ChartLayout | null;
+  hover: ChartHover | null;
+}
 
 function graphsBodyHtml(): string {
   return `
@@ -17,11 +34,53 @@ function graphsBodyHtml(): string {
  * casts / Grimoire refills. */
 export class GraphsPanel {
   readonly element: HTMLDivElement;
+  private readonly charts = new Map<HTMLCanvasElement, ChartState>();
 
   constructor(private readonly data: PersistedData) {
     this.element = document.createElement('div');
     this.element.id = 'ccsb-graphs';
     this.element.innerHTML = graphsBodyHtml();
+
+    this.element.querySelectorAll<HTMLCanvasElement>('canvas.ccsb-chart').forEach((canvas) => {
+      canvas.addEventListener('mousemove', (e) => this.onHover(canvas, e));
+      canvas.addEventListener('mouseleave', () => this.setHover(canvas, null));
+    });
+  }
+
+  /** Highlights the line (or legend entry) under the mouse and labels its hour. */
+  private onHover(canvas: HTMLCanvasElement, e: MouseEvent): void {
+    const state = this.charts.get(canvas);
+
+    if (!state || !state.layout) {
+      return;
+    }
+
+    const rect = canvas.getBoundingClientRect();
+    this.setHover(canvas, chartHitTest(state.layout, state.series, e.clientX - rect.left, e.clientY - rect.top));
+  }
+
+  private setHover(canvas: HTMLCanvasElement, hover: ChartHover | null): void {
+    const state = this.charts.get(canvas);
+
+    if (!state || JSON.stringify(state.hover) === JSON.stringify(hover)) {
+      return;
+    }
+
+    state.hover = hover;
+    canvas.style.cursor = hover ? 'pointer' : '';
+    this.render(canvas);
+  }
+
+  /** Draws a chart with its new data, keeping whatever the mouse is hovering. */
+  private drawChart(canvas: HTMLCanvasElement, series: ChartSeries[], title: string, hours: number[]): void {
+    const prev = this.charts.get(canvas);
+    this.charts.set(canvas, { series, hours, title, layout: null, hover: prev ? prev.hover : null });
+    this.render(canvas);
+  }
+
+  private render(canvas: HTMLCanvasElement): void {
+    const state = this.charts.get(canvas)!;
+    state.layout = drawChartBase(canvas, state.series, state.title, state.hours, state.hover);
   }
 
   /** Shows/hides the charts window (draws on open). */
@@ -69,7 +128,7 @@ export class GraphsPanel {
         values: hours.map((h) => (this.data.hourly[String(h)] && this.data.hourly[String(h)]!.golden && this.data.hourly[String(h)]!.golden[kind]) || 0),
       }));
 
-    drawChartBase(canvas, series, 'golden-cookie', hours);
+    this.drawChart(canvas, series, 'golden-cookie', hours);
   }
 
   /** Chart of FTHOF casts and Grimoire refills per hour. */
@@ -89,6 +148,6 @@ export class GraphsPanel {
       },
     ];
 
-    drawChartBase(canvas, series, 'Grimoire', hours);
+    this.drawChart(canvas, series, 'Grimoire', hours);
   }
 }

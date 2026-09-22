@@ -296,7 +296,12 @@ See [§7 State machine](#7-state-machine) for how this maps onto code.
 - **UI-4** Settings are STAGED: editing only marks "unsaved"; "Save
   settings" (or Enter) validates, clamps, applies and stores them at once.
 - **UI-5** Graphs: hourly golden-cookie clicks by effect and Grimoire
-  actions.
+  actions. Every golden cookie effect the bot can catch has its own fixed,
+  clearly different line colour (`CHART_PALETTE`/`chartColor()` in
+  `src/ui/stats-window/chart-engine.ts`). Hovering a line (or its legend
+  entry) draws it bold over the faded rest; on a line, a label shows the
+  hour and its count (every series whose line lies there, e.g. several at
+  0).
 - **UI-6** Logs: searchable table (newest first, up to 2000 rows shown)
   with Export JSON / Export CSV (respects the filter; not capped).
 - **UI-7** Theme: pastel pink/lavender/baby-blue on dark plum, rounded
@@ -863,7 +868,7 @@ file.**
 
 Three layers, each catching a different class of bug:
 
-1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 282 tests
+1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 287 tests
    across 33 files. Pure functions (route planner, `autoDecide`, the chart
    engine, `normalizeSetting`) are tested directly with plain data; the
    cursor queue/actions have their own fake mover/timing tests. Classes
@@ -1007,6 +1012,14 @@ mouse while the bot runs and confirm the "+N" number follows your cursor,
 not the paw's).
 
 ## 12. Changelog
+
+- **4.10.13** Graphs (UI-5): most golden cookie lines came out the same
+  yellow, because each colour was a hash of the effect name. Every effect
+  the bot can catch now has its own fixed colour from a hand-picked
+  palette (`CHART_PALETTE`), and hovering a line or legend entry
+  highlights it and labels the hovered hour with its count
+  (`chartHitTest()`, `drawChartBase(..., hover)`). Unit tests in
+  `tests/unit/chart-engine.test.ts`.
 
 - **4.10.12** Fixed: the "+N" number of a bot click (Click Frenzy,
   hammering, bored clicks) could pop up under the human's cursor instead of

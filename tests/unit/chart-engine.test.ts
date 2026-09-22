@@ -1,6 +1,15 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { PersistedData } from '../../src/core/persisted-data';
-import { chartColor, getChartHours, hashHue } from '../../src/ui/stats-window/chart-engine';
+import { effectPrettyName } from '../../src/actions/golden-cookie';
+import {
+  CHART_PALETTE,
+  chartColor,
+  chartHitTest,
+  getChartHours,
+  hashHue,
+  type ChartLayout,
+  type ChartSeries,
+} from '../../src/ui/stats-window/chart-engine';
 
 describe('hashHue / chartColor', () => {
   it('is deterministic for the same string', () => {
@@ -16,8 +25,46 @@ describe('hashHue / chartColor', () => {
     }
   });
 
-  it('formats as an hsl() string', () => {
-    expect(chartColor('Lucky')).toMatch(/^hsl\(\d+, 88%, 76%\)$/);
+  it('gives every golden cookie effect the bot can catch its own colour', () => {
+    const good = ['frenzy', 'multiply cookies', 'click frenzy', 'chain cookie', 'cookie storm', 'cookie storm drop',
+      'building special', 'dragon harvest', 'dragonflight', 'free sugar lump', 'blab', 'everything must go'];
+    const colors = good.map((e) => chartColor(effectPrettyName(e)));
+
+    expect(new Set(colors).size).toBe(good.length);
+  });
+
+  it('picks an unknown series a palette colour', () => {
+    expect(CHART_PALETTE).toContain(chartColor('Some New Effect'));
+  });
+});
+
+describe('chartHitTest', () => {
+  // 3 hours over a 200 x 100 plot at (40, 30), maxY 10
+  const layout: ChartLayout = {
+    left: 40, top: 30, plotW: 200, plotH: 100, maxY: 10, count: 3,
+    legend: [{ name: 'Lucky', x: 40, y: 8, w: 50, h: 13 }],
+  };
+  const series: ChartSeries[] = [
+    { name: 'Frenzy', color: '#fff', values: [0, 10, 0] },
+    { name: 'Lucky', color: '#fff', values: [0, 0, 0] },
+    { name: 'Sweet', color: '#fff', values: [0, 0, 0] },
+  ];
+
+  it('names the line under the mouse and the nearest hour', () => {
+    // Frenzy peaks at (140, 30)
+    expect(chartHitTest(layout, series, 141, 33)).toEqual({ names: ['Frenzy'], index: 1 });
+  });
+
+  it('names every line when they lie on top of each other', () => {
+    expect(chartHitTest(layout, series, 190, 129)).toEqual({ names: ['Lucky', 'Sweet'], index: 2 });
+  });
+
+  it('is null away from every line', () => {
+    expect(chartHitTest(layout, series, 60, 60)).toBeNull();
+  });
+
+  it('highlights a series from its legend entry, without an hour', () => {
+    expect(chartHitTest(layout, series, 50, 12)).toEqual({ names: ['Lucky'], index: -1 });
   });
 });
 
