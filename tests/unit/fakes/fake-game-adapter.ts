@@ -198,6 +198,10 @@ export class FakeGameAdapter implements IGameAdapter {
     throw new Error('Game.shimmer is not available');
   }
 
+  spawnCookieChain(): Record<string, unknown> {
+    throw new Error('Game.shimmer is not available');
+  }
+
   resetLumpRefillCooldown(): 'ready' | 'overridden' {
     return 'ready';
   }

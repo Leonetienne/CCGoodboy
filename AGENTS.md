@@ -235,9 +235,9 @@ See [§7 State machine](#7-state-machine) for how this maps onto code.
 ### 3.10 Debug tools (cheats, for testing; use a test save)
 
 - **DBG-1** Spawn: random golden, wrath, Frenzy, Click Frenzy, Building
-  Frenzy, Cookie Chain, Cookie Storm, Lucky, Cookie Storm Drop, Sweet
-  (lump), Elder Frenzy (wrath), via `new Game.shimmer('golden', ...)` +
-  `.force`.
+  Frenzy, Cookie Chain (a real chain: spawn lead + forced `chain cookie`),
+  Cookie Storm, Lucky, Cookie Storm Drop, Sweet (lump), Elder Frenzy
+  (wrath), via `Game.shimmer('golden', ...)` / `.force`.
 - **DBG-2** Grant 1 quadrillion cookies (`Game.Earn`, so it counts as
   earned).
 - **DBG-3** Fill Up Mana (mana = max).
@@ -703,6 +703,11 @@ runs and confirm the "+N" number follows your cursor, not the paw's).
 
 ## 12. Changelog
 
+- **4.1.3** Debug tool "Spawn Cookie Chain" now spawns a REAL cookie chain:
+  the first cookie is marked as the spawn lead (`spawnLead = 1`) and forced
+  to `chain cookie`, so the game restarts its golden-cookie spawn timer
+  after the click and the chain continues. Previously it spawned a single
+  forced cookie that ended the moment it was clicked.
 - **4.1.2** Fixed: golden cookies were ignored because `CursorManager`
   called action `target` getters without their `this` binding, so
   `GoldenCookieAction.target()` threw (and was swallowed), cancelling the

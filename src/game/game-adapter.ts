@@ -43,6 +43,7 @@ export interface IGameAdapter {
 
   // ---- debug-tools-only raw operations (see ui/debug/debug-tools.ts) ----
   spawnGoldenShimmer(opts: { wrath?: boolean }): Record<string, unknown>;
+  spawnCookieChain(): Record<string, unknown>;
   resetLumpRefillCooldown(): 'ready' | 'overridden';
   earnCookies(n: number): void;
   gainLumps(n: number): void;
@@ -291,6 +292,23 @@ export class GameAdapter implements IGameAdapter {
     }
 
     return new Game.shimmer('golden', opts.wrath ? { wrath: true } : { noWrath: true });
+  }
+
+  /** Spawns the first cookie of a REAL cookie chain. Unlike a plain forced 'chain cookie'
+   * shimmer, this one is marked as the spawn lead, so the game restarts the golden-cookie
+   * spawn timer after it pops and keeps the chain going. */
+  spawnCookieChain(): Record<string, unknown> {
+    const Game = window.Game;
+
+    if (!Game || typeof Game.shimmer !== 'function') {
+      throw new Error('Game.shimmer is not available');
+    }
+
+    const shimmer = new Game.shimmer('golden', { noWrath: true });
+    shimmer.spawnLead = 1;
+    shimmer.force = 'chain cookie';
+
+    return shimmer;
   }
 
   /** The sugar lump refill has a 15 minute cooldown in the game. Resets Game.lumpRefill if it

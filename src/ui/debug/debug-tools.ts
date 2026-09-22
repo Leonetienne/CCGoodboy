@@ -32,7 +32,7 @@ export class DebugTools {
       { label: 'Spawn Frenzy Cookie', run: () => this.spawnGolden('frenzy cookie', { force: 'frenzy' }) },
       { label: 'Spawn Click Frenzy Cookie', run: () => this.spawnGolden('click frenzy cookie', { force: 'click frenzy' }) },
       { label: 'Spawn Building Frenzy Cookie', run: () => this.spawnGolden('building frenzy cookie', { force: 'building special' }) },
-      { label: 'Spawn Cookie Chain', run: () => this.spawnGolden('cookie chain', { force: 'chain cookie' }) },
+      { label: 'Spawn Cookie Chain', run: () => this.spawnCookieChain() },
       { label: 'Spawn Cookie Storm', run: () => this.spawnGolden('cookie storm', { force: 'cookie storm' }) },
       { label: 'Spawn Lucky Cookie', run: () => this.spawnGolden('lucky cookie', { force: 'multiply cookies' }) },
       {
@@ -65,6 +65,11 @@ export class DebugTools {
     }
 
     return `spawned: ${label}`;
+  }
+
+  private spawnCookieChain(): string {
+    this.game.spawnCookieChain();
+    return 'spawned: cookie chain (real chain: spawn lead + forced chain cookie)';
   }
 
   private fillMana(): string {
