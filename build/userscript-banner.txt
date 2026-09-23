@@ -1,8 +1,11 @@
 // ==UserScript==
 // @name         CC Good Boy
-// @namespace    openai-cookie-clicker-smart-bot
+// @namespace    https://github.com/Leonetienne/CCGoodboy
 // @version      {{VERSION}}
-// @description  CC Good Boy: a cute little golden-cookie hunter with Click Frenzy clicking, FTHOF combos, sugar-lump refills, debug HUD, logs and charts uwu
+// @author       Leon Etienne
+// @description  A cute Cookie Clicker mod that helps you with golden cookies uwu: a little paw catches every good golden cookie (never wrath), hammers the big cookie during Click Frenzy, keeps your FTHOF combos going with sugar-lump mana refills, harvests ripe lumps and hurries through cookie storms and chains. Also shows how good each store buy is, plus stats, graphs, logs and debug tools. Optional auto play can do the shopping and pop fat wrinklers too.
+// @homepageURL  https://github.com/Leonetienne/CCGoodboy
+// @supportURL   https://github.com/Leonetienne/CCGoodboy/issues
 // @match        https://orteil.dashnet.org/cookieclicker/*
 // @match        http://orteil.dashnet.org/cookieclicker/*
 // @grant        none

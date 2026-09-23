@@ -1014,6 +1014,18 @@ not the paw's).
 
 ## 12. Changelog
 
+- **5.0.2** Userscript `@description` reworded: CC Good Boy is a mod that
+  helps with golden cookies (auto play being the optional extra), not a
+  bot that plays the whole game for you.
+
+- **5.0.1** Userscript header (`build/userscript-banner.txt`): the
+  namespace is now the GitHub repo (was a leftover
+  `openai-cookie-clicker-smart-bot`), and it gains `@author`,
+  `@homepageURL`, `@supportURL` and a description listing every feature
+  area, not just the golden cookie ones. Tampermonkey tells scripts apart
+  by name + namespace, so an install from before this version shows up as
+  a second script: remove the old one.
+
 - **5.0.0** Major version bump; no behavior change since 4.10.14.
 
 - **4.10.14** The start-up delay from 4.10.8 no longer delays the panel:
