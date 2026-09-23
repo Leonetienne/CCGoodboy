@@ -128,3 +128,38 @@ right cookie to show up.
   undo stage 1 once it's reached.
 - **Auto play is good, not perfect.** Try dry run first if you're unsure.
 - Your settings and stats stay in your browser. Nothing is sent anywhere.
+
+---
+
+## Nerd stuff
+
+Want to build it yourself or poke around the code? Here's how.
+
+CC Good Boy is written in TypeScript and gets bundled into one single
+Tampermonkey script. You don't need Node on your machine. Everything runs
+inside Docker, so Docker is the only thing you have to install.
+
+```bash
+make build
+```
+
+That spits out `dist/cc-good-boy.user.js`. Open Tampermonkey, create a new
+script, paste the contents in and save. Or point Tampermonkey at the file.
+Done.
+
+A few more things you can run:
+
+| Command | What it does |
+|---|---|
+| `make dev` | Rebuilds automatically every time you save a file. |
+| `make test` | Runs the unit tests. |
+| `make typecheck` | Checks the TypeScript types without building. |
+| `make shell` | Drops you into a shell inside the build container. |
+| `make clean` | Throws away the cached `node_modules` volume. |
+
+The first run takes a moment because it builds the Docker image. After
+that it's quick.
+
+If you want to know how the bot thinks, [AGENTS.md](AGENTS.md) has all of
+it: every behaviour written down as a requirement, how the code is laid out,
+and a changelog going back to version 2.
