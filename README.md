@@ -1,6 +1,6 @@
 # CC Good Boy
 
-![The paw heading for a golden cookie during a Frenzy](https://raw.githubusercontent.com/Leonetienne/CCGoodboy/main/github-assets/hero.png)
+![The paw heading for a golden cookie during a Frenzy](https://raw.githubusercontent.com/Leonetienne/CCGoodboy/refs/heads/master/github-assets/hero.png)
 
 A little paw that lives on your Cookie Clicker tab and catches golden cookies
 while you're away. Leave it running overnight, come back to a fatter bank.
@@ -31,7 +31,7 @@ and the part that's been around the longest.
   anyone.
 - **Harvests your sugar lumps** as soon as they're ripe.
 
-![A Cookie Storm, every cookie boxed, numbered and lined up for the paw](https://raw.githubusercontent.com/Leonetienne/CCGoodboy/main/github-assets/cookie-storm.png)
+![A Cookie Storm, every cookie boxed, numbered and lined up for the paw](https://raw.githubusercontent.com/Leonetienne/CCGoodboy/refs/heads/master/github-assets/cookie-storm.png)
 
 ### Optional: full auto play
 
@@ -94,7 +94,7 @@ speaker icon shows up on the tab, that's normal. You won't hear anything.
 
 The panel can be dragged by its title bar and minimised. From there:
 
-![The CC Good Boy panel open with its stats and settings](https://raw.githubusercontent.com/Leonetienne/CCGoodboy/main/github-assets/menu-open.png)
+![The CC Good Boy panel open with its stats and settings](https://raw.githubusercontent.com/Leonetienne/CCGoodboy/refs/heads/master/github-assets/menu-open.png)
 
 | Button | What it's for |
 |---|---|
