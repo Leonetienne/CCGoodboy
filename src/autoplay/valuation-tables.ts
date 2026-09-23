@@ -61,6 +61,17 @@ export const AUTO_GOLDEN_UPGRADES: Record<string, number> = {
   'Green yeast digestives': 0.01,
 };
 
+/** Store upgrades that unlock the prestige level's CpS bonus ("Unlocks N% of the potential of
+ * your prestige level"), with the share of the potential each one adds (Game.GetHeavenlyMultiplier,
+ * 2.058): CpS x (1 + prestige x 1% x sum of owned shares). */
+export const AUTO_HEAVENLY_UNLOCKS: Record<string, number> = {
+  'Heavenly chip secret': 0.05,
+  'Heavenly cookie stand': 0.2,
+  'Heavenly bakery': 0.25,
+  'Heavenly confectionery': 0.25,
+  'Heavenly key': 0.25,
+};
+
 /** Upgrade pools that are never store purchases for the auto player (research, switches,
  * debug and heavenly upgrades). */
 export const AUTO_NON_STORE_POOLS = new Set(['tech', 'toggle', 'debug', 'prestige', 'prestigeDecor']);

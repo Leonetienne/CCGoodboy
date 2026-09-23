@@ -37,6 +37,7 @@ export class FakeGameAdapter implements IGameAdapter {
   promptOpen = false;
   milkProgress: number | null = null;
   achievementsOwned = 0;
+  prestige = 0;
   elderWrath = 0;
   wrinklers: GameWrinkler[] = [];
   wrinklersMax = 10;
@@ -213,6 +214,10 @@ export class FakeGameAdapter implements IGameAdapter {
 
   getAchievementsOwned(): number {
     return this.achievementsOwned;
+  }
+
+  getPrestige(): number {
+    return this.prestige;
   }
 
   getElderWrath(): number {

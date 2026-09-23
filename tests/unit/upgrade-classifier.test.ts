@@ -28,6 +28,20 @@ describe('autoPrice', () => {
 });
 
 describe('autoUpgradeGain', () => {
+  it('values a heavenly potential unlock by the prestige CpS it unlocks', () => {
+    const game = new FakeGameAdapter();
+    game.prestige = 100; // +100% CpS at full potential
+    game.upgradeNames.add('Heavenly chip secret'); // 5% unlocked: CpS already x1.05
+    const g = autoUpgradeGain(game, upgrade('Heavenly cookie stand'), baseCtx({ cps: 105 }));
+    expect(g!.type).toBe('heavenly');
+    expect(g!.gain).toBeCloseTo(20); // 105 / 1.05 x 0.2
+  });
+
+  it('ignores a heavenly unlock without prestige', () => {
+    const game = new FakeGameAdapter();
+    expect(autoUpgradeGain(game, upgrade('Heavenly chip secret'), baseCtx())).toBeNull();
+  });
+
   it('values a known golden-cookie upgrade as a fraction of current CpS', () => {
     const game = new FakeGameAdapter();
     const g = autoUpgradeGain(game, upgrade('Lucky day'), baseCtx({ cps: 100 }));

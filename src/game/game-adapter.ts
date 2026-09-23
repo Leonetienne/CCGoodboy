@@ -44,6 +44,8 @@ export interface IGameAdapter {
   isPromptOpen(): boolean;
   getMilkProgress(): number | null;
   getAchievementsOwned(): number;
+  /** Game.prestige: the prestige level (each level is worth +1% CpS at full heavenly potential). */
+  getPrestige(): number;
 
   // ---- Grandmapocalypse / wrinklers (WRINK-*) ----
   /** Game.elderWrath: 0 = calm, 1 awoken (One mind), 2 displeased, 3 angered. */
@@ -334,6 +336,11 @@ export class GameAdapter implements IGameAdapter {
   getAchievementsOwned(): number {
     const Game = window.Game;
     return Game ? Number(Game.AchievementsOwned) || 0 : 0;
+  }
+
+  getPrestige(): number {
+    const Game = window.Game;
+    return Game ? Math.max(0, Number(Game.prestige) || 0) : 0;
   }
 
   getElderWrath(): number {

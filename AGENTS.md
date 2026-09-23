@@ -449,7 +449,9 @@ action log (UI-6); nothing here is stored.
   cursor and CLICKING upgrades: the "mouse and
   cursors twice as efficient" upgrades, the Thousand/Million/Billion/...
   fingers series and the mouse upgrades ("Clicking gains +1% of your
-  CpS"); and, with "Auto: grandmapocalypse stage 1" on (the default), the
+  CpS"); the heavenly potential unlocks (Heavenly chip secret, Heavenly
+  cookie stand, Heavenly bakery, Heavenly confectionery, Heavenly key),
+  valued as the prestige CpS bonus each one unlocks; and, with "Auto: grandmapocalypse stage 1" on (the default), the
   grandma research chain up to stage 1 (WRINK-1). It NEVER buys Communal
   brainsweep, Elder Pact, Elder Pledge/Covenant or anything else that pushes
   the Grandmapocalypse past stage 1, and nothing it cannot classify.
@@ -881,8 +883,8 @@ file.**
 
 Three layers, each catching a different class of bug:
 
-1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 293 tests
-   across 33 files. Pure functions (route planner, `autoDecide`, the chart
+1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 298 tests
+   across 34 files. Pure functions (route planner, `autoDecide`, the chart
    engine, `normalizeSetting`) are tested directly with plain data; the
    cursor queue/actions have their own fake mover/timing tests. Classes
    that depend on the game are tested against `FakeGameAdapter`
@@ -1025,6 +1027,18 @@ mouse while the bot runs and confirm the "+N" number follows your cursor,
 not the paw's).
 
 ## 12. Changelog
+
+- **5.0.7** Tests only: `tests/unit/heavenly-unlocks.test.ts` checks the
+  5.0.6 fix end to end — `autoCollect()` offers a store heavenly unlock
+  with prestige and `autoDecide()` buys it; none without prestige, and
+  never an ascension-tree (`prestige` pool) upgrade.
+
+- **5.0.6** Fixed: auto play never bought the heavenly potential unlocks
+  (Heavenly chip secret ... Heavenly key) — they matched no candidate type.
+  They are now classified (`AUTO_HEAVENLY_UNLOCKS`, type `heavenly`) and
+  valued as CpS × prestige% × their share / (1 + prestige% × owned shares)
+  (AUTO-2); `IGameAdapter` gains `getPrestige()`. Unit tests in
+  `tests/unit/upgrade-classifier.test.ts`.
 
 - **5.0.5** Documentation only: the README no longer claims the Grimoire
   combo has no off switch; it points at the FT-9 settings ("Grimoire: cast

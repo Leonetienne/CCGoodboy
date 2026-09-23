@@ -4,7 +4,7 @@ import { autoFingerGain } from './building-valuation';
 import { wrinklerRespawnSec } from './wrinkler-strategy';
 import { chainStepGain } from './grandmapocalypse-valuation';
 import { AUTO_CURSOR_DOUBLERS, AUTO_FINGER_STEPS, AUTO_KITTEN_POWER, AUTO_RESEARCH, AUTO_STAGE1_CHAIN, autoStripHtml } from './valuation-tables';
-import { AUTO_GOLDEN_UPGRADES } from './valuation-tables';
+import { AUTO_GOLDEN_UPGRADES, AUTO_HEAVENLY_UNLOCKS } from './valuation-tables';
 
 export interface UpgradeClassifyCtx {
   cps: number;
@@ -31,6 +31,7 @@ export function autoPrice(up: GameUpgrade): number {
  *   cursor   "The mouse and cursors are twice as efficient": cursor CpS AND click power
  *   fingers  Thousand/Million/... fingers (bonus per non-cursor building for cursors/clicks)
  *   click    mouse upgrades ("Clicking gains +1% of your CpS")
+ *   heavenly the prestige potential unlocks (Heavenly chip secret ... Heavenly key)
  * Clicking gains are valued at ctx.clicksPerSec (the hammer rate) clicks per second. Anything
  * else returns null and is never bought. `ctx.biscuitBase` is filled in lazily (mutated) so it
  * is computed at most once per autoCollect() pass. */
@@ -39,6 +40,20 @@ export function autoUpgradeGain(game: IGameAdapter, up: GameUpgrade, ctx: Upgrad
 
   if (Object.prototype.hasOwnProperty.call(AUTO_GOLDEN_UPGRADES, name)) {
     return { gain: ctx.cps * AUTO_GOLDEN_UPGRADES[name]!, type: 'golden' };
+  }
+
+  // prestige potential unlocks: CpS x (1 + prestige% x unlocked share), so this step adds
+  // prestige% x its share on top of the current (1 + prestige% x owned shares)
+  if (Object.prototype.hasOwnProperty.call(AUTO_HEAVENLY_UNLOCKS, name)) {
+    const p = game.getPrestige() / 100;
+    if (!(p > 0)) return null;
+
+    let owned = 0;
+    for (const [nm, share] of Object.entries(AUTO_HEAVENLY_UNLOCKS)) {
+      if (game.hasUpgrade(nm)) owned += share;
+    }
+
+    return { gain: (ctx.cps * p * AUTO_HEAVENLY_UNLOCKS[name]!) / (1 + p * owned), type: 'heavenly' };
   }
 
   const gdesc = autoStripHtml(up.desc);
