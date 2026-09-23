@@ -4,8 +4,8 @@
 
 A little paw that lives on your Cookie Clicker tab and catches golden cookies
 while you're away. Leave it running overnight, come back to a fatter bank.
-It also keeps your Grimoire busy whether you like it or not. If you want it
-to, it will do your shopping and pop your wrinklers too. If you don't, it
+It also keeps your Grimoire busy, unless you tell it not to.
+If you want to, it will do your shopping and pop your wrinklers too. If you don't, it
 won't touch either.
 
 > **This is an experimental project.** It's a fun project, it might have some bugs or imperfections,
@@ -25,8 +25,9 @@ and the part that's been around the longest.
 - **Goes wild on the big cookie during Click Frenzy.**
 - **Keeps your Force the Hand of Fate combo going.** It casts the spell when a
   combo is worth it, and spends a sugar lump to refill your mana when a really
-  good one comes along. There's no off switch for this one: if you have a
-  Grimoire, the bot will use it. Only Pause stops it.
+  good one comes along. Don't want that? Untick **Grimoire: cast Force the
+  Hand of Fate** in the settings, or untick **Spend sugar lumps** to keep
+  casting but never spend a lump.
 - **Hurries up during Cookie Storms and chains**, because those don't wait for
   anyone.
 - **Harvests your sugar lumps** as soon as they're ripe.
@@ -41,9 +42,10 @@ default and remembers your choice.
 - Buys buildings and upgrades, picking the best deals first and saving up for
   the big stuff.
 - Favours golden cookie upgrades and Wizard towers.
-- Unlocks the Grimoire as soon as it can.
+- Unlocks the Grimoire as soon as it can (that costs a sugar lump, so not
+  with **Spend sugar lumps** off).
 - Clicks the big cookie for you while that's still worth it.
-- Takes the Grandmapocalypse to stage 1 for wrinklers, and **never** further.
+- Takes the Grandmapocalypse to stage 1 for wrinklers **if you want to**, and **never** further.
   It pops fat wrinklers when it needs their cookies for a purchase. Shiny
   wrinklers are yours; it won't touch them.
 

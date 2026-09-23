@@ -21,6 +21,8 @@ export interface Config {
   frameOpacity: number;
   overlayOpacity: number;
   keepAlive: boolean;
+  grimoireFthof: boolean;
+  spendLumps: boolean;
   autoPlay: boolean;
   autoDryRun: boolean;
   autoInsignificantSec: number;
@@ -103,6 +105,8 @@ export const DEFAULTS: PersistedState = {
     frameOpacity: 0.95,
     overlayOpacity: 1,
     keepAlive: true,
+    grimoireFthof: true,
+    spendLumps: true,
     autoPlay: false,
     autoDryRun: false,
     autoInsignificantSec: 60,

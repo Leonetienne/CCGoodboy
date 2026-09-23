@@ -75,7 +75,7 @@ function fthofReady(s: ReturnType<typeof setup>): FthofActions {
   s.game.grimoire = { spells: { 'hand of fate': { id: 1 } }, getSpellCost: () => 50, magic: 100, magicM: 100 };
   s.game.rawBuffs = { a: { name: 'Frenzy', multCpS: 7, time: 3000 } };
 
-  return new FthofActions(s.runtime, s.game, null as never, s.log as never, () => false, s.view);
+  return new FthofActions(s.runtime, s.game, null as never, s.log as never, () => false, s.view, new PersistedData());
 }
 
 beforeEach(() => buildDom());
@@ -108,6 +108,15 @@ describe('GrimoireUnlocker.wanted', () => {
     s = setup();
     s.game.lumpsOn = false;
     expect(s.unlocker.wanted()).toBe(false);
+  });
+
+  it('does nothing while "Spend sugar lumps" is off (FT-9)', () => {
+    const s = setup();
+    s.data.config.spendLumps = false;
+
+    expect(s.unlocker.wanted()).toBe(false);
+    expect(s.unlocker.pending()).toBe(false);
+    expect(s.unlocker.job()).toBeNull();
   });
 
   it('respects the auto play safety gates', () => {

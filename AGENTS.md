@@ -173,6 +173,16 @@ refactor) which `tests/visual/scenarios.mjs` scenario exercises it.
   element, the menu staying open) it logs `"fthof prep"` and casts
   directly per FT-7 for the next 10s instead. Debug: DBG-11 runs the same
   steps.
+- **FT-9** Two settings switch lump/Grimoire actions off (both ON by
+  default): "Grimoire: cast Force the Hand of Fate" (`grimoireFthof`) and
+  "Spend sugar lumps" (`spendLumps`). With casting off, FT-1/FT-8 never
+  run and no refill happens either (a refill only exists to pay for a
+  cast). With lump spending off, the bot never spends a sugar lump on its
+  own: no FT-3 refill and no AUTO-13 Grimoire unlock (Wizard tower level
+  1). Nothing switched off is pending, blocks lower tiers or complains in
+  the console (CON-2); the Grimoire HUD row says what is off. Harvesting
+  ripe lumps (LUMP-\*) gains lumps and is unaffected, as is the explicit
+  debug tool DBG-11.
 
 ### 3.5 Sugar lump harvesting
 
@@ -514,7 +524,7 @@ action log (UI-6); nothing here is stored.
 - **AUTO-13** Grimoire unlock: as soon as >= 1 Wizard tower is owned, its
   level is still 0, sugar lumps are unlocked and >= 1 lump is in stock,
   auto play spends one lump on Wizard tower level 1 (which unlocks the
-  Grimoire minigame, FT-\*). Same safety gates as AUTO-7 (not while a
+  Grimoire minigame, FT-\*), unless "Spend sugar lumps" is off (FT-9). Same safety gates as AUTO-7 (not while a
   golden cookie is ready, Click Frenzy, storm/chain, FTHOF/refill pending,
   ascending, a prompt open, paused); dry run only logs "would unlock".
   It is done like a human, one step per scheduler tick, re-derived from
@@ -718,6 +728,8 @@ saved (see `normalizeSetting()` in
 | `frameOpacity` | Frame opacity (0.1-1) | 0.95 | 0.1-1 |
 | `overlayOpacity` | Overlay opacity (0.1-1) | 1 | 0.1-1 |
 | `keepAlive` | Background keep-alive (silent audio) [checkbox] | true | – |
+| `grimoireFthof` | Grimoire: cast Force the Hand of Fate [checkbox] (FT-9) | true | – |
+| `spendLumps` | Spend sugar lumps [checkbox] (FT-9: refills, AUTO-13 unlock) | true | – |
 | `autoPlay` | (Auto play button, stored) | false | – |
 | `autoDryRun` | Auto play dry run (log only) [checkbox] | false | – |
 | `autoInsignificantSec` | Auto: insignificant cost (s of CpS) | 60 | 0-3600 |
@@ -869,7 +881,7 @@ file.**
 
 Three layers, each catching a different class of bug:
 
-1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 287 tests
+1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 293 tests
    across 33 files. Pure functions (route planner, `autoDecide`, the chart
    engine, `normalizeSetting`) are tested directly with plain data; the
    cursor queue/actions have their own fake mover/timing tests. Classes
@@ -1013,6 +1025,26 @@ mouse while the bot runs and confirm the "+N" number follows your cursor,
 not the paw's).
 
 ## 12. Changelog
+
+- **5.0.5** Documentation only: the README no longer claims the Grimoire
+  combo has no off switch; it points at the FT-9 settings ("Grimoire: cast
+  Force the Hand of Fate", "Spend sugar lumps") and notes that the AUTO-13
+  Grimoire unlock skips with lump spending off.
+
+- **5.0.4** The refill setting from 5.0.3 is now "Spend sugar lumps"
+  (`spendLumps`, replaces `grimoireRefill`, still on by default): besides
+  the mana refill it also stops auto play from spending a lump on the
+  Wizard tower level that unlocks the Grimoire (AUTO-13,
+  `GrimoireUnlocker.wanted()`). Unit test in
+  `tests/unit/grimoire-unlock.test.ts`.
+
+- **5.0.3** Two new settings, both on by default (FT-9): "Grimoire: cast
+  Force the Hand of Fate" (`grimoireFthof`) and "Grimoire: refill mana
+  with sugar lumps" (`grimoireRefill`). Switching one off stops that
+  Grimoire action in `selectJobRequest()`, `fthofOrRefillPending()` and the
+  CON-2 console complaints; casting off also stops refills. The Grimoire
+  HUD row shows "(refill off)" / "(FTHOF + refill off)". Unit tests in
+  `tests/unit/fthof.test.ts` and `tests/unit/priority.test.ts`.
 
 - **5.0.2** Userscript `@description` reworded: CC Good Boy is a mod that
   helps with golden cookies (auto play being the optional extra), not a

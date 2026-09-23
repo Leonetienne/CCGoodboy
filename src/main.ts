@@ -64,7 +64,7 @@ const enqueueJob = (req: JobRequest) => cursorManager.enqueue(req.action, { prio
 const buildingsView = new BuildingsViewNavigator(runtime, game, isGoodGoldenReady);
 const grimoireView = new GrimoireView(runtime, game, log, buildingsView, enqueueJob);
 
-const fthof = new FthofActions(runtime, game, stats, log, isGoodGoldenReady, grimoireView);
+const fthof = new FthofActions(runtime, game, stats, log, isGoodGoldenReady, grimoireView, data);
 const fthofOrRefillPending = () => fthof.fthofOrRefillPending();
 
 const lumpHarvest = new LumpHarvestActions(runtime, game, stats, log, isGoodGoldenReady);

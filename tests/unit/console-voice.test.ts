@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetConsoleVoice, sayCantWhile, sayOops } from '../../src/core/console-voice';
+import { PersistedData } from '../../src/core/persisted-data';
 import { RuntimeState } from '../../src/core/runtime-state';
 import { FthofActions } from '../../src/hunting/fthof';
 import { FakeGameAdapter } from './fakes/fake-game-adapter';
@@ -59,7 +60,7 @@ describe('FthofActions.reportBlockers (CON-2)', () => {
     game.rawBuffs = {};
     for (let i = 0; i < opts.buffs; i++) game.rawBuffs[`b${i}`] = { name: `Buff ${i}`, multCpS: 2, time: 3000 };
     const runtime = new RuntimeState();
-    const f = new FthofActions(runtime, game, null as never, null as never, () => false, grimoireView(opts.towers ?? 1) as never);
+    const f = new FthofActions(runtime, game, null as never, null as never, () => false, grimoireView(opts.towers ?? 1) as never, new PersistedData());
     return { game, runtime, f };
   }
 
@@ -123,7 +124,7 @@ describe('FthofActions.reportBlockers while the Grimoire loads', () => {
     const game = new FakeGameAdapter();
     game.rawBuffs = { b0: { name: 'Frenzy', multCpS: 7, time: 3000 } };
     const view = { wizardTower: () => ({ name: 'Wizard tower', amount: 50, level: 1 }) };
-    const f = new FthofActions(new RuntimeState(), game, null as never, null as never, () => false, view as never);
+    const f = new FthofActions(new RuntimeState(), game, null as never, null as never, () => false, view as never, new PersistedData());
 
     f.reportBlockers(game.positiveCpsBuffs());
 

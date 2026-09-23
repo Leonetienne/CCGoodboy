@@ -148,6 +148,32 @@ describe('selectJobRequest', () => {
     expect(job?.key).toBe('refill');
   });
 
+  it('falls through to hammer mode when FTHOF casting is switched off (FT-9)', () => {
+    const game = new FakeGameAdapter();
+    game.grimoire = { spells: { 'hand of fate': { id: 1 } }, getSpellCost: () => 50, magic: 100 };
+    game.rawBuffs = { a: { name: 'Buff', multCpS: 2, time: 3000 } };
+    const data = new PersistedData();
+    data.config.grimoireFthof = false;
+
+    const job = selectJobRequest(makeDeps({ game, data, buffs: game.positiveCpsBuffs(), hammerActive: () => true }));
+    expect(job?.key).toBe('hammer');
+  });
+
+  it('falls through to hammer mode when the mana refill is switched off, or FTHOF is (FT-9)', () => {
+    for (const off of ['spendLumps', 'grimoireFthof'] as const) {
+      const game = new FakeGameAdapter();
+      game.grimoire = { spells: { 'hand of fate': { id: 1 } }, getSpellCost: () => 100, magic: 10, magicM: 1000 };
+      game.rawBuffs = { a: { name: 'Buff', multCpS: 2, time: 3000 }, b: { name: 'Buff2', multCpS: 2, time: 3000 } };
+      game.refillable = true;
+      game.lumps = 1;
+      const data = new PersistedData();
+      data.config[off] = false;
+
+      const job = selectJobRequest(makeDeps({ game, data, buffs: game.positiveCpsBuffs(), hammerActive: () => true }));
+      expect(job?.key).toBe('hammer');
+    }
+  });
+
   it('falls through to hammer mode when a refill looks due but the refill is on cooldown or has no lumps', () => {
     const game = new FakeGameAdapter();
     game.grimoire = { spells: { 'hand of fate': { id: 1 } }, getSpellCost: () => 100, magic: 10, magicM: 1000 };

@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
+import { PersistedData } from '../../src/core/persisted-data';
 import { RuntimeState } from '../../src/core/runtime-state';
 import { FthofActions } from '../../src/hunting/fthof';
 import { FakeGameAdapter } from './fakes/fake-game-adapter';
 
 // fthofOrRefillPending only touches `game` and `runtime`; the other collaborators (stats,
 // log) are irrelevant to it and never invoked here.
-function makeFthofActions(game: FakeGameAdapter, runtime: RuntimeState): FthofActions {
-  return new FthofActions(runtime, game, null as never, null as never, () => false, null as never);
+function makeFthofActions(game: FakeGameAdapter, runtime: RuntimeState, data = new PersistedData()): FthofActions {
+  return new FthofActions(runtime, game, null as never, null as never, () => false, null as never, data);
 }
 
 function withGrimoire(game: FakeGameAdapter, magic: number, magicM = 1000) {
@@ -121,5 +122,39 @@ describe('FthofActions.fthofOrRefillPending', () => {
     const runtime = new RuntimeState();
 
     expect(makeFthofActions(game, runtime).fthofOrRefillPending()).toBe(false);
+  });
+
+  it('is false for a cast when FTHOF is switched off (FT-9)', () => {
+    const game = new FakeGameAdapter();
+    withGrimoire(game, 200);
+    withCpsBuffs(game, 1, 3000);
+    const data = new PersistedData();
+    data.config.grimoireFthof = false;
+
+    expect(makeFthofActions(game, new RuntimeState(), data).fthofOrRefillPending()).toBe(false);
+  });
+
+  it('is false for a refill when the refill or FTHOF is switched off (FT-9)', () => {
+    for (const off of ['spendLumps', 'grimoireFthof'] as const) {
+      const game = new FakeGameAdapter();
+      withGrimoire(game, 10);
+      withCpsBuffs(game, 2, 3000);
+      game.refillable = true;
+      game.lumps = 1;
+      const data = new PersistedData();
+      data.config[off] = false;
+
+      expect(makeFthofActions(game, new RuntimeState(), data).fthofOrRefillPending()).toBe(false);
+    }
+  });
+
+  it('still casts with only the refill switched off (FT-9)', () => {
+    const game = new FakeGameAdapter();
+    withGrimoire(game, 200);
+    withCpsBuffs(game, 1, 3000);
+    const data = new PersistedData();
+    data.config.spendLumps = false;
+
+    expect(makeFthofActions(game, new RuntimeState(), data).fthofOrRefillPending()).toBe(true);
   });
 });

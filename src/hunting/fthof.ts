@@ -1,4 +1,5 @@
 import { sayCant, sayCantWhile } from '../core/console-voice';
+import type { Config, PersistedData } from '../core/persisted-data';
 import type { RuntimeState } from '../core/runtime-state';
 import { JOB_PRIORITY, type JobRequest } from '../cursor/types';
 import type { IGameAdapter } from '../game/game-adapter';
@@ -8,6 +9,22 @@ import { FthofAction, fthofCastBlocked, RefillAction } from '../actions/fthof';
 import type { GrimoireView } from './grimoire-view';
 import type { LogStore } from '../stats/log';
 import type { StatsRecorder } from '../stats/stats';
+
+/** FT-9: the "Grimoire: cast Force the Hand of Fate" setting. */
+export function fthofEnabled(config: Pick<Config, 'grimoireFthof'>): boolean {
+  return config.grimoireFthof !== false;
+}
+
+/** FT-9: the "Spend sugar lumps" setting (mana refills here, the AUTO-13 Grimoire unlock). */
+export function lumpSpendingEnabled(config: Pick<Config, 'spendLumps'>): boolean {
+  return config.spendLumps !== false;
+}
+
+/** FT-9: a refill needs lump spending on, and it only exists to pay for a cast, so it is off
+ * too while casting is switched off. */
+export function refillEnabled(config: Pick<Config, 'grimoireFthof' | 'spendLumps'>): boolean {
+  return fthofEnabled(config) && lumpSpendingEnabled(config);
+}
 
 /** Grimoire/mana management module: decides WHEN to cast Force the Hand of Fate or refill
  * mana with a sugar lump (fthofOrRefillPending), and hands the HOW to FthofAction /
@@ -20,11 +37,14 @@ export class FthofActions {
     private readonly log: LogStore,
     private readonly hasGoodGolden: () => boolean,
     private readonly grimoireView: GrimoireView,
+    private readonly data: PersistedData,
   ) {}
 
   /** A FTHOF cast or lump refill is waiting for its turn (the same conditions the scheduler
    * uses). */
   fthofOrRefillPending(): boolean {
+    if (!fthofEnabled(this.data.config)) return false;
+
     const M = this.game.getGrimoire();
     if (!M) return false;
 
@@ -41,6 +61,7 @@ export class FthofActions {
     }
 
     return (
+      refillEnabled(this.data.config) &&
       buffs.length >= 2 &&
       (M.magic ?? 0) < cost &&
       !this.runtime.lockA &&
@@ -55,7 +76,7 @@ export class FthofActions {
    * (no Wizard tower, Grimoire locked, too little mana, refill on cooldown, no lumps, ...).
    * Called every scheduler tick; each reason is said once until it changes or goes away. */
   reportBlockers(buffs: CpsBuff[]): void {
-    const wantsFthof = buffs.length >= 1 && !this.game.clickFrenzyActive() && this.game.cpsBuffOutlastsClickFrenzy(buffs);
+    const wantsFthof = fthofEnabled(this.data.config) && buffs.length >= 1 && !this.game.clickFrenzyActive() && this.game.cpsBuffOutlastsClickFrenzy(buffs);
     const M = wantsFthof ? this.game.getGrimoire() : null;
     const cost = getFthofCost(M);
     const mana = M ? M.magic ?? 0 : 0;
@@ -78,7 +99,7 @@ export class FthofActions {
     } else if (wantsFthof && mana < cost) {
       fthof = ['mana', `Wanted to cast Force the Hand of Fate, but not enough mana (${Math.floor(mana)}/${Math.ceil(cost)}) :c`];
 
-      if (buffs.length >= 2 && !this.runtime.refillInFlight) {
+      if (refillEnabled(this.data.config) && buffs.length >= 2 && !this.runtime.refillInFlight) {
         if (!refillCanReachCost(M, cost)) {
           refill = ['max-mana', `Wanted to refill mana, but even full mana (${Math.floor(M!.magicM ?? 0)}) can't pay for Force the Hand of Fate, need more wizard towers :c`];
         } else if (this.runtime.lockA) {

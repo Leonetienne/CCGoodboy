@@ -126,6 +126,8 @@ export class UiRoot {
     bindCheckbox('ccsb-idle-wander', data.config.idleWander !== false);
     bindCheckbox('ccsb-buyvalue', data.config.showBuyValue !== false);
     bindCheckbox('ccsb-keepalive', data.config.keepAlive !== false);
+    bindCheckbox('ccsb-grimoire-fthof', data.config.grimoireFthof !== false);
+    bindCheckbox('ccsb-spend-lumps', data.config.spendLumps !== false);
     bindCheckbox('ccsb-auto-hammer', data.config.autoHammer !== false);
     bindCheckbox('ccsb-auto-grandmapocalypse', data.config.autoGrandmapocalypse !== false);
     bindCheckbox('ccsb-auto-pop-wrinklers', data.config.autoPopWrinklers !== false);

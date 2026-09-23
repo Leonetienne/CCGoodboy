@@ -151,6 +151,16 @@ function panelBodyHtml(version: string): string {
             Background keep-alive (silent audio) :3
         </label>
 
+        <label style="display:flex;gap:6px;align-items:center;margin-top:5px" title="Cast Force the Hand of Fate during CpS buffs (off: the paw leaves the Grimoire alone, and never refills mana either)">
+            <input id="ccsb-grimoire-fthof" type="checkbox">
+            Grimoire: cast Force the Hand of Fate ^w^
+        </label>
+
+        <label style="display:flex;gap:6px;align-items:center;margin-top:5px" title="Lets the bot spend sugar lumps: refilling Grimoire mana during a buff combo, and (in auto play) levelling a Wizard tower to unlock the Grimoire">
+            <input id="ccsb-spend-lumps" type="checkbox">
+            Spend sugar lumps :3
+        </label>
+
         <div id="ccsb-auto-settings">
             <div class="ccsb-auto-title">Auto play settings :3</div>
             <div class="ccsb-setting">

@@ -2,6 +2,7 @@ import type { PersistedData } from '../../core/persisted-data';
 import type { RuntimeState } from '../../core/runtime-state';
 import type { IGameAdapter } from '../../game/game-adapter';
 import { getFthofCost } from '../../game/grimoire';
+import { fthofEnabled, refillEnabled } from '../../hunting/fthof';
 import type { GoldenCookieModel } from '../../game/golden-cookie-model';
 import type { HurryMode } from '../../game/hurry-mode';
 import type { BackgroundClock } from '../../input/background-clock';
@@ -62,7 +63,7 @@ export class PanelUpdater {
     el('ccsb-buffs')!.textContent = buffs.length ? buffs.map((b) => `${b.name} x${formatNum(b.mult)}`).join(', ') : 'none yet';
 
     el('ccsb-magic')!.textContent = M
-      ? `${formatNum(M.magic)} / ${formatNum(M.magicM)}; FTHOF ${formatNum(cost)}; lumps ${formatNum(this.game.getLumps())}; refill ${this.game.canRefillLump() ? 'ready' : 'cooldown'}`
+      ? `${formatNum(M.magic)} / ${formatNum(M.magicM)}; FTHOF ${formatNum(cost)}; lumps ${formatNum(this.game.getLumps())}; refill ${this.game.canRefillLump() ? 'ready' : 'cooldown'}` + grimoireOffText(this.data.config)
       : 'unavailable';
 
     el('ccsb-lock')!.textContent = this.runtime.lockA ? 'LOCKED' : 'OPEN';
@@ -111,4 +112,11 @@ export class PanelUpdater {
       ...(this.data.config.autoPlay === true ? [`<span>Auto purchases ^w^</span><b>${this.data.stats.autoBuys || 0}</b>`] : []),
     ].join('');
   }
+}
+
+/** FT-9: which Grimoire actions the settings switched off, for the Grimoire HUD row. */
+function grimoireOffText(config: PersistedData['config']): string {
+  if (!fthofEnabled(config)) return ' (FTHOF + refill off)';
+  if (!refillEnabled(config)) return ' (refill off: no lump spending)';
+  return '';
 }

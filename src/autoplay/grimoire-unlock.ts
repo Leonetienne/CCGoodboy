@@ -3,6 +3,7 @@ import type { PersistedData } from '../core/persisted-data';
 import type { RuntimeState } from '../core/runtime-state';
 import { JOB_PRIORITY, type JobRequest } from '../cursor/types';
 import type { IGameAdapter } from '../game/game-adapter';
+import { lumpSpendingEnabled } from '../hunting/fthof';
 import type { GrimoireView } from '../hunting/grimoire-view';
 import type { LogStore } from '../stats/log';
 
@@ -20,10 +21,12 @@ export class GrimoireUnlocker {
     private readonly shoppingInterrupted: () => boolean,
   ) {}
 
-  /** Auto play wants the Grimoire unlocked right now (AUTO-13): mode on, AUTO-7 safety gates
-   * clear, >= 1 Wizard tower still at level 0, sugar lumps unlocked and >= 1 in stock. */
+  /** Auto play wants the Grimoire unlocked right now (AUTO-13): mode on, "Spend sugar lumps"
+   * on (FT-9), AUTO-7 safety gates clear, >= 1 Wizard tower still at level 0, sugar lumps
+   * unlocked and >= 1 in stock. */
   wanted(): boolean {
     if (this.data.config.autoPlay !== true) return false;
+    if (!lumpSpendingEnabled(this.data.config)) return false;
     if (!this.game.isReady() || this.game.isAscending() || this.game.isPromptOpen()) return false;
     if (Date.now() < this.runtime.grimoireUnlockBlockUntil) return false;
     if (this.shoppingInterrupted()) return false;

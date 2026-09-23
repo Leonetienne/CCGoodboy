@@ -9,7 +9,7 @@ import type { WrinklerPopper } from '../autoplay/wrinkler-popper';
 import type { JobRequest } from '../cursor/types';
 import { BIG_CLICK_LEAD_MS, type ClickBigCookieTask } from '../hunting/click-big-cookie';
 import type { ClickGoldenTask } from '../hunting/click-golden';
-import type { FthofActions } from '../hunting/fthof';
+import { fthofEnabled, refillEnabled, type FthofActions } from '../hunting/fthof';
 import type { GoldenQueueItem } from '../hunting/golden-queue';
 import type { GrimoireView } from '../hunting/grimoire-view';
 import type { HappyDance } from '../hunting/happy-dance';
@@ -70,13 +70,14 @@ export function selectJobRequest(deps: PriorityDeps): JobRequest | null {
     if (Date.now() >= runtime.nextBigClickAt - BIG_CLICK_LEAD_MS) {
       job = clickBigCookie.job();
     }
-  } else {
+  } else if (fthofEnabled(data.config)) {
     const M = game.getGrimoire();
     const cost = getFthofCost(M);
 
     if (M && buffs.length >= 1 && game.cpsBuffOutlastsClickFrenzy(buffs) && (M.magic ?? 0) >= cost) {
       job = fthof.castJob();
     } else if (
+      refillEnabled(data.config) &&
       M &&
       buffs.length >= 2 &&
       game.cpsBuffOutlastsClickFrenzy(buffs) &&
