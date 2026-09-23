@@ -1,3 +1,6 @@
+/** The project's GitHub page, linked from the panel footer. */
+const REPO_URL = 'https://github.com/Leonetienne/CCGoodboy';
+
 /** The main HUD panel's inner markup. Element ids all start with 'ccsb-'. */
 function panelBodyHtml(version: string): string {
   return `
@@ -226,6 +229,9 @@ function panelBodyHtml(version: string): string {
             <span id="ccsb-save-status"></span>
         </div>
     </div>
+
+    <a id="ccsb-footer" href="${REPO_URL}" target="_blank" rel="noopener noreferrer"
+       title="CC Good Boy on GitHub">&copy; Leon Etienne &middot; GitHub</a>
 </div>`;
 }
 

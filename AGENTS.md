@@ -323,6 +323,10 @@ See [§7 State machine](#7-state-machine) for how this maps onto code.
   be dragged fully invisible). Staged like every other setting (UI-4): the
   live percentage readout next to the slider updates as it's dragged, but
   the opacity itself only changes on Save.
+- **UI-10** A small, faded footer link at the very bottom of the main
+  panel ("(c) Leon Etienne · GitHub") opens the project's GitHub page
+  (https://github.com/Leonetienne/CCGoodboy) in a new tab; the whole line
+  is the link. Hidden while the panel is minimized.
 
 ### 3.11 Debug tools (cheats, for testing; use a test save)
 
@@ -1027,6 +1031,9 @@ mouse while the bot runs and confirm the "+N" number follows your cursor,
 not the paw's).
 
 ## 12. Changelog
+
+- **5.0.8** The main panel gets a small, shy footer link
+  ("(c) Leon Etienne · GitHub") to the project's GitHub page (UI-10).
 
 - **5.0.7** Tests only: `tests/unit/heavenly-unlocks.test.ts` checks the
   5.0.6 fix end to end — `autoCollect()` offers a store heavenly unlock

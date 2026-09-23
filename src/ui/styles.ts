@@ -223,6 +223,21 @@ const CSS = `
     color:#c9a6e6;
 }
 
+#ccsb-footer {
+    display:block;
+    margin-top:8px;
+    text-align:center;
+    font-size:9.5px;
+    color:#c9a6e6;
+    opacity:.55;
+    text-decoration:none;
+}
+
+#ccsb-footer:hover {
+    opacity:1;
+    text-decoration:underline;
+}
+
 #ccsb-graphs,
 #ccsb-logs,
 #ccsb-debug {
