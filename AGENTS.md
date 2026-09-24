@@ -483,8 +483,9 @@ action log (UI-6); nothing here is stored.
   bought too, UNLESS an option that is not affordable yet, in reach and a
   good deal (payback incl. waiting <= 1.2× the best of ALL options, in
   reach or not — pp already charges the wait) or preferred
-  has >= 3× the impact and this one costs more than 10% of it: then it is
-  postponed in favor of saving up for the big one (else a stream of small
+  either pays back faster even counting the wait (its pp < this one's
+  payback), or has >= 3× the impact and this one costs more than 10% of
+  it: then it is postponed in favor of saving up for the big one (else a stream of small
   purchases keeps the bank too low to ever afford it). Among everything
   bought this tick the best payback goes first within a preference tier;
   with one purchase per task (AUTO-7), later ticks work down the same
@@ -887,7 +888,7 @@ file.**
 
 Three layers, each catching a different class of bug:
 
-1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 298 tests
+1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 300 tests
    across 34 files. Pure functions (route planner, `autoDecide`, the chart
    engine, `normalizeSetting`) are tested directly with plain data; the
    cursor queue/actions have their own fake mover/timing tests. Classes
@@ -1031,6 +1032,15 @@ mouse while the bot runs and confirm the "+N" number follows your cursor,
 not the paw's).
 
 ## 12. Changelog
+
+- **5.0.9** Fixed: auto play said it was saving for One mind but kept
+  spending the bank on worse deals (e.g. an 8 quadrillion upgrade next to
+  the 16 quadrillion One mind), so it never got there. A save target only
+  held a purchase back when it had >= 3× that purchase's impact, and a
+  research chain step's impact is small by design (its gain is spread over
+  hours of wrinkler delay, WRINK-1). `autoDecide()` now also postpones an
+  ordinary purchase whose payback is worse than the target's payback
+  including the wait (AUTO-4). Unit tests in `tests/unit/strategy.test.ts`.
 
 - **5.0.8** The main panel gets a small, shy footer link
   ("(c) Leon Etienne · GitHub") to the project's GitHub page (UI-10).

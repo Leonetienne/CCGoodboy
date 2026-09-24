@@ -44,9 +44,10 @@ export interface Decision {
  *      everything matters: a clearly better option just past reachSec must not leave a terrible
  *      one that happens to be in reach looking like "the best deal in reach".
  *   3) A save target holds back an ordinary (non-insignificant, non-preferred) affordable
- *      purchase specifically when the target has >= biggerImpact x its impact AND it costs more
- *      than 10% of the target's cost (otherwise a stream of small purchases would keep the bank
- *      too low to ever afford the big one). Insignificant and preferred purchases are exempt.
+ *      purchase when the target's pp (wait included) beats that purchase's payback, or when the
+ *      target has >= biggerImpact x its impact AND it costs more than 10% of the target's cost
+ *      (otherwise a stream of worse purchases would keep the bank too low to ever afford the
+ *      better one). Insignificant and preferred purchases are exempt.
  *   Among everything bought this tick, the single best (lowest payback) one goes out; on an
  *   idle-game timescale of one purchase per tick (AUTO-7), the rest follow on later ticks in the
  *   same order, so the store empties out highest score first whenever nothing is being saved
@@ -96,7 +97,13 @@ export function autoDecide(cands: PurchaseCandidate[], ctx: AutoCollectCtx): Dec
   // relative to everything else on offer or preferred (golden upgrades, Wizard towers).
   const targets = inReach.filter((r) => !r.affordable && (good(r) || prefOf(r) > 0));
 
-  const postponed = (p: DecisionRow) => targets.some((q) => q.impact >= cfg.biggerImpact * p.impact && p.c.cost > 0.1 * q.c.cost);
+  // Held back for a target when (a) the target, even counting the wait for it, is the better
+  // deal: buying the worse one first only pushes the better one further away (and a stream of
+  // them never lets the bank reach it) — this is what protects a research chain step, whose
+  // impact is diluted by hours of delay (WRINK-1) and so never passes (b); or (b) the target has
+  // much more impact and this one would eat a real share of its price.
+  const postponed = (p: DecisionRow) =>
+    targets.some((q) => q.pp < p.payback || (q.impact >= cfg.biggerImpact * p.impact && p.c.cost > 0.1 * q.c.cost));
 
   // Buy now: every affordable candidate that isn't held back in favor of a save target.
   // Insignificant and preferred purchases are always exempt from postponement. Nothing else is

@@ -227,4 +227,30 @@ describe('autoDecide', () => {
     expect(d.buy).toBeNull();
     expect(d.save?.name).toBe('+2% upgrade');
   });
+
+  it('saves for a research step whose impact is diluted by its delay instead of dumping the bank on worse deals', () => {
+    // The One mind case: cps 11.3T, 9Q banked, One mind costs 16Q. As a chain step its dCps is
+    // cost / (chain payback incl. ~6h of wrinkler delay) -> payback ~22,000s, impact only ~6.4%.
+    // An 8Q upgrade worth +2.5% CpS (payback ~28,000s) has well over a third of that impact, so the
+    // impact rule alone never held it back; but One mind, even counting the wait, is the better
+    // deal, so the upgrade must wait.
+    const cps = 11.3e12;
+    const oneMind = candidate('One mind', 16e15, 16e15 / 22_000);
+    const upgrade = candidate('8Q upgrade', 8e15, 0.025 * cps);
+
+    const d = autoDecide([oneMind, upgrade], ctx({ cps, income: cps, bank: 9e15, reserve: 0 }));
+
+    expect(d.buy).toBeNull();
+    expect(d.save?.name).toBe('One mind');
+  });
+
+  it('still buys an affordable option that is a better deal than the save target', () => {
+    const cps = 11.3e12;
+    const oneMind = candidate('One mind', 16e15, 16e15 / 22_000);
+    const great = candidate('Great upgrade', 2e15, 2e15 / 5_000); // payback 5,000s
+
+    const d = autoDecide([oneMind, great], ctx({ cps, income: cps, bank: 9e15, reserve: 0 }));
+
+    expect(d.buy?.name).toBe('Great upgrade');
+  });
 });
