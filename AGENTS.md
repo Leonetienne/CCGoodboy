@@ -446,7 +446,8 @@ action log (UI-6); nothing here is stored.
   make a building "twice as efficient"; grandma "cofactor" upgrades
   (grandmas twice as efficient + 1% CpS of a building per N grandmas, also
   recognised by their description); KITTEN upgrades; ALL cookie (biscuit)
-  upgrades; golden cookie upgrades (Lucky day, Serendipity, Get lucky,
+  upgrades; every other flat "Cookie production multiplier +N%." upgrade
+  (Wrinkler ambergris, Dragon scale, the eggs, ...); golden cookie upgrades (Lucky day, Serendipity, Get lucky,
   Lasting fortune, Lucky digit, Lucky number, Lucky payout, Green yeast
   digestives) — but never more Wizard towers than the configured target
   (`autoWizardTowerTarget`, default 57 — the ideal mana count for FTHOF);
@@ -888,7 +889,7 @@ file.**
 
 Three layers, each catching a different class of bug:
 
-1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 300 tests
+1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 302 tests
    across 34 files. Pure functions (route planner, `autoDecide`, the chart
    engine, `normalizeSetting`) are tested directly with plain data; the
    cursor queue/actions have their own fake mover/timing tests. Classes
@@ -1032,6 +1033,13 @@ mouse while the bot runs and confirm the "+N" number follows your cursor,
 not the paw's).
 
 ## 12. Changelog
+
+- **5.0.10** Fixed: auto play never bought Wrinkler ambergris, Dragon
+  scale, the eggs and other flat "Cookie production multiplier +N%."
+  upgrades. They are not in the game's cookie pool, so they matched no
+  candidate type. They are now classified as `multiplier`, valued as CpS ×
+  N% (AUTO-2/AUTO-3; ambergris's "1% cheaper" side effect is not counted).
+  Unit tests in `tests/unit/upgrade-classifier.test.ts`.
 
 - **5.0.9** Fixed: auto play said it was saving for One mind but kept
   spending the bank on worse deals (e.g. an 8 quadrillion upgrade next to

@@ -27,6 +27,8 @@ export function autoPrice(up: GameUpgrade): number {
  *            per N grandmas (recognised by the game's own list OR by the description text)
  *   kitten   "Kitten helpers/workers/..." (CpS multiplier growing with the milk)
  *   biscuit  all cookie upgrades (pool 'cookie', +power% CpS)
+ *   multiplier  other flat "Cookie production multiplier +N%." upgrades (Wrinkler ambergris,
+ *            Dragon scale, Arcane sugar, eggs, ...)
  *   tier     building upgrades that make a building "twice as efficient"
  *   cursor   "The mouse and cursors are twice as efficient": cursor CpS AND click power
  *   fingers  Thousand/Million/... fingers (bonus per non-cursor building for cursors/clicks)
@@ -115,6 +117,15 @@ export function autoUpgradeGain(game: IGameAdapter, up: GameUpgrade, ctx: Upgrad
   }
 
   const desc = autoStripHtml(up.desc);
+
+  // flat production multipliers outside the cookie pool (Wrinkler ambergris, Dragon scale,
+  // Arcane sugar, the eggs, ...): the game applies them as mult *= 1 + N%. Not "+N% per
+  // Santa's levels" or the like: only a plain "+N%." counts.
+  const pm = desc.match(/cookie production multiplier\s*\+\s*(\d+(?:\.\d+)?)\s*%\s*\./);
+
+  if (pm) {
+    return { gain: ctx.cps * (Number(pm[1]) / 100), type: 'multiplier' };
+  }
 
   // mouse upgrades: every click gives +N% of the CpS
   const mm = desc.match(/clicking gains\s*\+?\s*(\d+(?:\.\d+)?)\s*%\s*of your cps/);

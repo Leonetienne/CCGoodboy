@@ -71,6 +71,22 @@ describe('autoUpgradeGain', () => {
     expect(g).toEqual({ gain: 100 * 0.1 * 0.5, type: 'kitten' });
   });
 
+  it('values a flat production multiplier outside the cookie pool (Wrinkler ambergris)', () => {
+    const game = new FakeGameAdapter();
+    const up = upgrade('Wrinkler ambergris', {
+      desc: 'Cookie production multiplier <b>+6%</b>.<br>All upgrades are <b>1% cheaper</b>.<br>Cost scales with CpS.<q>Occasionally regurgitated by wrinklers.</q>',
+    });
+    const g = autoUpgradeGain(game, up, baseCtx({ cps: 100 }));
+    expect(g!.type).toBe('multiplier');
+    expect(g!.gain).toBeCloseTo(6);
+  });
+
+  it('does not read a conditional multiplier ("per Santa\'s levels") as a flat one', () => {
+    const game = new FakeGameAdapter();
+    const up = upgrade("Santa's legacy", { desc: "Cookie production multiplier <b>+3% per Santa's levels.</b>" });
+    expect(autoUpgradeGain(game, up, baseCtx())).toBeNull();
+  });
+
   it('returns null for an upgrade it cannot classify', () => {
     const game = new FakeGameAdapter();
     const g = autoUpgradeGain(game, upgrade('Some mystery upgrade', { desc: 'Does something unrelated.' }), baseCtx());
