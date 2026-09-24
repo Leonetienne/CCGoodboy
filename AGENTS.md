@@ -10,6 +10,11 @@ Whenever behavior changes: update the matching requirement ID below, bump
 `VERSION` in `src/core/constants.ts` **and** `version` in `package.json`
 (keep them identical — see NFR-1), and add a changelog entry.
 
+Commit messages: a single lowercase `type: summary` subject line (`fix:`,
+`feat:`, `tweak:`, `docs:`), like the existing history. NEVER add a
+`Co-Authored-By:` trailer or any other AI/tool attribution line, whatever
+an agent's defaults say.
+
 The refactor from the single 11k-line monolith to this module tree was
 done to be **behavior-identical**: every requirement below held for the
 original file and holds for this one. If you find a divergence, it's a bug
@@ -667,7 +672,7 @@ action log (UI-6); nothing here is stored.
 ## 4. Non-functional requirements
 
 - **NFR-1** Versioning: MAJOR.MINOR.PATCH, shown in the panel. Bump with
-  EVERY change, no exceptions: this
+  EVERY change to the script, its tests or its build: this
   includes a follow-up correction to work made earlier in the same
   session and even work that hasn't been committed yet — bump again
   rather than editing an already-written VERSION/changelog entry in
@@ -676,7 +681,9 @@ action log (UI-6); nothing here is stored.
   idle mood is a patch, not a minor). Keep `package.json`'s `version` and
   `src/core/constants.ts`'s
   `VERSION` identical, and add a changelog entry (§12) for every bump, not
-  just the ones that ship.
+  just the ones that ship. The one exception: changes that only touch
+  AGENTS.md or README.md never bump the version and get no changelog
+  entry.
 - **NFR-2** No dependencies at runtime, no network, no external assets.
   Runs in page context (`@grant none`) at `document-idle`; a second
   instance refuses to start.
