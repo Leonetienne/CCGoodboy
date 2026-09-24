@@ -199,8 +199,8 @@ export function autoResearchSec(game: IGameAdapter): number {
 /** dCps the auto player gives a research candidate. Up to One mind (while stage 1 isn't
  * reached) that is the payback of finishing the whole chain from this step — every step still
  * to buy, against the wrinklers of stage 1 plus their own gains, delayed until the wrinklers
- * pay out (grandmapocalypse-valuation.ts). Exotic nuts, or a step bought after One mind,
- * counts only its own gain. */
+ * pay out (grandmapocalypse-valuation.ts). A step bought after One mind counts only its own
+ * gain. */
 export function autoResearchCandidateGain(game: IGameAdapter, up: GameUpgrade, ctx: Pick<UpgradeClassifyCtx, 'cps' | 'mult'>, maturity: number): number | null {
   const name = up.name;
   const own = autoResearchGain(game, name, ctx);

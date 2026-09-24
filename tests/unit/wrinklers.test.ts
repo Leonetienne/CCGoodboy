@@ -159,7 +159,6 @@ describe('autoResearchCandidateGain', () => {
       'Ritual rolling pins': 4e15,
       'Underworld ovens': 8e15,
       'One mind': 16e15,
-      'Exotic nuts': 32e15,
     };
     for (const [name, p] of Object.entries(prices)) {
       game.upgradesByName[name] = { name, bought: false, getPrice: () => p, buy: () => {} };
@@ -190,7 +189,6 @@ describe('autoResearchCandidateGain', () => {
 
     game.upgradeNames.add('One mind');
     expect(autoResearchCandidateGain(game, game.upgradesByName['Underworld ovens']!, ctx, 5)).toBe(1e11 * 0.03);
-    expect(autoResearchCandidateGain(game, game.upgradesByName['Exotic nuts']!, ctx, 5)).toBe(1e11 * 0.04);
   });
 });
 
@@ -210,13 +208,13 @@ describe('autoCollect: Grandmapocalypse research', () => {
 
   const chain = ['Bingo center/Research facility', 'Underworld ovens', 'One mind', 'Exotic nuts', 'Communal brainsweep', 'Elder Pact', 'Elder Pledge'];
 
-  it('offers the chain up to stage 1 by default (not preferred), and never brainsweep/pact/pledge', () => {
+  it('offers the chain up to stage 1 by default (not preferred), and never exotic nuts/brainsweep/pact/pledge', () => {
     const game = grandmaGame();
     store(game, chain);
 
     const cands = collect(game).cands.filter((c) => c.kind === 'upgrade');
 
-    expect(cands.map((c) => c.name)).toEqual(['Bingo center/Research facility', 'Underworld ovens', 'One mind', 'Exotic nuts']);
+    expect(cands.map((c) => c.name)).toEqual(['Bingo center/Research facility', 'Underworld ovens', 'One mind']);
     expect(cands.every((c) => !c.pref)).toBe(true);
   });
 
@@ -259,7 +257,7 @@ describe('autoBuy guards', () => {
     const game = new FakeGameAdapter();
     game.cookies = 100;
 
-    for (const name of ['Communal brainsweep', 'Elder Pact']) {
+    for (const name of ['Exotic nuts', 'Communal brainsweep', 'Elder Pact']) {
       const up: GameUpgrade = { name, bought: false, buy: vi.fn() };
       expect(autoBuy(game, cand(name, up))).toBe(false);
       expect(up.buy).not.toHaveBeenCalled();

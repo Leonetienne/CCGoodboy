@@ -1,7 +1,9 @@
-/** Names the auto player must NEVER buy, whatever the settings: everything that pushes the
- * Grandmapocalypse past stage 1 (Communal brainsweep = stage 2, Elder Pact = stage 3) and the
- * pledge/covenant switches. autoBuy() refuses them too, as a second guard (WRINK-1). */
+/** Names the auto player must NEVER buy, whatever the settings: everything that leads the
+ * Grandmapocalypse past stage 1 (Exotic nuts starts the research of Communal brainsweep =
+ * stage 2, Elder Pact = stage 3) and the pledge/covenant switches. autoBuy() refuses them too,
+ * as a second guard (WRINK-1). */
 export const AUTO_ESCALATION_NAMES = new Set([
+  'Exotic nuts',
   'Communal brainsweep',
   'Elder Pact',
   'Elder Pledge',
@@ -19,8 +21,8 @@ export type ResearchGain = { kind: 'grandma'; x: number } | { kind: 'cps'; pct: 
 
 /** The grandma research chain up to Grandmapocalypse stage 1 (WRINK-1), in the order the game
  * unlocks it (one every 30 min of research). Only bought with `autoGrandmapocalypse` on; One
- * mind starts stage 1 (wrinklers). Exotic nuts, the step after it, is a harmless +4%: it only
- * makes Communal brainsweep show up in the store, which stays blocked. */
+ * mind starts stage 1 (wrinklers) and is the end of it: Exotic nuts, the step after it, leads
+ * on to stage 2 and is never bought (AUTO_ESCALATION_NAMES). */
 export const AUTO_RESEARCH: Record<string, ResearchGain> = {
   'Bingo center/Research facility': { kind: 'grandma', x: 4 },
   'Specialized chocolate chips': { kind: 'cps', pct: 1 },
@@ -28,11 +30,10 @@ export const AUTO_RESEARCH: Record<string, ResearchGain> = {
   'Ritual rolling pins': { kind: 'grandma', x: 2 },
   'Underworld ovens': { kind: 'cps', pct: 3 },
   'One mind': { kind: 'oneMind' },
-  'Exotic nuts': { kind: 'cps', pct: 4 },
 };
 
 /** The steps to stage 1, in order. Up to One mind a step is valued as part of the whole
- * project (grandmapocalypse-valuation.ts); after it, Exotic nuts only by its own +4%. */
+ * project (grandmapocalypse-valuation.ts). */
 export const AUTO_STAGE1_CHAIN = [
   'Bingo center/Research facility',
   'Specialized chocolate chips',

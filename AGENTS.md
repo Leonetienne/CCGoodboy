@@ -457,7 +457,7 @@ action log (UI-6); nothing here is stored.
   CpS"); the heavenly potential unlocks (Heavenly chip secret, Heavenly
   cookie stand, Heavenly bakery, Heavenly confectionery, Heavenly key),
   valued as the prestige CpS bonus each one unlocks; and, with "Auto: grandmapocalypse stage 1" on (the default), the
-  grandma research chain up to stage 1 (WRINK-1). It NEVER buys Communal
+  grandma research chain up to stage 1 (WRINK-1). It NEVER buys Exotic nuts, Communal
   brainsweep, Elder Pact, Elder Pledge/Covenant or anything else that pushes
   the Grandmapocalypse past stage 1, and nothing it cannot classify.
 - **AUTO-3** Value model per option: cost; approximate CpS gain `dCps`
@@ -600,8 +600,7 @@ action log (UI-6); nothing here is stored.
   research chain as candidates (AUTO-2): Bingo center/Research facility
   (grandmas ×4), Specialized chocolate chips (+1%), Designer cocoa beans
   (+2%), Ritual rolling pins (grandmas ×2), Underworld ovens (+3%), One mind
-  (each grandma +0.02 base CpS per grandma; starts stage 1) and Exotic nuts
-  (+4%, only makes Communal brainsweep appear in the store). Nobody buys
+  (each grandma +0.02 base CpS per grandma; starts stage 1). Nobody buys
   the Bingo center for "grandmas ×4": up to One mind a step is valued as
   part of ONE project, finishing the chain, and competes on payback like
   anything else (not preferred): payback = (cost of every step still to
@@ -613,13 +612,14 @@ action log (UI-6); nothing here is stored.
   Lucky day's valuation): about +400% with 10 wrinklers. Delay = the
   research still ahead (30 min each, 3 min with Persistent memory) + one
   respawn time (a slot filling) + m respawn times (digesting to maturity):
-  ~8h from the Bingo center with the defaults. After One mind, Exotic nuts
-  (or a step bought late) counts only its own gain
+  ~8h from the Bingo center with the defaults. After One mind, a step
+  bought late counts only its own gain
   (`src/autoplay/grandmapocalypse-valuation.ts`,
   `autoResearchCandidateGain()`). One mind's "are you
   sure?" prompt is confirmed like its own "Yes" button (buy with bypass).
-  Communal brainsweep (stage 2), Elder Pact (stage 3), Elder Pledge, Elder
-  Covenant and Revoke Elder Covenant are NEVER bought, whatever the
+  Exotic nuts (it starts the research of stage 2), Communal brainsweep
+  (stage 2), Elder Pact (stage 3), Elder Pledge, Elder Covenant and Revoke
+  Elder Covenant are NEVER bought, whatever the
   settings: `autoCollect()` skips them and `autoBuy()` refuses them as a
   second guard. The game itself never escalates past what was bought (its
   random stage shifts are capped by the owned upgrades). Setting it off
@@ -1033,6 +1033,12 @@ mouse while the bot runs and confirm the "+N" number follows your cursor,
 not the paw's).
 
 ## 12. Changelog
+
+- **5.0.11** Auto play never buys Exotic nuts any more: it starts the
+  research of Communal brainsweep (stage 2), which is out of scope. It
+  moved from `AUTO_RESEARCH` to `AUTO_ESCALATION_NAMES`, so
+  `autoCollect()` skips it and `autoBuy()` refuses it (WRINK-1). Unit
+  tests in `tests/unit/wrinklers.test.ts`.
 
 - **5.0.10** Fixed: auto play never bought Wrinkler ambergris, Dragon
   scale, the eggs and other flat "Cookie production multiplier +N%."
