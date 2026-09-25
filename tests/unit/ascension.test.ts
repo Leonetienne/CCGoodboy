@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { AscensionPlanner, ASC_INCOME_WINDOW_MS, compactLine, heavenLines, heavenScreenLines, planLines, savingProgress, verdictLines } from '../../src/autoplay/ascension';
 import { heavenlyStyle, legacyLabelLines } from '../../src/autoplay/ascension-overlay';
-import { cookiesForLevel, levelForBoost, levelForCookies, planAscension, type AscensionInput } from '../../src/autoplay/ascension-strategy';
-import { countSevens, nextLevelWithSevens } from '../../src/autoplay/heavenly-shopping';
+import { cookiesForLevel, levelForBoost, levelForCookies, luckyMinDigit, planAscension, type AscensionInput } from '../../src/autoplay/ascension-strategy';
+import { countSevens, countSevensFrom, luckyWindowEnd, nextLevelWithSevens, nextLuckyTarget } from '../../src/autoplay/heavenly-shopping';
 import { PersistedData } from '../../src/core/persisted-data';
 import type { HeavenlyUpgradeInfo } from '../../src/game/types';
 import { FakeGameAdapter } from './fakes/fake-game-adapter';
@@ -67,6 +67,60 @@ describe('countSevens / nextLevelWithSevens (lucky upgrades showIf)', () => {
     expect(nextLevelWithSevens(1000, 4)).toBe(7777);
     expect(nextLevelWithSevens(7778, 4)).toBe(17777);
     expect(nextLevelWithSevens(1_000_000_000, 4)).toBe(1_000_007_777);
+  });
+});
+
+describe('aiming the 7s at digits that hold still (ASC-15)', () => {
+  it('picks the lowest digit whose value holds long enough', () => {
+    expect(luckyMinDigit(60, 30)).toBe(0); // a level a minute: the last digit is fine
+    expect(luckyMinDigit(5, 30)).toBe(1); // 10 levels = 50s
+    expect(luckyMinDigit(0.1, 30)).toBe(3); // 1,000 levels = 100s
+    expect(luckyMinDigit(Infinity, 30)).toBe(0);
+  });
+
+  it('counts only the 7s at that digit and above', () => {
+    expect(countSevensFrom(1777, 0)).toBe(3);
+    expect(countSevensFrom(1777, 2)).toBe(1); // "17"
+    expect(countSevensFrom(1777, 3)).toBe(0); // "1"
+  });
+
+  it('skips a lucky level whose window is almost over (ASC-12)', () => {
+    expect(luckyWindowEnd(1_177_950, 2, 3)).toBe(1_177_999); // 1,178,000 has one 7 only
+    expect(luckyWindowEnd(1_177_950, 1, 3)).toBe(1_178_999); // ... enough for one
+    expect(luckyWindowEnd(1107, 1, 0)).toBe(1107);
+    expect(luckyWindowEnd(1170, 1, 0)).toBe(1179);
+    expect(luckyWindowEnd(1170, 0, 0)).toBe(Infinity);
+    // inside the block with 50 levels left: fine for 10, not for 500
+    expect(nextLuckyTarget(1_177_950, 2, 3, 10)).toBe(1_177_950);
+    expect(nextLuckyTarget(1_177_950, 2, 3, 500)).toBe(1_277_000);
+    expect(nextLuckyTarget(1_000_000, 1, 3, 500)).toBe(1_007_000);
+  });
+
+  it('finds the first level whose upper digits have the 7s, the lower ones free', () => {
+    expect(nextLevelWithSevens(1_000_000, 1, 3)).toBe(1_007_000);
+    expect(nextLevelWithSevens(1_007_450, 1, 3)).toBe(1_007_450); // already inside the block
+    expect(nextLevelWithSevens(1_000_000, 2, 2)).toBe(1_007_700);
+  });
+
+  it('plans a lucky level whose 7s hold through the last steps, not one that flips at once', () => {
+    // ~10 levels per second near level 1,100,000: the last digits flip far too fast
+    const level = 1_100_000;
+    const levelCost = cookiesForLevel(level + 1, 3) - cookiesForLevel(level, 3);
+    const p = planAscension(
+      input({
+        prestige: 1_000_000,
+        heavenlyChips: 700,
+        totalCookies: atLevel(level),
+        income: levelCost * 10,
+        runSec: 3600,
+        heavenly: luckyTree(ALL_BUT_LUCKY),
+      }),
+    );
+    expect(p.luckyDigit).toBe(3); // 1,000 levels = 100s >= 30s
+    // the chips pay for Lucky number too: the first level with two 7s above the free digits
+    expect(p.shop.level).toBe(1_177_000);
+    expect(p.shop.waitFor).toBe('Lucky number');
+    expect(p.shop.items.map((i) => i.name)).toEqual(['Lucky digit', 'Lucky number']);
   });
 });
 
@@ -135,7 +189,7 @@ describe('planAscension (ASC-2..4/9)', () => {
         prestige: 0,
         heavenlyChips: 100000,
         totalCookies: atLevel(1170),
-        income: 1e17,
+        income: 5e16, // ~80s per level: the last digit holds the 60s
         heavenly: luckyTree(ALL_BUT_LUCKY),
       }),
     );
@@ -192,20 +246,47 @@ describe('planAscension (ASC-2..4/9)', () => {
     expect(p.verdict).toBe('ascend');
   });
 
-  it('knows how long the pending level keeps the 7s the list needs (ASC-12)', () => {
-    // pending 1107 has one 7; 1108 has none: the window ends at level 1108
+  it('knows the window of levels that keep the 7s the list needs (ASC-12)', () => {
+    // 1107 has one 7; 1108 has none
     const p = planAscension(input({ prestige: 1000, heavenlyChips: 700, totalCookies: atLevel(1107), income: 1e16, runSec: 3600, heavenly: luckyTree(ALL_BUT_LUCKY) }));
     expect(p.shop.sevens).toBe(1);
-    expect(p.luckySafeSec).toBeCloseTo((cookiesForLevel(1108, 3) - atLevel(1107)) / 1e16, 0);
+    expect(p.shop.level).toBe(1107);
+    expect(p.luckyEnd).toBe(1107);
 
-    // 1170 .. 1179 all have a 7: the window runs to 1180
+    // 1170 .. 1179 all have a 7
     const q = planAscension(input({ prestige: 1000, heavenlyChips: 700, totalCookies: atLevel(1170), income: 1e16, runSec: 3600, heavenly: luckyTree(ALL_BUT_LUCKY) }));
-    expect(q.luckySafeSec).toBeCloseTo((cookiesForLevel(1180, 3) - atLevel(1170)) / 1e16, 0);
+    expect(q.luckyEnd).toBe(1179);
 
-    // nothing lucky on the list: no window to watch
+    // nothing lucky on the list: any level will do
     const r = planAscension(input({ prestige: 1000, totalCookies: atLevel(1100), income: 1e16 }));
     expect(r.shop.sevens).toBe(0);
-    expect(r.luckySafeSec).toBe(Infinity);
+    expect(r.luckyEnd).toBe(Infinity);
+  });
+
+  it('times the routine with its own income: no wrinklers, nothing clicked (ASC-12)', () => {
+    // measured 1e16/s (fat wrinklers): a 10 min routine would cover ~1.6 levels, past 1107
+    const base = { prestige: 1000, heavenlyChips: 700, totalCookies: atLevel(1107), income: 1e16, runSec: 3600, heavenly: luckyTree(ALL_BUT_LUCKY) };
+    const fast = planAscension(input({ ...base, leadSec: 600, routineIncome: 1e16 }));
+    expect(fast.shop.level).toBe(1117);
+    expect(fast.routineEtaSec).toBeCloseTo((cookiesForLevel(1117, 3) - atLevel(1107)) / 1e16, 0);
+    // but only 1e15/s once they are popped: 1107 easily outlasts the routine
+    const p = planAscension(input({ ...base, leadSec: 600, routineIncome: 1e15 }));
+    expect(p.shop.level).toBe(1107);
+    expect(p.routineEtaSec).toBe(0);
+    // no routine income at all: never on its way
+    expect(planAscension(input({ ...base, totalCookies: atLevel(1100), leadSec: 600, routineIncome: 0 })).routineEtaSec).toBe(Infinity);
+  });
+
+  it('only aims at a lucky level still ahead once the routine before ascending is done (ASC-12)', () => {
+    // pending 1107 has its 7 now, but ~6 min per level: after a 10 min routine it is gone
+    const base = { prestige: 1000, heavenlyChips: 700, totalCookies: atLevel(1107), income: 1e16, runSec: 3600, heavenly: luckyTree(ALL_BUT_LUCKY) };
+    expect(planAscension(input(base)).shop.level).toBe(1107);
+
+    const p = planAscension(input({ ...base, leadSec: 600 }));
+    expect(p.shop.level).toBe(1117);
+    expect(p.luckyEnd).toBe(1117);
+    expect(p.verdict).toBe('waiting');
+    expect(p.shop.etaSec).toBeGreaterThan(600);
   });
 
   it('does not wait 25K chips for Unholy bait on top of a +47,826 ascension (ASC-9)', () => {

@@ -71,7 +71,7 @@ function makeScheduler(game: FakeGameAdapter, overrides: Partial<SchedulerDeps> 
     stockTrader: { pending: () => false } as unknown as StockTrader,
     krumblor: { pending: () => false } as unknown as KrumblorTrainer,
     santa: { pending: () => false } as unknown as SantaTrainer,
-    ascension: { pending: () => false } as unknown as AscensionRunner,
+    ascension: { pending: () => false, committed: () => false } as unknown as AscensionRunner,
     autoPlay: { shopReady: () => false } as unknown as AutoPlayEngine,
     wrinklerPopper: { pending: () => false } as unknown as WrinklerPopper,
     happyDance: {

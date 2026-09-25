@@ -142,6 +142,7 @@ export class UiRoot {
     bindCheckbox('ccsb-auto-pop-wrinklers', data.config.autoPopWrinklers !== false);
     bindCheckbox('ccsb-auto-krumblor', data.config.autoKrumblor !== false);
     bindCheckbox('ccsb-ascend-overlay', data.config.showAscendOverlay !== false);
+    bindCheckbox('ccsb-ascend-dump', data.config.ascendDumpBank !== false);
     bindCheckbox('ccsb-auto-ascend', data.config.autoAscend !== false);
 
     autoPlay.applyVisibility();

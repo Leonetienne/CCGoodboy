@@ -382,3 +382,31 @@ describe('stock market profit (STOCK-6)', () => {
     expect(text).toContain('unrealized +150 cookies'); // 50 x 8 - 250
   });
 });
+
+describe('StockTrader and the ascension (ASC-13/14)', () => {
+  it('holds new buys, but never sales, while the ascension is armed', () => {
+    const s = setup();
+    expect(s.trader.pending()).toBe(true); // the low, turning good would be bought
+    s.trader.holdBuys = () => true;
+    expect(s.trader.pending()).toBe(false);
+
+    // a held good that peaked and fell is still sold
+    s.game.market = snap([good({ stock: 50, val: 15, vals: [15, 16], lastBuyVal: 5 })]);
+    s.runtime.marketPeaks.set(0, 16);
+    expect(s.trader.pending()).toBe(true);
+  });
+
+  it('names the goods to sell before ascending and sells ALL of one', () => {
+    const s = setup();
+    s.game.market = snap([good({ id: 0, stock: 20 }), good({ id: 1, stock: 0 }), good({ id: 2, stock: 5, last: 1 })]);
+    expect(s.trader.dumpableGoods()).toEqual([0]); // id 2 was bought this tick: the game won't sell it
+
+    const job = s.trader.sellAllJob(0, () => true);
+    expect(job).not.toBeNull();
+    expect(job!.key!.startsWith('ascend:sell-stock')).toBe(true);
+    expect(s.trader.sellAllJob(1, () => true)).toBeNull();
+
+    s.data.config.stockMarket = false;
+    expect(s.trader.dumpableGoods()).toEqual([]);
+  });
+});

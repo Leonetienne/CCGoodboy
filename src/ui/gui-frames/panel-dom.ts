@@ -264,6 +264,10 @@ function panelBodyHtml(version: string): string {
                 <input id="ccsb-auto-ascend" type="checkbox">
                 Auto: ascend (and buy heavenly upgrades) owo
             </label>
+            <label style="display:flex;gap:6px;align-items:center;margin-top:5px" title="Right before ascending: sell every stock and spend the whole bank on buildings for their next count achievement, cheapest first. The bank is thrown away by the ascension, but achievements stay won (more milk for the kittens)">
+                <input id="ccsb-ascend-dump" type="checkbox">
+                Auto: spend the bank on achievements before ascending ^w^
+            </label>
             <label style="display:flex;gap:6px;align-items:center;margin-top:5px">
                 <input id="ccsb-auto-dry" type="checkbox">
                 Auto play dry run (log only) :3

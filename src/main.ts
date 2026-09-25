@@ -97,7 +97,9 @@ const krumblor = new KrumblorTrainer(runtime, data, game, log, () => autoPlay.sh
 const santa = new SantaTrainer(runtime, data, game, log, () => autoPlay.shoppingInterrupted());
 const ascension = new AscensionPlanner(data, game);
 const wrinklerPopper = new WrinklerPopper(runtime, data, game, log, stats, autoPlay);
-const ascensionRunner = new AscensionRunner(runtime, data, game, log, stats, ascension, () => autoPlay.shoppingInterrupted());
+const ascensionRunner = new AscensionRunner(runtime, data, game, log, stats, ascension, () => autoPlay.shoppingInterrupted(), stockTrader);
+stockTrader.holdBuys = () => ascensionRunner.armed();
+ascension.leadSec = () => ascensionRunner.leadSec();
 // Anything at the auto-shop tier that wants to run right now (the buildings-view recipe or a
 // debug goal, an ascension, the Grimoire or stock market unlock, a Krumblor or Santa step, a
 // stock trade, a wrinkler pop, a due purchase): it interrupts hammering and idle play at once

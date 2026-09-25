@@ -21,13 +21,49 @@ export function countSevens(level: number): number {
   return String(level).split('7').length - 1;
 }
 
-/** Smallest whole level >= `from` containing at least `sevens` 7s (null if none within the
- * search window). */
-export function nextLevelWithSevens(from: number, sevens: number): number | null {
+/** The 7s a level has at digit position `minDigit` and above (0 = the last digit): the digits
+ * below it change too fast to aim at (ASC-15). */
+export function countSevensFrom(level: number, minDigit: number): number {
+  return countSevens(Math.floor(level / Math.pow(10, Math.max(0, minDigit))));
+}
+
+/** Smallest whole level >= `from` with at least `sevens` 7s at digit position `minDigit` and
+ * above (null if none within the search window). Every level sharing those upper digits then
+ * has the 7s too: a window of 10^minDigit levels. */
+export function nextLevelWithSevens(from: number, sevens: number, minDigit = 0): number | null {
+  const unit = Math.pow(10, Math.max(0, minDigit));
   const start = Math.max(0, Math.ceil(from));
 
-  for (let level = start; level <= start + MAX_LEVEL_SEARCH; level++) {
-    if (countSevens(level) >= sevens) return level;
+  for (let q = Math.floor(start / unit); q <= Math.floor(start / unit) + MAX_LEVEL_SEARCH; q++) {
+    if (countSevens(q) >= sevens) return Math.max(start, q * unit);
+  }
+
+  return null;
+}
+
+/** ASC-12: the last level from `level` on that still has `sevens` 7s: the rest of its block
+ * of 10^minDigit levels sharing the upper digits, then level by level (Infinity when no 7s
+ * are needed). `level` itself must have them. */
+export function luckyWindowEnd(level: number, sevens: number, minDigit = 0): number {
+  if (sevens <= 0) return Infinity;
+
+  const unit = Math.pow(10, Math.max(0, minDigit));
+  let last = countSevensFrom(level, minDigit) >= sevens ? (Math.floor(level / unit) + 1) * unit - 1 : level;
+  const limit = last + 1000;
+  while (last < limit && countSevens(last + 1) >= sevens) last++;
+  return last;
+}
+
+/** ASC-12: the smallest level >= `from` with the 7s (at `minDigit` and above) whose window
+ * still holds at least `minLevels` levels from there: a level near the end of its block is
+ * skipped for the next block, so the paw is never left a few levels to click in. */
+export function nextLuckyTarget(from: number, sevens: number, minDigit = 0, minLevels = 1): number | null {
+  let at = nextLevelWithSevens(from, sevens, minDigit);
+
+  for (let i = 0; at != null && i < 1000; i++) {
+    const end = luckyWindowEnd(at, sevens, minDigit);
+    if (end - at + 1 >= minLevels) return at;
+    at = nextLevelWithSevens(end + 1, sevens, minDigit);
   }
 
   return null;
@@ -100,6 +136,13 @@ export interface HeavenlyShopInput {
   maxExtraLevels?: number;
   /** How long the run may go on for a lucky upgrade's level (setting). */
   luckyWaitSec: number;
+  /** The lowest digit position the lucky 7s may sit at (ASC-15; 0 = the last digit). */
+  luckyMinDigit?: number;
+  /** A lucky level is only looked for from here on (ASC-12: the level the run reaches once the
+   * routine before an ascension is done, so the 7s are still ahead when it starts). */
+  luckyFromLevel?: number;
+  /** The lucky level's window must still hold this many levels from the target on (ASC-12). */
+  luckyMinLevels?: number;
   priority?: readonly string[];
 }
 
@@ -189,7 +232,7 @@ export function planHeavenlyShopping(input: HeavenlyShopInput): HeavenlyShopPlan
     // 1 chip per level: chips at L = heavenlyChips + (L - prestige).
     const chipsLevel = Math.ceil(input.prestige + cost + chainCost - input.heavenlyChips);
     let at: number | null = Math.max(level, chipsLevel);
-    if (needSevens > 0) at = nextLevelWithSevens(at, needSevens);
+    if (needSevens > 0) at = nextLuckyTarget(Math.max(at, input.luckyFromLevel ?? 0), needSevens, input.luckyMinDigit ?? 0, input.luckyMinLevels ?? 1);
 
     const lucky = chainSevens > sevens;
     const etaSec = at == null ? Infinity : input.etaTo(at);

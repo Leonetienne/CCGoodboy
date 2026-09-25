@@ -88,7 +88,8 @@ export class StockTrader {
     // peaks keep being watched while trading waits (a frenzy can outlast a few ticks)
     this.observe(snap);
 
-    if (Date.now() < this.runtime.marketBlockUntil || this.interrupted()) return null;
+    // a committed ascension's sales (ASC-12) ignore golden cookies and frenzies
+    if (Date.now() < this.runtime.marketBlockUntil || (this.interrupted() && !this.runtime.ascendTarget)) return null;
 
     return snap;
   }
@@ -110,8 +111,13 @@ export class StockTrader {
     }
   }
 
+  /** ASC-14: set by the ascension; while it returns true no new stocks are bought (they would
+   * only be sold again before ascending), sales and everything else go on. */
+  holdBuys: () => boolean = () => false;
+
   private plan(snap: MarketSnapshot): MarketMove | null {
-    return planMarketMove(snap, this.runtime.marketPeaks, this.game.getCookies(), this.maxShare());
+    const move = planMarketMove(snap, this.runtime.marketPeaks, this.game.getCookies(), this.maxShare());
+    return move && move.kind !== 'sell' && this.holdBuys() ? null : move;
   }
 
   private maxShare(): number {
@@ -133,17 +139,43 @@ export class StockTrader {
     const move = this.plan(snap);
     if (!move) return null;
 
-    const element = () => (move.kind === 'broker' ? getMarketBrokerButton() : getMarketTradeButton(move.good.id, move.button));
     const stillWanted = () => {
       const now = this.market();
       const again = now && this.plan(now);
       return !!again && sameMove(again, move);
     };
 
+    return this.jobForMove(move, snap, stillWanted, 'stock-market');
+  }
+
+  /** ASC-13: goods an ascension should sell before it throws the market away (held, and not
+   * bought this very tick, which the game refuses to sell). Empty while trading is off or
+   * the market is locked. */
+  dumpableGoods(): number[] {
+    if (!stockMarketEnabled(this.data.config)) return [];
+
+    const snap = this.game.getMarketSnapshot();
+    return snap ? snap.goods.filter((g) => g.stock > 0 && g.last !== 1).map((g) => g.id) : [];
+  }
+
+  /** ASC-13: sells ALL of one good for the ascension (the "All" button, the same view steps
+   * and click as a normal sale), or null while that isn't possible right now. */
+  sellAllJob(goodId: number, stillWanted: () => boolean): JobRequest | null {
+    const snap = this.market();
+    const good = snap && snap.goods.find((g) => g.id === goodId && g.stock > 0);
+    if (!snap || !good) return null;
+
+    const move: MarketMove = { kind: 'sell', good, button: '-All', why: 'ascending (the market is thrown away)' };
+    return this.jobForMove(move, snap, stillWanted, 'ascend:sell-stock');
+  }
+
+  private jobForMove(move: MarketMove, snap: MarketSnapshot, stillWanted: () => boolean, keyPrefix: string): JobRequest | null {
+    const element = () => (move.kind === 'broker' ? getMarketBrokerButton() : getMarketTradeButton(move.good.id, move.button));
+
     const step = this.view.nextStep({
       goal: 'open',
       priority: JOB_PRIORITY.AUTO_SHOP,
-      keyPrefix: 'stock-market',
+      keyPrefix,
       abortIf: () => !stillWanted(),
       allowLevelUp: false,
       onFail: (why) => this.block(10000, why),
@@ -158,7 +190,7 @@ export class StockTrader {
     return {
       action: this.clickAction(move, snap, element, stillWanted),
       priority: JOB_PRIORITY.AUTO_SHOP,
-      key: `stock-market:${moveKey(move)}`,
+      key: `${keyPrefix}:${moveKey(move)}`,
     };
   }
 

@@ -92,7 +92,7 @@ function makeDeps(overrides: Partial<PriorityDeps> = {}): PriorityDeps {
     fthof,
     lumpHarvest,
     grimoireView: { pending: () => false } as unknown as GrimoireView,
-    ascension: { pending: () => false } as unknown as AscensionRunner,
+    ascension: { pending: () => false, committed: () => false } as unknown as AscensionRunner,
     grimoireUnlock,
     bankUnlock: { pending: () => false } as unknown as BankUnlocker,
     krumblor,
@@ -120,6 +120,16 @@ describe('selectJobRequest', () => {
 
     expect(job?.key).toBe('golden:7');
     expect(job?.priority).toBe(JOB_PRIORITY.GOLDEN);
+  });
+
+  it('puts a committed ascension above golden cookies, and nothing else runs meanwhile (ASC-12)', () => {
+    const hold = { action: { label: 'hold' }, priority: JOB_PRIORITY.ASCEND, key: 'ascend:hold' };
+    const ascension = { pending: () => true, committed: () => true, job: () => hold } as unknown as AscensionRunner;
+    expect(selectJobRequest(makeDeps({ queue: [goldenItem(7)], ascension }))?.key).toBe('ascend:hold');
+
+    // paused after a hiccup: still nothing else
+    const idle = { pending: () => false, committed: () => true, job: () => null } as unknown as AscensionRunner;
+    expect(selectJobRequest(makeDeps({ queue: [goldenItem(7)], ascension: idle }))).toBeNull();
   });
 
   it('picks click-frenzy when Click Frenzy is active and the lead time has arrived', () => {

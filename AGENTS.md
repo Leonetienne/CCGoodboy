@@ -134,7 +134,9 @@ refactor) which `tests/visual/scenarios.mjs` scenario exercises it.
   Not deadline-aware (by decision).
 - **GC-6** Every catch is recorded (stats per effect name + hourly
   buckets) and logged (`"click golden cookie"`).
-- **GC-7** Golden cookies have ABSOLUTE priority (see SCHED-1).
+- **GC-7** Golden cookies have ABSOLUTE priority (see SCHED-1), with one
+  exception: a committed ascension (ASC-12) outranks them and they are not
+  clicked while it runs.
 - **GC-8** Every caught golden cookie also logs `"Caught a cookie!! I am
   such a gewd boy :3"` to the browser console, except Cookie Storm cookies
   (the storm itself and its drops), which would spam it (see CON-1).
@@ -244,13 +246,16 @@ refactor) which `tests/visual/scenarios.mjs` scenario exercises it.
 ### 3.6 Scheduling and priority
 
 - **SCHED-1** Priority, highest first:
+  0. a committed ascension (ASC-12: its preparation, the hold at Legacy,
+     Legacy/"Ascend"); while it runs nothing else does, not even golden
+     cookies
   1. good golden cookies (queue)
   2. real Click Frenzy clicking
   3. FTHOF cast (and its FT-8 preparation steps), then lump refill
   4. a ripe sugar lump (LUMP-\*)
   5. a buildings-view recipe already under way / the "Show grimoire"
-     debug goal (DBG-9/11), then auto play: an ascension that is due or
-     under way (ASC-10), then the Grimoire unlock (AUTO-13), then the
+     debug goal (DBG-9/11), then auto play: an ascension under way on the
+     ascension screen (ASC-10), then the Grimoire unlock (AUTO-13), then the
      stock market unlock (AUTO-16),
      then a Krumblor step (KRUMB-\*), then a Santa step (XMAS-4), then a
      stock market trade (STOCK-\*, its own setting, with or without auto
@@ -1109,25 +1114,32 @@ ascend", on by default) the bot also ascends by itself (ASC-10). Pure logic in `
   line: "Paw: auto play is off, so it won't ascend by itself", "Paw: "Auto:
   ascend" is off, so it won't ascend by itself", "Paw: dry run, it only
   writes "would ascend" in the log", "Paw: will ascend by itself once it
-  pays off" (NOT YET), "Paw: will ascend by itself at level L" (WAIT), "Paw:
-  popping the wrinklers first, then ascending", "Paw: ascending now", or
-  "Paw: will ascend once <reason>" (the buffs are over, golden cookies and
-  frenzies are done, the open prompt is closed, its pause after a hiccup is
-  over, the next lucky level ...); on the ascension screen "Paw: buying the
-  pink ones, then reincarnating" for its own ascension, else "Paw: you
-  ascended yourself, so the buying is up to you".
+  pays off" (NOT YET), "Paw: will get ready ~T before level L, then ascend
+  there" (WAIT, T = the routine's lead time, ASC-12), "Paw: will ascend once
+  <reason>" (the buffs are over, golden cookies and frenzies are done, the
+  open prompt is closed, its pause after a hiccup is over, it is safe);
+  while the routine runs (ASC-12) "Paw: getting ready for level L: popping
+  the wrinklers" / "...: selling the stocks" / "...: spending the bank on
+  achievements (X to N)", "Paw: ready at Legacy, waiting for level L (now
+  R), no golden cookies meanwhile", then "Paw: ascending now"; on the
+  ascension screen "Paw: buying the pink ones, then reincarnating" for its
+  own ascension, else "Paw: you ascended yourself, so the buying is up to
+  you".
 - **ASC-10** Auto ascension: with auto play and "Auto: ascend"
   (`config.autoAscend`, DEFAULT ON; auto play itself is off by default), the bot
-  acts on the "would ascend now" verdict (ASC-4), one step per scheduler
+  acts on the "would ascend now" / "WAIT: ascend at level L" verdicts
+  (ASC-4) through a committed routine (ASC-12), one step per scheduler
   tick re-derived from the live game (`nextAscensionStep()`), every step a
   real synthetic click or a visible drag (NFR-8):
   (1) pop every attached wrinkler, shiny ones too, fattest first
-  (`WrinklerPopAction`; the game would throw their cookies away);
+  (`WrinklerPopAction`; the game would throw their cookies away), then sell
+  every stock and spend the bank on achievements (ASC-13), then hold still
+  with the paw on Legacy until the target level is there (ASC-12);
   (2) click the Legacy button (`#legacyButton`) and the visible "Ascend" in
   its prompt (`#promptContentAscend #promptOption0`); the prompt counts as
   its own from the Legacy click on (`DragonClickParams.onClicked`), so no
-  other module gets a tick in between; if the moment passes while that
-  prompt is open (a golden cookie, a buff) it clicks "Cancel";
+  other module gets a tick in between; if the level leaves the target's
+  window while that prompt is open it clicks "Cancel";
   (3) sit out the ~5s ascend animation (`WaitWhileAction`, nothing below
   its tier runs);
   (4) buy the shopping list for the chips on hand (ASC-9 without waiting)
@@ -1141,32 +1153,124 @@ ascend", on by default) the bot also ascends by itself (ASC-10). Pure logic in `
   (6) reset the bot's per-run state (`RuntimeState.resetForNewRun()`: LOCK_A,
   plans, Krumblor/Santa/wrinkler bookkeeping, the auto hammer's
   calibration) and hold the scheduler 3s while the game rebuilds.
-  Gates (for steps 1-2): the AUTO-7 ones (no golden cookie ready, Click
-  Frenzy, storm/chain, FTHOF/refill pending, paused, a prompt other than
-  its own), no CpS buff at all, and ASC-12; its own pause only
-  (`ascendBlockUntil`), never shopping's (`autoBlockUntil`, which shopping
-  sets whenever a re-plan is refused). It only ever finishes an ascension it
+  Gates (for starting the routine, ASC-12): the AUTO-7 ones (no golden
+  cookie ready, Click Frenzy, storm/chain, FTHOF/refill pending, paused, a
+  prompt open) and no CpS buff at all (it would inflate the income the
+  timing is based on); its own pause only (`ascendBlockUntil`), never
+  shopping's (`autoBlockUntil`, which shopping sets whenever a re-plan is
+  refused). Once committed none of these hold it back any more (a prompt
+  it didn't open only makes it wait). It only ever finishes an ascension it
   started (a reload on the ascension screen leaves it to the player). A
   click that didn't do its job pauses it 3s, an element that doesn't show
-  up for 5s pauses it 10s. Dry run only logs "would ascend". Priority: tier
-  5, first (an ascension due or under way outranks the other auto play
-  steps and interrupts hammering and idle play). Logged as `"ascend"`
+  up for 5s pauses it 10s (nothing else runs meanwhile). Dry run never
+  commits and only logs "would ascend". Priority: steps 1-2 above
+  everything (SCHED-1 tier 0, `JOB_PRIORITY.ASCEND`, the steps never give
+  way to a golden cookie); steps 3-6 tier 5, first. Logged as `"ascend"`
   (with the level, gain and shopping list), `"heavenly upgrade"` per
   purchase; counted in `stats.ascensions` ("Ascensions" in the HUD
   statistics once > 0).
-- **ASC-12** The 7s survive the pops: the planner's pending level already
-  includes the wrinklers' exact payout (the game's pop formula, ASC-1), and
-  the game earns nothing during the ascend animation, so the level is only
-  at risk from income while the paw pops wrinklers and walks to Legacy.
-  When the shopping list holds a lucky upgrade (`shop.sevens` > 0) the plan
-  says how long the pending level keeps those 7s at the current income
-  (`luckySafeSec`: until the first higher level with too few), and the bot
-  only starts when that is at least 30s + 5s per attached wrinkler
-  (`LUCKY_MARGIN_SEC`, `LUCKY_MARGIN_PER_POP_SEC`), and only confirms its
-  own "Ascend" prompt with >= 2s left; else it lets that lucky level go
-  (ASC-11: "Paw: will ascend once the next lucky level ...") and the plan moves
-  on to the next one. Without a lucky upgrade on the list the 7s are
-  ignored.
+- **ASC-12** A stable target, and a routine timed to reach it
+  (`AscensionRunner`, `runtime.ascendTarget`). Late in a run levels pass
+  quickly, and the routine before an ascension (pops, stock sales,
+  achievements) takes minutes, so the bot never chases the level that is
+  lucky right now:
+  (a) Lead time (`AscensionRunner.leadSec()`, handed to the planner as
+  `AscensionPlanner.leadSec`): 5s per attached wrinkler + 6s per stock to
+  sell + 2s per building and 0.1s per copy the ASC-13 plan buys (for the
+  bank plus the wrinklers' cookies; at most 90s), × 1.5, + 60s safety buffer
+  (`LEAD_*` constants).
+  (b) Routine income: while the routine runs no wrinkler digests, nothing
+  is clicked and no buff runs, so the bank only gets the game's unbuffed CpS
+  (`AscensionInput.routineIncome`, `Game.unbuffedCps`); the measured income
+  (ASC-2) counts what attached wrinklers digest and can be 6-8× higher. The
+  routine is timed with the routine income only.
+  Target: the planner looks for the lucky level only from the level the
+  run reaches after the lead time at the routine income
+  (`AscensionInput.leadSec`, `HeavenlyShopInput.luckyFromLevel`), so the 7s
+  are still ahead when the routine is done, and only where the window LEFT
+  from the target on still lasts ASC_FINAL_SEC at the routine income (a
+  level near the end of its block is skipped for the next block,
+  `nextLuckyTarget()`, `luckyWindowLevels()`). `shop.level` is the level to
+  ascend at, `AscensionPlan.luckyEnd` the last level that still has the 7s
+  the list needs (`luckyWindowEnd()`: the rest of the ASC-15 block, then
+  level by level; Infinity without lucky wishes: any level from the target
+  on will do).
+  (c) Commit: once the plan says ascend now or WAIT and the target is at
+  most the lead time + 30s away at the routine income
+  (`AscensionPlan.routineEtaSec`, `LOCK_SLACK_SEC`), with the ASC-10 gates
+  clear, the target `{level, end}` is locked and never re-planned; the
+  verdict may change afterwards, the routine goes on. Logged as `"ascend"`
+  ("getting ready to ascend at level L").
+  (d) The routine outranks everything from then on, golden cookies included
+  (SCHED-1 tier 0; its jobs never give way to a golden cookie, and the
+  stock sales and buildings-view steps ignore golden cookies and frenzies
+  while it runs): pop every wrinkler, sell the stocks, spend the bank on
+  achievements (ASC-13), once (`runtime.ascendPrepDone`; wrinklers that grow
+  back and the bank that builds up during the wait are left alone), then
+  hold still with the paw on Legacy (`WaitWhileAction`, mood `ascend`,
+  logged "ready: waiting for level L"). Nothing is clicked meanwhile.
+  (e) Ascend: as soon as the real prestige level (all-time cookies without
+  the unpopped wrinklers, which the game throws away) is within [level,
+  end], Legacy and "Ascend" are clicked; whatever preparation is left is
+  dropped, the level comes first.
+  (e2) Moved on, still committed (golden cookies stay ignored; logged
+  "moved the target to level L: ..."): while the real level is below the
+  target, a lucky window that lasts less than 20s at the current unbuffed
+  CpS (`MIN_WINDOW_SEC`; the routine's buildings and milk raise it), or one
+  that passed, is swapped for the next one that holds ASC_FINAL_SEC at that
+  CpS (digit re-chosen, ASC-15; after the rest of the routine's time if the
+  preparation isn't done). Once the level is inside the window the target
+  never moves. The log also records the level at the Legacy click and the
+  level the ascension landed on (`landed`).
+  (f) Called off (logged, CON-2), and the next target planned: no lucky
+  window ahead holds long enough, the level is more than 1h
+  off at the unbuffed CpS (`MAX_HOLD_SEC`; as long as it is honestly on its
+  way the routine keeps holding, however long that takes), or auto
+  ascension was switched off (silently).
+
+- **ASC-13** Spending the bank before ascending ("Auto: spend the bank on
+  achievements before ascending", `ascendDumpBank`, DEFAULT ON; only as
+  part of ASC-10). The ascension throws the bank, the stock market and the
+  buildings away, but achievements stay won (`Game.Reset()` only clears
+  them on a hard reset; each is +4% milk for the kittens in every later
+  run), and spending never lowers the prestige gained (it comes from
+  `cookiesEarned`; a stock sale doesn't raise it either, the game only
+  keeps `cookiesEarned >= cookies`). So once the ascension is committed
+  (ASC-12), before Legacy is clicked: (1) every held
+  stock is sold with its "All" button (the trader's own view steps and sell
+  click, `StockTrader.sellAllJob()`; only with "Play the stock market" on; a
+  good bought this very market tick can't be sold and stays); (2) the whole
+  bank goes into building count achievements, cheapest first
+  (`planAchievementDump()`, `src/autoplay/achievement-dump.ts`: every step
+  the cheapest next unwon count of any unlocked building the rest of the
+  bank still pays for, priced with the game's 1.15× per copy; building caps
+  like the Wizard tower target don't apply, the run ends anyway): the paw
+  goes to the building's row and buys it one copy at a time, ~10 per
+  second, a pulse per copy (`AchievementDumpAction`, NFR-8 b), re-planned
+  from the live game every step. Only in the store's buy mode (in sell mode
+  the game's `buy()` would sell). The whole phase gives up after 90s
+  (`runtime.ascendDumpSince`), so a stuck market or store never holds the
+  ascension back; it starts over for a new target. Logged as `"ascend"` ("bought 37x Farm for the 150 achievement").
+
+- **ASC-14** While an ascension is committed (ASC-12) the stock trader
+  buys no new stocks (`AscensionRunner.armed()`, `StockTrader.holdBuys`),
+  since they would only be sold again. (Until 5.6.9 this was an early
+  preparation as soon as the plan said WAIT, however far off; ASC-12's
+  timed routine replaced it.)
+
+- **ASC-15** The 7s go where they hold still: late in a run levels pass in
+  fractions of a second, so a 7 in the last digit is gone before the paw
+  can click, while the first digits are safest but take longest to reach.
+  Digit position p (0 = the last) changes every 10^p levels; at the current
+  income (`secPerLevel` = the cookie cost of the next level / income) the
+  planner picks the lowest position whose value holds at least the last
+  two clicks with slack for a CpS the routine's purchases raised, 60s at the
+  routine income (`ASC_FINAL_SEC`; the preparation is done
+  before the target, ASC-12, and the paw waits at Legacy) (`luckyMinDigit()`
+  in `src/autoplay/ascension-strategy.ts`), and only counts 7s at that
+  position and above (`countSevensFrom()`, `nextLevelWithSevens(from, n,
+  minDigit)`): a target like 1,177,xxx, whose whole block of 10^p levels
+  keeps the 7s (`AscensionPlan.luckyDigit`; `luckyEnd` is the block's end).
 
 ### 3.22 Update check
 
@@ -1278,7 +1382,8 @@ was read for every rule below.
 - **STOCK-8** Not played: offices (they cost cursors, which Krumblor and the
   achievements want) and loans (a CpS gamble followed by a penalty). The
   ascension throws the market away (`M.reset()`: stocks, brokers, offices),
-  like the bank itself, so nothing is sold for it; `runtime.marketPeaks`
+  like the bank itself; an automatic ascension sells everything first
+  (ASC-13), the trader itself never sells for it; `runtime.marketPeaks`
   is reset with the run. Debug: DBG-22, DBG-23.
 
 ## 4. Non-functional requirements
@@ -1382,6 +1487,7 @@ saved (see `normalizeSetting()` in
 | `autoPopWrinklers` | Auto: pop wrinklers for purchases [checkbox] | true | – |
 | `autoKrumblor` | Auto: train Krumblor (Dragon Cursor) [checkbox] | true | – |
 | `autoAscend` | Auto: ascend (and buy heavenly upgrades) [checkbox] (ASC-10) | true | – |
+| `ascendDumpBank` | Auto: spend the bank on achievements before ascending [checkbox] (ASC-13) | true | – |
 
 (all "Auto" settings are only shown while Auto play is on; the stock market
 settings are general settings)
@@ -1439,12 +1545,12 @@ gainLumps) — still guarded, still the only path to those `Game.*` calls.
 | Core state | `src/core/` | `constants.ts` (VERSION, clamp helpers), `console-voice.ts` (CON-\*), `persisted-data.ts`, `runtime-state.ts`, `state-machine.ts` |
 | Game facade | `src/game/` | `game-adapter.ts` (IGameAdapter + GameAdapter), `types.ts` (GameShimmer/RawBuff/CpsBuff/GrimoireMinigame/GameBuilding/GameUpgrade), `golden-cookie-model.ts` (fade curve, shimmer classification, GC-2/GC-3), `hurry-mode.ts` (HURRY-\*), `buffs-lock.ts` (LOCK_A, FT-6), `grimoire.ts` (FTHOF spell/cost lookup), `grimoire-dom.ts` (real Grimoire controls — FT-7), `market-dom.ts` (the stock market's trade and "Hire" buttons — STOCK-\*), `lump-dom.ts` (`#lumps` control/centre — LUMP-\*), `wrinkler-dom.ts` (`#backgroundLeftCanvas`, a wrinkler's body point — WRINK-5), `dragon-dom.ts` (the special tabs on the left canvas, `#specialPopup`, the aura picker, Santa's "Evolve" button — KRUMB-3/XMAS-4), `buildings-view-dom.ts` (`#centerArea`, menu buttons, building rows/level buttons, the Options/Stats/Stats recipe, `centeredScrollTop` — AUTO-13), `reindeer.ts` (a reindeer's predicted path and the paw's meeting point — XMAS-6), `ascension-dom.ts` (the Legacy button, the Ascend/Reincarnate prompts, heavenly crates, the Reincarnate button, how far to drag the tree — ASC-10), `store-dom.ts` (the collapsible upgrade store sections, opened while the paw is there — AUTO-9), `dom-geometry.ts` (visibleRect/looseRect/clippedByAncestor — shared by every overlay box, GC-2/BUY-3) |
 | Cursor (queue) | `src/cursor/` | `types.ts` (`JOB_PRIORITY`, `CursorAction`, `CursorJob`, `CursorJobContext`, `CursorMover`, `CursorClickTiming`, `JobRequest`), `cursor-manager.ts` (owns the priority queue + all cursor motion: click gap → travel → pre-click pause → `cursor_at_position`, dedup by key, preemption, single cursor writer) |
-| Actions | `src/actions/` | `click-element.ts` (ClickElementAction/MoveAction/VisualPressAction), `golden-cookie.ts` (GoldenCookieAction, `effectPrettyName`), `hammer.ts` (HammerAction + big-cookie point helpers, CF-\*), `fthof.ts` (FthofAction/RefillAction), `lump-harvest.ts` (LumpHarvestAction, LUMP-\*), `buildings-view.ts` (MenuButtonAction, ScrollIntoViewAction, MinigameButtonAction — FT-8/AUTO-13/DBG-9..11), `minigame-unlock.ts` (MinigameUnlockAction: a building's "lvl" click that unlocks its minigame), `grimoire-unlock.ts` (GrimoireUnlockAction, AUTO-13), `market.ts` (MarketClickAction: one click on a stock market button, STOCK-\*), `wrinkler-pop.ts` (WrinklerPopAction, WRINK-5), `krumblor.ts` (DragonClickAction/DragonStoreAction, KRUMB-3; Santa's and the ascension's clicks reuse DragonClickAction, XMAS-4/ASC-10), `ascension.ts` (WaitWhileAction, DragTreeAction — ASC-10), `store-visit.ts` (`enterStoreElement`: the paw opening an upgrade's store section and moving onto the crate, AUTO-9), `dance.ts` (DanceAction + `danceEligible`/`anyGoldenPresent`/`getDanceMs`), `ponder.ts` (PonderAction), `idle.ts` (IdleWanderAction + `IDLE_SPOTS`/`pickIdleSpot`) |
+| Actions | `src/actions/` | `click-element.ts` (ClickElementAction/MoveAction/VisualPressAction), `golden-cookie.ts` (GoldenCookieAction, `effectPrettyName`), `hammer.ts` (HammerAction + big-cookie point helpers, CF-\*), `fthof.ts` (FthofAction/RefillAction), `lump-harvest.ts` (LumpHarvestAction, LUMP-\*), `buildings-view.ts` (MenuButtonAction, ScrollIntoViewAction, MinigameButtonAction — FT-8/AUTO-13/DBG-9..11), `minigame-unlock.ts` (MinigameUnlockAction: a building's "lvl" click that unlocks its minigame), `grimoire-unlock.ts` (GrimoireUnlockAction, AUTO-13), `market.ts` (MarketClickAction: one click on a stock market button, STOCK-\*), `wrinkler-pop.ts` (WrinklerPopAction, WRINK-5), `krumblor.ts` (DragonClickAction/DragonStoreAction, KRUMB-3; Santa's and the ascension's clicks reuse DragonClickAction, XMAS-4/ASC-10), `ascension.ts` (WaitWhileAction, DragTreeAction — ASC-10), `achievement-dump.ts` (AchievementDumpAction: buying a building copy by copy for its achievement — ASC-13), `store-visit.ts` (`enterStoreElement`: the paw opening an upgrade's store section and moving onto the crate, AUTO-9), `dance.ts` (DanceAction + `danceEligible`/`anyGoldenPresent`/`getDanceMs`), `ponder.ts` (PonderAction), `idle.ts` (IdleWanderAction + `IDLE_SPOTS`/`pickIdleSpot`) |
 | Hunting (modules) | `src/hunting/` | `click-golden.ts` (golden hunter: `jobFor` → GoldenCookieAction), `click-big-cookie.ts` (hammer module: `job` → HammerAction), `golden-queue.ts` (route caching, wraps route-planner), `fthof.ts` (FthofActions: `fthofOrRefillPending` + `castJob`/`refillJob`), `lump-harvest.ts` (LumpHarvestActions: `pending` + `harvestJob`), `happy-dance.ts` (HappyDance: `job` → DanceAction), `buildings-view.ts` (BuildingsViewNavigator: Options/Stats/Stats recipe + scroll-into-view steps, `PrepStep`), `minigame-view.ts` (MinigameView: step planner to a building's unlocked/open, on-screen minigame — shared by the Grimoire and the stock market), `grimoire-view.ts` (GrimoireView: the Wizard tower's MinigameView for FT-8/AUTO-13, plus the DBG-9..11 tools and their scheduler tier), `hitbox-overlay.ts` (GC-2) |
 | Routing | `src/routing/route-planner.ts` | `exactRoute` (Held-Karp DP, <= 11 cookies), `heuristicRoute` (nearest-neighbor + 2-opt/Or-opt + restarts), `planRoute` (GC-5) |
 | Idle | `src/idle/` | `idle-behavior.ts` (IdleBehavior module: `idleJob` → IdleWanderAction), `pending-work.ts` (conditions + queue state via `CursorManager.hasJobsAbove` — the shared "is anything more important pending?" predicate) |
 | Input synthesis | `src/input/` | `dispatch.ts` (dispatchMouse/dispatchMove — MOUSE-\*), `human-click.ts` (ClickTiming: delays, waitUntil, humanClick), `cursor-controller.ts` (CursorController: low-level PAW-4 arc/spline/warp travel, moveCursorTo/glideCursor — the only file that writes `runtime.cursor.x/y`), `background-clock.ts` (BackgroundClock: BG-1/BG-2 worker timer), `keep-alive.ts` (BG-3) |
-| Auto play | `src/autoplay/` | `valuation-tables.ts` (AUTO_BLOCKED_\*, AUTO_GOLDEN_UPGRADES, AUTO_KITTEN_POWER, AUTO_FINGER_STEPS, AUTO_BUILDING_CAPS — AUTO-2 data), `building-valuation.ts` + `upgrade-classifier.ts` (AUTO-3 gain math per candidate type), `collector.ts` (`autoCollect`: gathers candidates + ctx, AUTO-7 safety gates), `strategy.ts` (`autoDecide`: the pure insignificant/good/postpone/save decision, AUTO-4 — flagship unit-test target), `buy-streak.ts` (pure: whether the paw buys one more of the same building in its streak, AUTO-14), `achievement-milestones.ts` (pure: a building's value on its way to a count achievement, AUTO-15), `shopping.ts` (`AutoPlayEngine`: evaluate/shopJob/statusText, AUTO-1/8/9/10/12), `auto-hammer.ts` (AUTO-11), `grimoire-unlock.ts` (`GrimoireUnlocker`: AUTO-13 gating, steps from GrimoireView), `bank-unlock.ts` (`BankUnlocker`: AUTO-16 gating, steps from the Bank's MinigameView), `wrinkler-strategy.ts` (pure: respawn time, maturity, fewest-fattest pick — WRINK-2/3), `grandmapocalypse-valuation.ts` (pure: stage 1 gain, delay, chain-step dCps — WRINK-1), `wrinkler-popper.ts` (`WrinklerPopper`: WRINK-3/4 gating, plan, job, HUD text), `krumblor-strategy.ts` (pure: next Krumblor step — KRUMB-1/2/5), `krumblor.ts` (`KrumblorTrainer`: KRUMB-\* gating, state, jobs, the cursor sale/rebuy), `easter-eggs.ts` (pure-ish: egg values and order — EGG-\*), `christmas.ts` (pure-ish: Christmas upgrade values — XMAS-1..3), `santa-strategy.ts` (pure: next Santa step — XMAS-4), `santa.ts` (`SantaTrainer`: XMAS-4/5 gating, jobs), `ascension-strategy.ts` (pure: pending level, stagnation, boost gate, verdict — ASC-1..4/8), `heavenly-shopping.ts` (pure: the heavenly priority list, lucky 7s, the shopping list and the level it needs — ASC-9), `ascension-steps.ts` (pure: the next step of an automatic ascension — ASC-10), `ascension-runner.ts` (`AscensionRunner`: ASC-10 gating, steps, jobs, the per-run reset), `ascension.ts` (`AscensionPlanner`: measured income, cached plan, HUD text — ASC-2/5), `ascension-overlay.ts` (Legacy button and heavenly tree boxes — ASC-6/7), `income-tracker.ts` (smoothed clicking income for AUTO-3's `income`), `buy-value-overlay.ts` (BUY-\*) |
+| Auto play | `src/autoplay/` | `valuation-tables.ts` (AUTO_BLOCKED_\*, AUTO_GOLDEN_UPGRADES, AUTO_KITTEN_POWER, AUTO_FINGER_STEPS, AUTO_BUILDING_CAPS — AUTO-2 data), `building-valuation.ts` + `upgrade-classifier.ts` (AUTO-3 gain math per candidate type), `collector.ts` (`autoCollect`: gathers candidates + ctx, AUTO-7 safety gates), `strategy.ts` (`autoDecide`: the pure insignificant/good/postpone/save decision, AUTO-4 — flagship unit-test target), `buy-streak.ts` (pure: whether the paw buys one more of the same building in its streak, AUTO-14), `achievement-milestones.ts` (pure: a building's value on its way to a count achievement, AUTO-15), `shopping.ts` (`AutoPlayEngine`: evaluate/shopJob/statusText, AUTO-1/8/9/10/12), `auto-hammer.ts` (AUTO-11), `grimoire-unlock.ts` (`GrimoireUnlocker`: AUTO-13 gating, steps from GrimoireView), `bank-unlock.ts` (`BankUnlocker`: AUTO-16 gating, steps from the Bank's MinigameView), `wrinkler-strategy.ts` (pure: respawn time, maturity, fewest-fattest pick — WRINK-2/3), `grandmapocalypse-valuation.ts` (pure: stage 1 gain, delay, chain-step dCps — WRINK-1), `wrinkler-popper.ts` (`WrinklerPopper`: WRINK-3/4 gating, plan, job, HUD text), `krumblor-strategy.ts` (pure: next Krumblor step — KRUMB-1/2/5), `krumblor.ts` (`KrumblorTrainer`: KRUMB-\* gating, state, jobs, the cursor sale/rebuy), `easter-eggs.ts` (pure-ish: egg values and order — EGG-\*), `christmas.ts` (pure-ish: Christmas upgrade values — XMAS-1..3), `santa-strategy.ts` (pure: next Santa step — XMAS-4), `santa.ts` (`SantaTrainer`: XMAS-4/5 gating, jobs), `ascension-strategy.ts` (pure: pending level, stagnation, boost gate, verdict — ASC-1..4/8), `heavenly-shopping.ts` (pure: the heavenly priority list, lucky 7s, the shopping list and the level it needs — ASC-9), `ascension-steps.ts` (pure: the next step of an automatic ascension — ASC-10), `achievement-dump.ts` (pure: the cheapest-first achievement plan for the bank before an ascension — ASC-13), `ascension-runner.ts` (`AscensionRunner`: ASC-10 gating, steps, jobs, the per-run reset), `ascension.ts` (`AscensionPlanner`: measured income, cached plan, HUD text — ASC-2/5), `ascension-overlay.ts` (Legacy button and heavenly tree boxes — ASC-6/7), `income-tracker.ts` (smoothed clicking income for AUTO-3's `income`), `buy-value-overlay.ts` (BUY-\*) |
 | Stock market | `src/market/` | `market-strategy.ts` (pure: thresholds, trailing stop, budget, brokers, the next trade — STOCK-2..4), `stock-trader.ts` (`StockTrader`: STOCK-\* gating, peaks, jobs, HUD text; the Bank's `MinigameView`) |
 | Scheduler | `src/scheduler/` | `priority.ts` (`selectJobRequest`: the SCHED-1 cascade as pure data), `scheduler.ts` (`Scheduler.tick()`: wrath logging, queue build, enqueues ONE job via CursorManager), `overlay-loop.ts` (`OverlayLoop`: the requestAnimationFrame draw loop — hitboxes, buy-value overlay, ascension overlay, paw) |
 | Rendering | `src/rendering/` | `paw-cursor.ts` (`PawCursor`: PAW-1..3, sprite rasterizing, click pulse, fallback drawn paw), `overlay-canvas.ts` (resize/DPR handling) |
@@ -1502,7 +1608,7 @@ target)`) instead of scattering direct field writes across every task.
 | `wrinkler-pop` | poking a mature wrinkler until it bursts (WRINK-5) | `WrinklerPopAction` |
 | `krumblor` | buying the crumbly egg, clicking Krumblor's tab/popup/aura picker, selling/buying cursors for the sacrifice (KRUMB-\*) | `DragonClickAction` / `DragonStoreAction` |
 | `santa` | clicking Santa's tab, "Evolve" button and popup "x" (XMAS-4) | `DragonClickAction` (from `SantaTrainer`) |
-| `ascend` | popping wrinklers before, clicking Legacy/"Ascend", waiting out the animation, dragging the heavenly tree, buying heavenly upgrades, Reincarnate/"Yes" (ASC-10) | `DragonClickAction` / `WaitWhileAction` / `DragTreeAction` (from `AscensionRunner`; the pops show `wrinkler-pop`) |
+| `ascend` | getting ready for a committed ascension (ASC-12: selling, buying for achievements, holding at Legacy), clicking Legacy/"Ascend", waiting out the animation, dragging the heavenly tree, buying heavenly upgrades, Reincarnate/"Yes" (ASC-10) | `DragonClickAction` / `WaitWhileAction` / `DragTreeAction` (from `AscensionRunner`; the pops show `wrinkler-pop`) |
 | `auto-shop` | visiting/buying a store item (AUTO-9) | auto-shop `CursorAction` from `AutoPlayEngine.shopJob()` |
 | `happy-dance` | post-catch celebration (DANCE-\*) | `DanceAction` |
 
@@ -1525,8 +1631,8 @@ file.**
 
 Three layers, each catching a different class of bug:
 
-1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 491 tests
-   across 47 files. Pure functions (route planner, `autoDecide`, the chart
+1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 526 tests
+   across 48 files. Pure functions (route planner, `autoDecide`, the chart
    engine, `normalizeSetting`) are tested directly with plain data; the
    cursor queue/actions have their own fake mover/timing tests. Classes
    that depend on the game are tested against `FakeGameAdapter`
@@ -1696,16 +1802,101 @@ steps on their own), ascension planning (ASC-\*: on a save with some prestige, c
 button's box and label against the game's own Legacy tooltip — "gained"
 must match the levels it offers — then ascend by hand and check the
 heavenly upgrade boxes and prices), auto ascension (ASC-10: on a TEST save
-where the Ascension row says "tip: good time to ascend", switch on auto
-play and "Auto: ascend"; watch every wrinkler popped, Legacy and "Ascend"
-clicked, the tree dragged to each pink crate and each bought in order,
-Reincarnate and "Yes", then the bot resuming after ~3s; a Frenzy spawned
-while the "Ascend" prompt is open must make it click "Cancel"), settings staging (UI-4), log
+where the Ascension row says ASCEND NOW or WAIT, switch on auto
+play and "Auto: ascend"; once the target is the lead time away watch the
+log's "getting ready to ascend at level L", every wrinkler popped, the
+stocks sold, the achievements bought, the paw holding still on Legacy
+(spawn a golden cookie now: it must be ignored), Legacy and "Ascend"
+clicked at level L, the tree dragged to each pink crate and each bought in
+order, Reincarnate and "Yes", then the bot resuming after ~3s), settings staging (UI-4), log
 filter/export (UI-6), real-mouse compatibility (MOUSE-1/2 — move your own
 mouse while the bot runs and confirm the "+N" number follows your cursor,
 not the paw's).
 
 ## 12. Changelog
+
+- **5.6.12** Fixed: the committed ascension (ASC-12) could still wait past
+  its level. Only the whole block of levels holding the 7s had to last
+  ASC_FINAL_SEC; the target itself could sit near the end of its block
+  (e.g. 1,177,950 of 1,177,000-1,177,999), leaving a few seconds, and the
+  routine's purchases (buildings, achievement milk for the kittens) raise
+  the CpS on top. The target now needs its remaining window to last
+  ASC_FINAL_SEC (`nextLuckyTarget()`, `luckyWindowEnd()`,
+  `luckyWindowLevels()`, `HeavenlyShopInput.luckyMinLevels`), and while
+  waiting the bot re-checks the window at the real unbuffed CpS: one
+  shorter than 20s (`MIN_WINDOW_SEC`) or one that passed moves the target to
+  the next window that holds, without leaving the routine (no golden cookies
+  in between). The log now records the level at the Legacy click and the
+  level the ascension landed on. Unit tests in
+  `tests/unit/ascension-runner.test.ts` and `tests/unit/ascension.test.ts`.
+
+- **5.6.11** Fixed: the committed ascension (ASC-12) still missed its level
+  after a long wait. It was timed with the measured income, which counts
+  what attached wrinklers digest (6-8× the CpS with a full set); once the
+  paw popped them the level came far later than planned, the routine's
+  deadline (2 × lead + 10 min) called it off shortly before the level, the
+  bot went back to golden cookies and hammering, and rushed past. The
+  routine is now timed with the unbuffed CpS it really gets
+  (`AscensionInput.routineIncome`, `AscensionPlan.routineEtaSec`), and it
+  keeps holding as long as the level is at most 1h off at that CpS
+  (`MAX_HOLD_SEC`, replaces `AscendTarget.until`). The 7s' window must now
+  hold 60s (`ASC_FINAL_SEC`, was 30s) for a CpS the routine's purchases
+  raise. Unit tests in `tests/unit/ascension-runner.test.ts` and
+  `tests/unit/ascension.test.ts`.
+
+- **5.6.10** Reworked when an automatic ascension starts (ASC-12): it used
+  to chase the level that was lucky right now, rush past it while popping,
+  selling and buying, and start over at the next one. Now the planner picks
+  a lucky level that is still ahead once the routine before ascending is
+  done (`AscensionInput.leadSec`, `luckyFromLevel`), and the bot locks that
+  level (`runtime.ascendTarget`) once it is the lead time away (the
+  routine's estimate × 1.5 + 60s, `AscensionRunner.leadSec()`). From then on
+  the routine outranks everything, golden cookies included (SCHED-1 tier 0,
+  `JOB_PRIORITY.ASCEND`): pop the wrinklers, sell the stocks, spend the bank
+  on achievements, hold still at Legacy until the level is there, ascend.
+  A level that passed anyway or never comes is called off and a new one
+  planned. The digit the 7s sit at only has to hold the last two clicks now
+  (ASC-15, `ASC_FINAL_SEC`); the early preparation of ASC-14 is gone.
+  `AscensionPlan.luckySafeSec` became `luckyEnd`; new step `hold`,
+  `WaitWhileAction` takes a point. Unit tests in
+  `tests/unit/ascension-runner.test.ts`, `tests/unit/ascension.test.ts` and
+  `tests/unit/priority.test.ts`.
+
+- **5.6.9** While waiting for the level (ASC-14) the paw pops the
+  wrinklers first, then sells the stocks and spends the bank, so the
+  wrinklers' cookies go into the achievements too instead of being popped
+  only at the very end. Unit tests in `tests/unit/ascension-runner.test.ts`.
+
+- **5.6.8** Lucky levels aim their 7s at digits that hold still (ASC-15):
+  the planner picks the lowest digit position whose value lasts at least
+  the last steps' time (30s + 5s per wrinkler) at the current income and
+  counts only the 7s from there up, e.g. 1,177,xxx instead of 1,100,077,
+  whose last digits flip before the paw can click. New `luckyMinDigit()`,
+  `countSevensFrom()`, `AscensionPlan.luckyDigit`;
+  `nextLevelWithSevens()` takes the lowest digit; the margin constants moved
+  to `ascension-strategy.ts`. Unit tests in `tests/unit/ascension.test.ts`.
+
+- **5.6.7** Waiting for a lucky level now comes last (ASC-14): as soon as the
+  plan says "WAIT: ascend at level L", the paw sells the stocks and spends
+  the bank on achievements once, right away, instead of doing it all inside
+  the lucky window, where ASC-12's margin often made it let the window go.
+  The trader buys no new stocks while the ascension is armed
+  (`StockTrader.holdBuys`, `AscensionRunner.armed()`); the wrinklers keep
+  digesting until the end. New step flag `AscendState.prep`,
+  `runtime.ascendPrepDone`. Unit tests in `tests/unit/ascension-runner.test.ts`
+  and `tests/unit/stock-market.test.ts`.
+
+- **5.6.6** Before an automatic ascension the paw now sells every stock and
+  spends the whole bank on building count achievements, cheapest first
+  (ASC-13): the ascension throws the bank away, but achievements stay won
+  (+4% milk each) and spending doesn't lower the prestige gained. New
+  setting "Auto: spend the bank on achievements before ascending"
+  (`ascendDumpBank`, on), new `src/autoplay/achievement-dump.ts`
+  (`planAchievementDump()`), `AchievementDumpAction`,
+  `StockTrader.dumpableGoods()`/`sellAllJob()`, steps `sell-stock`/`dump`;
+  the lucky-level margin (ASC-12) counts the extra time. Unit tests in
+  `tests/unit/achievement-dump.test.ts` and
+  `tests/unit/ascension-runner.test.ts`.
 
 - **5.6.5** New debug tool "Stock market: speed x50 (on/off)" (DBG-24): the
   market ticks every 1.2s instead of every minute, to test the trader

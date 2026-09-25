@@ -7,6 +7,9 @@ import type { MoveCursorOpts } from '../input/cursor-controller';
 
 /** SCHED-1 priority order as numeric job priorities. Lower runs first. */
 export const JOB_PRIORITY = {
+  /** A committed ascension (ASC-12): above golden cookies, which would push the level past
+   * its target. */
+  ASCEND: -1,
   GOLDEN: 0,
   CLICK_FRENZY: 1,
   FTHOF: 2,

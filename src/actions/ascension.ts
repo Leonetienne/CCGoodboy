@@ -8,9 +8,10 @@ const DRAG_MS = 380;
 const SETTLE_MS = 350;
 
 /** Keeps the paw still (and everything below its priority out) while `waiting()` holds: the
- * ascend animation (ASC-10). No click. */
+ * ascend animation (ASC-10), or the wait for a committed ascension's level at `point` (the
+ * Legacy button, ASC-12). No click. */
 export class WaitWhileAction implements CursorAction {
-  readonly target = null;
+  readonly target: (() => { x: number; y: number } | null) | null;
   readonly waitClickGap = false;
   readonly preClickPause = false;
   readonly abortOnGolden = false;
@@ -20,8 +21,10 @@ export class WaitWhileAction implements CursorAction {
     readonly label: string,
     target: string,
     private readonly waiting: () => boolean,
+    point: (() => { x: number; y: number } | null) | null = null,
   ) {
     this.hud = { action: 'ascend', target };
+    this.target = point;
   }
 
   async cursor_at_position(ctx: CursorJobContext): Promise<void> {

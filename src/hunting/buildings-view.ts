@@ -37,6 +37,8 @@ export class BuildingsViewNavigator {
   ) {}
 
   private interrupted(): boolean {
+    // a committed ascension (ASC-12) ignores golden cookies and frenzies
+    if (this.runtime.ascendTarget) return false;
     return this.game.clickFrenzyActive() || this.hasGoodGolden();
   }
 

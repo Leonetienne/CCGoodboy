@@ -46,6 +46,8 @@ export interface PriorityDeps {
 }
 
 /** Picks ONE job request by priority (SCHED-1):
+ *   0 a committed ascension  -> its step (ASC-12: pops, sales, achievements, the hold at
+ *                               Legacy, Legacy/"Ascend"); nothing else runs meanwhile
  *   1 ready golden cookies   -> GoldenCookieAction (first cookie of the planned route)
  *   2 real Click Frenzy      -> HammerAction (only once within BIG_CLICK_LEAD_MS of due)
  *   3 FTHOF, else refill     -> FthofAction / RefillAction (only outside Click Frenzy); FTHOF
@@ -72,7 +74,13 @@ export function selectJobRequest(deps: PriorityDeps): JobRequest | null {
 
   let job: JobRequest | null = null;
 
-  // Absolute priority: good golden cookies. If the first cookie of the planned route has
+  // A committed ascension (ASC-12) outranks everything, golden cookies included: they would
+  // push the prestige level past its target. Nothing else runs until it is done or called off.
+  if (ascension.committed()) {
+    return ascension.job();
+  }
+
+  // Absolute priority otherwise: good golden cookies. If the first cookie of the planned route has
   // already vanished, do nothing this tick rather than fall through to lower-priority work.
   if (queue.length) {
     const first = queue[0]!;

@@ -73,6 +73,7 @@ export class SettingsPanel {
     this.runtime.wrinklerNextEvalAt = 0;
     this.data.config.autoKrumblor = (document.getElementById('ccsb-auto-krumblor') as HTMLInputElement).checked;
     this.data.config.autoAscend = (document.getElementById('ccsb-auto-ascend') as HTMLInputElement).checked;
+    this.data.config.ascendDumpBank = (document.getElementById('ccsb-ascend-dump') as HTMLInputElement).checked;
 
     this.runtime.autoNextEvalAt = 0;
 

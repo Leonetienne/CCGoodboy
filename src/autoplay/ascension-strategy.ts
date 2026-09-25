@@ -1,5 +1,29 @@
 import type { HeavenlyUpgradeInfo } from '../game/types';
-import { countSevens, planHeavenlyShopping, type HeavenlyShopPlan } from './heavenly-shopping';
+import { luckyWindowEnd, planHeavenlyShopping, type HeavenlyShopPlan } from './heavenly-shopping';
+
+/** ASC-12/15: the level the 7s sit in must hold at least this long: the last two clicks
+ * (Legacy, "Ascend") with the paw already waiting at Legacy, plus slack for a CpS that rose
+ * during the routine (the buildings and achievements it buys). Once "Ascend" is clicked the
+ * level is frozen: the game earns nothing during the animation. */
+export const ASC_FINAL_SEC = 60;
+
+/** ASC-15: the lowest digit position whose value holds at least `holdSec` at `secPerLevel`
+ * (position p changes every 10^p levels). Aiming the 7s there wins the nearest lucky level the
+ * paw can still catch: the last digits flip too fast late in a run, the first ones are safest
+ * but take longest to reach. */
+export function luckyMinDigit(secPerLevel: number, holdSec: number): number {
+  if (!(secPerLevel > 0) || !Number.isFinite(secPerLevel)) return 0;
+
+  let p = 0;
+  while (p < 15 && Math.pow(10, p) * secPerLevel < holdSec) p++;
+  return p;
+}
+
+/** ASC-12: how many levels the lucky window must hold from the target on: ASC_FINAL_SEC at
+ * `secPerLevel` (1 without income). */
+export function luckyWindowLevels(secPerLevel: number): number {
+  return secPerLevel > 0 && Number.isFinite(secPerLevel) ? Math.max(1, Math.ceil(ASC_FINAL_SEC / secPerLevel)) : 1;
+}
 
 // Pure ascension planning (ASC-*): what ascending now would give, when a run stagnates, and
 // which level to ascend at so the heavenly shopping list (ASC-9) is paid for. No DOM, no game: everything comes
@@ -51,6 +75,14 @@ export interface AscensionInput {
   /** An ordinary heavenly wish is only waited for while the extra levels stay within this share
    * of the levels the ascension gains anyway (setting, ASC-9). */
   shopWaitShare: number;
+  /** ASC-12: how long the routine before an ascension (pops, sales, achievements, safety
+   * buffer) takes: a lucky level is only looked for from the level the run reaches by then.
+   * Default 0. */
+  leadSec?: number;
+  /** ASC-12: cookies per second while the routine runs: no wrinklers left, nothing clicked, no
+   * buffs (the game's unbuffed CpS). The measured income counts what attached wrinklers digest
+   * and can be several times higher. Default: income. */
+  routineIncome?: number;
   /** The prestige CpS bonus must grow at least this many times for an ascension (setting). */
   minBoost: number;
 }
@@ -82,10 +114,14 @@ export interface AscensionPlan {
   /** The heavenly shopping list and the level it needs (ASC-9), planned from the first level
    * worth ascending at (the pending one, or the one ASC-8 needs). */
   shop: HeavenlyShopPlan;
-  /** While the list needs 7s (ASC-12): seconds until the run passes the last level from the
-   * pending one on that still has them (0 if the pending level has too few; Infinity when no
-   * 7s are needed or there is no income). */
-  luckySafeSec: number;
+  /** ASC-15: the lowest digit position the lucky 7s are aimed at (0 = the last digit). */
+  luckyDigit: number;
+  /** ASC-12: seconds until the run reaches shop.level at the routine's income (0 once there;
+   * Infinity without income): what the routine is timed with. */
+  routineEtaSec: number;
+  /** ASC-12: the last level from shop.level on that still has the 7s the list needs: the
+   * ascension must happen within [shop.level, luckyEnd]. Infinity when no 7s are needed. */
+  luckyEnd: number;
   verdict: AscensionVerdict;
 }
 
@@ -118,6 +154,19 @@ export function planAscension(input: AscensionInput): AscensionPlan {
   const neededEtaSec = etaTo(neededLevel);
   const earliest = Math.max(pendingLevel, neededLevel);
 
+  // ASC-15: the 7s go no lower than the digit that holds still long enough for the last steps.
+  // ASC-12: the routine runs at its own (lower) income: the digit, the level the 7s are looked
+  // for from and the routine's ETA go by that.
+  const routineIncome = Number.isFinite(input.routineIncome) && input.routineIncome! > 0 ? input.routineIncome! : input.routineIncome === undefined ? income : 0;
+  const secPerLevel = routineIncome > 0 ? levelCost / routineIncome : Infinity;
+  const luckyDigit = luckyMinDigit(secPerLevel, ASC_FINAL_SEC);
+  // ...and the window left from the target on must hold that long too, not just the block
+  const luckyMinLevels = luckyWindowLevels(secPerLevel);
+  // the 7s must still be ahead once the routine before the ascension is done
+  const leadSec = Math.max(0, input.leadSec ?? 0);
+  const luckyFromLevel =
+    routineIncome > 0 && leadSec > 0 ? Math.max(pendingLevel, levelForCookies(totalCookies + routineIncome * leadSec, hcFactor)) : pendingLevel;
+
   const shop = planHeavenlyShopping({
     heavenly: input.heavenly,
     prestige,
@@ -127,20 +176,16 @@ export function planAscension(input: AscensionInput): AscensionPlan {
     shopWaitSec: input.shopWaitSec,
     maxExtraLevels: Math.max(0, input.shopWaitShare) * (earliest - prestige),
     luckyWaitSec: input.luckyWaitSec,
+    luckyMinDigit: luckyDigit,
+    luckyFromLevel,
+    luckyMinLevels,
   });
 
-  // ASC-12: how long the pending level keeps the 7s the list needs, at the current income.
-  let luckySafeSec = Infinity;
-  if (shop.sevens > 0) {
-    if (countSevens(pendingLevel) < shop.sevens) {
-      luckySafeSec = 0;
-    } else {
-      let last = pendingLevel;
-      while (last < pendingLevel + 1000 && countSevens(last + 1) >= shop.sevens) last++;
-      const missing = cookiesForLevel(last + 1, hcFactor) - totalCookies;
-      luckySafeSec = income > 0 ? Math.max(0, missing / income) : Infinity;
-    }
-  }
+  // ASC-12: the window the ascension must land in.
+  const luckyEnd = luckyWindowEnd(shop.level, shop.sevens, luckyDigit);
+
+  const routineMissing = cookiesForLevel(shop.level, hcFactor) - totalCookies;
+  const routineEtaSec = shop.level <= pendingLevel || routineMissing <= 0 ? 0 : routineIncome > 0 ? routineMissing / routineIncome : Infinity;
 
   let verdict: AscensionVerdict;
   if (gain < 1) verdict = 'no-gain';
@@ -162,7 +207,9 @@ export function planAscension(input: AscensionInput): AscensionPlan {
     rateAvg,
     stagnating,
     shop,
-    luckySafeSec,
+    luckyDigit,
+    routineEtaSec,
+    luckyEnd,
     verdict,
   };
 }

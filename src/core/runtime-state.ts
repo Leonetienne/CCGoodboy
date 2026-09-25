@@ -119,6 +119,13 @@ export class RuntimeState {
   ascendSkip = new Set<string>();
   ascendFails = new Map<number, number>();
   ascendPans = new Map<number, number>();
+  /** ASC-13: when the selling/spending before an ascension started (0: not yet). */
+  ascendDumpSince = 0;
+  /** ASC-12: the locked target of a committed ascension (null: none). The routine ascends once
+   * the real prestige level is within [level, end]. */
+  ascendTarget: AscendTarget | null = null;
+  /** ASC-12: the routine's preparation (pops, sales, achievements) is done for this target. */
+  ascendPrepDone = false;
   autoHammerState: AutoHammerState = freshAutoHammerState();
 
   // ---- paw animation ----
@@ -186,9 +193,22 @@ export class RuntimeState {
     this.ascendSkip.clear();
     this.ascendFails.clear();
     this.ascendPans.clear();
+    this.ascendDumpSince = 0;
+    this.ascendPrepDone = false;
+    this.ascendTarget = null;
 
     this.settleUntil = now + settleMs;
   }
+}
+
+/** ASC-12: the level a committed ascension aims at. */
+export interface AscendTarget {
+  /** Ascend once the real prestige level is at least this. */
+  level: number;
+  /** The last level that still has the 7s the shopping list needs (Infinity: none needed). */
+  end: number;
+  sevens: number;
+  lockedAt: number;
 }
 
 function freshAutoHammerState(): AutoHammerState {

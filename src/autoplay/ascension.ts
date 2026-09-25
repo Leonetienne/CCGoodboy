@@ -38,6 +38,9 @@ export class AscensionPlanner {
   private samples: CookieSample[] = [];
   private cache: AscensionPlan | null = null;
   private cacheAt = 0;
+  /** ASC-12: how long the routine before an ascension takes (the runner's estimate), so a
+   * lucky level is only planned where it is still ahead once the routine is done. */
+  leadSec: () => number = () => 0;
 
   constructor(
     private readonly data: PersistedData,
@@ -98,6 +101,8 @@ export class AscensionPlanner {
         minBoost: this.data.config.ascendMinBoost ?? 2,
         shopWaitSec: this.data.config.ascendShopWaitSec ?? 21600,
         shopWaitShare: this.data.config.ascendShopWaitShare ?? 0.1,
+        leadSec: this.leadSec(),
+        routineIncome: Math.max(0, Number(this.game.getUnbuffedCps()) || 0),
       });
     } catch (_e) {
       this.cache = null;
