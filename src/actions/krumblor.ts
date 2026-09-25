@@ -1,4 +1,6 @@
 import type { CursorAction, CursorJobContext } from '../cursor/types';
+import { closeStoreSection } from '../game/store-dom';
+import { enterStoreElement } from './store-visit';
 
 /** Frames the game needs to notice a click (its logic runs at 30 fps). */
 const SETTLE_MS = 150;
@@ -52,8 +54,11 @@ export class DragonClickAction implements CursorAction {
 export interface DragonStoreParams {
   label: string;
   target: string;
-  /** The store element to visit (null: pulse where the paw is). */
+  /** Where the paw heads (null: pulse where the paw is). */
   point: { x: number; y: number } | null;
+  /** The store element itself, looked up on arrival: its collapsed store section is opened
+   * while the paw is there (AUTO-9). */
+  el?: () => Element | null;
   stillWanted: () => boolean;
   /** The game API call (buy/sell); runs right at the click pulse. */
   run: () => void;
@@ -82,12 +87,18 @@ export class DragonStoreAction implements CursorAction {
   }
 
   async cursor_at_position(ctx: CursorJobContext): Promise<void> {
-    if (this.p.point) await ctx.clock.sleep(90);
-    if (!this.p.stillWanted()) return;
+    const section = this.p.el ? await enterStoreElement(ctx, this.p.el()) : null;
 
-    ctx.runtime.pulseAt = performance.now();
-    this.p.run();
+    try {
+      if (this.p.point) await ctx.clock.sleep(90);
+      if (!this.p.stillWanted()) return;
 
-    await ctx.clock.sleep(70);
+      ctx.runtime.pulseAt = performance.now();
+      this.p.run();
+
+      await ctx.clock.sleep(70);
+    } finally {
+      closeStoreSection(section);
+    }
   }
 }

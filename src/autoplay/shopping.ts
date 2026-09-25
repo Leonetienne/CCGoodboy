@@ -2,7 +2,9 @@ import { errText, sayCant, sayOops } from '../core/console-voice';
 import { clamp } from '../core/constants';
 import type { PersistedData } from '../core/persisted-data';
 import type { RuntimeState } from '../core/runtime-state';
+import { enterStoreElement } from '../actions/store-visit';
 import { visibleRect } from '../game/dom-geometry';
+import { closeStoreSection, storeApproachPoint } from '../game/store-dom';
 import type { IGameAdapter } from '../game/game-adapter';
 import { JOB_PRIORITY, type CursorAction, type CursorJobContext, type JobRequest } from '../cursor/types';
 import type { LogStore } from '../stats/log';
@@ -370,65 +372,71 @@ export class AutoPlayEngine {
       return null;
     }
 
-    const el = autoStoreElement(this.game, c);
-    const r = el ? visibleRect(el) : null;
-    const cx = r ? r.left + r.width / 2 : this.runtime.cursor.x;
-    const cy = r ? r.top + r.height / 2 : this.runtime.cursor.y;
+    // a crate in a collapsed store row is reached through its section's visible strip
+    const pt = storeApproachPoint(autoStoreElement(this.game, c));
     const engine = this;
 
     const action: CursorAction = {
       label: `buy ${c.name}`,
-      target: r ? { x: cx, y: cy } : null,
+      target: pt,
       waitClickGap: false,
       preClickPause: false,
       hud: { action: 'auto-shop', target: `buying ${c.name}` },
       abortIf: () => engine.shoppingInterrupted(),
       async cursor_at_position(ctx: CursorJobContext): Promise<void> {
-        if (r) {
-          await ctx.clock.sleep(90);
+        // AUTO-9: open the crate's store section like a hover would, and close it on leaving
+        const el = autoStoreElement(engine.game, c);
+        const section = await enterStoreElement(ctx, el);
+
+        try {
+          if (pt) {
+            await ctx.clock.sleep(90);
+          }
+
+          // visual press only
+          ctx.runtime.pulseAt = performance.now();
+
+          await ctx.clock.sleep(70);
+
+          if (engine.shoppingInterrupted()) return;
+
+          // things may have changed while the paw was on its way
+          const fresh = engine.evaluate(true);
+
+          if (engine.shoppingInterrupted() || !fresh.buy || fresh.buy.name !== c.name) {
+            return;
+          }
+
+          const first = fresh.buy;
+
+          if (!autoBuy(engine.game, first)) {
+            engine.runtime.autoBlockUntil = Date.now() + 3000;
+            sayCant(`Wanted to buy ${first.name}, but the shop said no :c`);
+            return;
+          }
+
+          engine.recordBuy();
+
+          // AUTO-14: a building is bought again and again, one purchase at a time, while it is
+          // still worth buying — the paw stays on the row and presses ~10x per second.
+          const streak = first.kind === 'building' ? await engine.buyStreak(ctx, first.name, el) : { extra: 0, spent: 0 };
+          const bought = 1 + streak.extra;
+
+          engine.runtime.lastAutoBuyAt = Date.now();
+          engine.runtime.autoNextEvalAt = 0;
+
+          engine.log.log('auto buy', bought > 1 ? `${bought}x ${first.name}` : first.name, {
+            type: first.type,
+            ...(bought > 1 ? { count: bought } : {}),
+            cost: Math.round(first.cost + streak.spent),
+            dCps: first.dCps,
+            payback: fresh.row && fresh.row.payback,
+            impact: fresh.row && fresh.row.impact,
+            why: fresh.why,
+          });
+        } finally {
+          closeStoreSection(section);
         }
-
-        // visual press only
-        ctx.runtime.pulseAt = performance.now();
-
-        await ctx.clock.sleep(70);
-
-        if (engine.shoppingInterrupted()) return;
-
-        // things may have changed while the paw was on its way
-        const fresh = engine.evaluate(true);
-
-        if (engine.shoppingInterrupted() || !fresh.buy || fresh.buy.name !== c.name) {
-          return;
-        }
-
-        const first = fresh.buy;
-
-        if (!autoBuy(engine.game, first)) {
-          engine.runtime.autoBlockUntil = Date.now() + 3000;
-          sayCant(`Wanted to buy ${first.name}, but the shop said no :c`);
-          return;
-        }
-
-        engine.recordBuy();
-
-        // AUTO-14: a building is bought again and again, one purchase at a time, while it is
-        // still worth buying — the paw stays on the row and presses ~10x per second.
-        const streak = first.kind === 'building' ? await engine.buyStreak(ctx, first.name, el) : { extra: 0, spent: 0 };
-        const bought = 1 + streak.extra;
-
-        engine.runtime.lastAutoBuyAt = Date.now();
-        engine.runtime.autoNextEvalAt = 0;
-
-        engine.log.log('auto buy', bought > 1 ? `${bought}x ${first.name}` : first.name, {
-          type: first.type,
-          ...(bought > 1 ? { count: bought } : {}),
-          cost: Math.round(first.cost + streak.spent),
-          dCps: first.dCps,
-          payback: fresh.row && fresh.row.payback,
-          impact: fresh.row && fresh.row.impact,
-          why: fresh.why,
-        });
       },
     };
 

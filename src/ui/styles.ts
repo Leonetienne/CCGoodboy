@@ -365,6 +365,10 @@ const CSS = `
     width:100vw;
     height:100vh;
 }
+
+/* AUTO-9: a store section the paw is at, opened like the game's own :hover */
+.storeSection.ccsb-store-open { height:auto !important; }
+.storeSection.ccsb-store-open:before { display:block; }
 `;
 
 /** Injects the <style> element for the HUD, panels and overlay (pastel theme). */

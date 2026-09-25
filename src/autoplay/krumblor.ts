@@ -4,6 +4,7 @@ import type { RuntimeState } from '../core/runtime-state';
 import { JOB_PRIORITY, type JobRequest } from '../cursor/types';
 import { DragonClickAction, DragonStoreAction } from '../actions/krumblor';
 import { visibleRect } from '../game/dom-geometry';
+import { storeApproachPoint } from '../game/store-dom';
 import {
   DRAGON_CURSOR_AURA,
   getAuraPicker,
@@ -168,6 +169,7 @@ export class KrumblorTrainer {
             label: 'buy crumbly egg',
             target: 'buying a crumbly egg',
             point: storePoint(`upgrade${this.game.getUpgradesInStore().indexOf(egg)}`),
+            el: () => document.getElementById(`upgrade${this.game.getUpgradesInStore().indexOf(egg)}`),
             stillWanted,
             run: () => {
               if (autoBuy(this.game, { kind: 'upgrade', type: 'krumblor', name: EGG, obj: egg, cost: s.cost, dCps: 0 })) {
@@ -330,8 +332,8 @@ function upgradeCost(up: GameUpgrade): number {
   }
 }
 
-/** Centre of a visible store element, or null (then the paw pulses where it is). */
+/** Where the paw heads for a store element (its collapsed section's strip when the element
+ * is folded away), or null (then the paw pulses where it is). */
 function storePoint(id: string): { x: number; y: number } | null {
-  const r = visibleRect(document.getElementById(id));
-  return r ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null;
+  return storeApproachPoint(document.getElementById(id));
 }
