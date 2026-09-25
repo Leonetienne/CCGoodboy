@@ -1,4 +1,4 @@
-import type { AutoCollectCtx, PurchaseCandidate } from './collector';
+import type { PurchaseCandidate } from './collector';
 import type { Decision } from './strategy';
 
 /** At most this many copies of one building in one shopping visit (AUTO-14). */
@@ -20,13 +20,10 @@ export function streakCandidate(cands: PurchaseCandidate[], name: string): Purch
 }
 
 /** Should the paw, standing at building `c`'s row, buy one more of it right away (AUTO-14)?
- * Yes while `c` is something this tick would buy at all (in `d.buyable`: affordable after the
- * reserve and not held back for a save target) AND buying it still leaves the tick's best
- * pick (`d.buy`) affordable, so the streak never starves a better purchase; it only saves the
- * trips the one-per-task order (AUTO-7) would spend walking back and forth. Pure. */
-export function autoStreakContinues(d: Decision, c: PurchaseCandidate, ctx: AutoCollectCtx): boolean {
-  if (!d.buy || !d.buyable.some((r) => r.c === c)) return false;
-  if (d.buy === c) return true;
-
-  return ctx.bank - ctx.reserve - c.cost >= d.buy.cost;
+ * Only while it is still the very purchase this tick would make (`d.buy`), so the streak
+ * buys exactly what the one-per-task order (AUTO-7) would, minus the walking. Cheap
+ * buildings (<= 1% of the bank, AUTO-4's buy order) stay on top until they aren't cheap any
+ * more, which is what makes long streaks. Pure. */
+export function autoStreakContinues(d: Decision, c: PurchaseCandidate): boolean {
+  return d.buy === c;
 }

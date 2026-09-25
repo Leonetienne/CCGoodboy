@@ -545,7 +545,14 @@ action log (UI-6); nothing here is stored.
   payback), or has >= 3× the impact and this one costs more than 10% of
   it: then it is postponed in favor of saving up for the big one (else a stream of small
   purchases keeps the bank too low to ever afford it). Among everything
-  bought this tick the best payback goes first within a preference tier;
+  bought this tick the best BUY ORDER goes first within a preference tier:
+  the payback, except that a cost at or below 1% of the spendable bank
+  (`AUTO_TRIVIAL_BANK_SHARE`) counts as that 1%. Cookies are no constraint
+  for such "pocket money" purchases, the paw's time is, so a flush bank
+  buys the biggest CpS gain first (the big buildings before 100 cursors;
+  higher tiers have the worse raw payback, cost ~10× for ~5-8× the CpS),
+  while a tight bank still buys the most CpS per cookie first. Save
+  targets, "good deal" and postponement still use the plain payback;
   with one purchase per task (AUTO-7), later ticks work down the same
   ranking, so the store empties out highest score first whenever nothing
   is being saved for. Otherwise nothing is bought and the target is shown
@@ -616,10 +623,11 @@ action log (UI-6); nothing here is stored.
   press point wandering a few px around the row's centre (±8/±5px, capped
   to a quarter of the row). Each further buy is re-planned from the live
   game (`autoCollect()` + `autoDecide()`) and happens only while that
-  building is still something this tick would buy (affordable after the
-  reserve, not held back for a save target, not at its cap) AND buying it
-  still leaves the tick's best pick affordable, so the streak never starves
-  a better purchase (`autoStreakContinues()`, `src/autoplay/buy-streak.ts`).
+  building is still the very purchase this tick would make
+  (`autoStreakContinues()`, `src/autoplay/buy-streak.ts`), so the streak
+  buys exactly what one purchase per task would, minus the walking. Long
+  streaks come from AUTO-4's buy order: a pocket-money building stays on
+  top until it isn't pocket money any more.
   At most 100 per visit; the usual visit before and the 400ms gap after
   (AUTO-7) stay; golden cookies, Click Frenzy etc. interrupt it within one
   buy. Every buy counts in `stats.autoBuys`; the streak is logged once as
@@ -1112,7 +1120,7 @@ file.**
 
 Three layers, each catching a different class of bug:
 
-1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 366 tests
+1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 367 tests
    across 39 files. Pure functions (route planner, `autoDecide`, the chart
    engine, `normalizeSetting`) are tested directly with plain data; the
    cursor queue/actions have their own fake mover/timing tests. Classes
@@ -1263,6 +1271,19 @@ mouse while the bot runs and confirm the "+N" number follows your cursor,
 not the paw's).
 
 ## 12. Changelog
+
+- **5.3.8** Auto play's buy order (AUTO-4): on a flush bank it bought 100
+  of every cheap building first, because the higher tiers have the worse
+  raw payback (cost ~10× for ~5-8× the CpS) — right per cookie, but with
+  a huge bank the paw's time is the limit and the big buildings add far
+  more CpS sooner. Among affordable purchases a cost at or below 1% of the
+  spendable bank now counts as that 1% (`AUTO_TRIVIAL_BANK_SHARE`,
+  `DecisionRow.order`), so pocket-money purchases go biggest CpS gain
+  first; a tight bank still orders by payback. The buying streak
+  (AUTO-14) now only continues while its building is the tick's pick
+  (`autoStreakContinues(d, c)`), so it can no longer spend the bank on
+  cheap buildings a better purchase needed; `Decision.buyable` from 5.3.7
+  is gone again. Unit tests in `tests/unit/buy-streak.test.ts`.
 
 - **5.3.7** Reworked 5.3.6's bulk buying (AUTO-14): it bought 10/100 only
   when the same building would win every pick that many times in a row,

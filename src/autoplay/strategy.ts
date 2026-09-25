@@ -1,9 +1,12 @@
 import type { AutoCollectCtx, PurchaseCandidate } from './collector';
-import { AUTO_PREF_WIZARD } from './valuation-tables';
+import { AUTO_PREF_WIZARD, AUTO_TRIVIAL_BANK_SHARE } from './valuation-tables';
 
 export interface DecisionRow {
   c: PurchaseCandidate;
   payback: number;
+  /** Buy order among affordable options, lower first (AUTO-4): the payback with the cost
+   * floored at AUTO_TRIVIAL_BANK_SHARE of the spendable bank. */
+  order: number;
   pp: number;
   impact: number;
   wait: number;
@@ -19,9 +22,6 @@ export interface Decision {
   saveRow?: DecisionRow | null;
   note?: string;
   rows: DecisionRow[];
-  /** Everything this tick would buy (affordable, not held back for a save target), best first;
-   * `buy` is its head. Used by the buying streak (AUTO-14). */
-  buyable: DecisionRow[];
 }
 
 /** THE STRATEGY (pure function, no game access). For every option:
@@ -51,7 +51,9 @@ export interface Decision {
  *      target has >= biggerImpact x its impact AND it costs more than 10% of the target's cost
  *      (otherwise a stream of worse purchases would keep the bank too low to ever afford the
  *      better one). Insignificant and preferred purchases are exempt.
- *   Among everything bought this tick, the single best (lowest payback) one goes out; on an
+ *   Among everything bought this tick, the single best one goes out (lowest payback, with every
+ *   cost below 1% of the spendable bank counted as that 1%, so on a flush bank the biggest CpS
+ *   gain goes first); on an
  *   idle-game timescale of one purchase per tick (AUTO-7), the rest follow on later ticks in the
  *   same order, so the store empties out highest score first whenever nothing is being saved
  *   for. The save target is the best of those "worth saving up for" (preferred first, then
@@ -72,6 +74,7 @@ export function autoDecide(cands: PurchaseCandidate[], ctx: AutoCollectCtx): Dec
     rows.push({
       c,
       payback,
+      order: Math.max(c.cost, AUTO_TRIVIAL_BANK_SHARE * avail) / c.dCps,
       pp: wait + payback,
       impact: c.dCps / cpsEff,
       wait,
@@ -86,7 +89,7 @@ export function autoDecide(cands: PurchaseCandidate[], ctx: AutoCollectCtx): Dec
   const inReach = rows.filter((r) => r.wait <= cfg.reachSec);
 
   if (!inReach.length) {
-    return { buy: null, save: null, note: 'nothing in reach', rows, buyable: [] };
+    return { buy: null, save: null, note: 'nothing in reach', rows };
   }
 
   // Best pp over EVERY option, not just those in reach: pp already charges the waiting time, so
@@ -111,10 +114,14 @@ export function autoDecide(cands: PurchaseCandidate[], ctx: AutoCollectCtx): Dec
   // Buy now: every affordable candidate that isn't held back in favor of a save target.
   // Insignificant and preferred purchases are always exempt from postponement. Nothing else is
   // gated on payback quality at all — it already passed AUTO-2/AUTO-3's classification, so
-  // spending idle cash on it beats hoarding. Best payback goes first within a preference tier.
+  // spending idle cash on it beats hoarding. Within a preference tier the best `order` goes
+  // first: payback, except that everything costing <= 1% of the spendable bank counts as
+  // costing that 1%. Cookies are no constraint for those, the paw's time is, so they go out
+  // biggest CpS gain first (a flush bank buys the big buildings before 100 cursors), while a
+  // tight bank still buys the most CpS per cookie first.
   const buyable = affordable
     .filter((r) => r.insignificant || prefOf(r) > 0 || !postponed(r))
-    .sort((a, b) => prefOf(b) - prefOf(a) || a.payback - b.payback);
+    .sort((a, b) => prefOf(b) - prefOf(a) || a.order - b.order);
 
   // What's next to save for, computed independently of whether something is ALSO buyable this
   // tick: an affordable insignificant/preferred purchase (e.g. a Wizard tower) can go out this
@@ -135,7 +142,6 @@ export function autoDecide(cands: PurchaseCandidate[], ctx: AutoCollectCtx): Dec
       save: save ? save.c : null,
       saveRow: save,
       rows,
-      buyable,
     };
   }
 
@@ -145,6 +151,5 @@ export function autoDecide(cands: PurchaseCandidate[], ctx: AutoCollectCtx): Dec
     saveRow: save,
     note: save ? 'saving' : 'nothing worth saving for in reach',
     rows,
-    buyable,
   };
 }

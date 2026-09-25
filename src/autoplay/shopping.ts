@@ -327,7 +327,7 @@ export class AutoPlayEngine {
       if ('skip' in g) break;
 
       const c = streakCandidate(g.cands, name);
-      if (!c || !autoStreakContinues(autoDecide(g.cands, g.ctx), c, g.ctx)) break;
+      if (!c || !autoStreakContinues(autoDecide(g.cands, g.ctx), c)) break;
 
       const r = el ? visibleRect(el) : null;
 

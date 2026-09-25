@@ -103,6 +103,10 @@ export const AUTO_KITTEN_POWER: Record<string, number> = {
  * default. */
 export const AUTO_BUILDING_CAPS: Record<string, number> = { 'Wizard tower': 57 };
 
+/** Buy order (AUTO-4): a cost at or below this share of the spendable bank counts as this
+ * share, so such "pocket money" purchases are ordered by CpS gain instead of payback. */
+export const AUTO_TRIVIAL_BANK_SHARE = 0.01;
+
 /** Preference tiers for candidates the auto player should buy before ordinary ones.
  * Higher = more preferred. Wizard towers below their target are TOP priority (they are bought
  * for mana, not CpS payback); golden cookie upgrades are preferred too. */
