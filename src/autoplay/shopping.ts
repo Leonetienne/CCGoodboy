@@ -25,7 +25,7 @@ import { autoCollect, buildingSumPrice, type AutoCollectCtx, type PurchaseCandid
 import type { Decision, DecisionRow } from './strategy';
 import { autoDecide, shopPickAt } from './strategy';
 import type { IncomeTracker } from './income-tracker';
-import { AUTO_CONFIRM_BYPASS, AUTO_ESCALATION_NAMES } from './valuation-tables';
+import { AUTO_CONFIRM_BYPASS, AUTO_ESCALATION_NAMES, AUTO_KICK_UPGRADE } from './valuation-tables';
 
 export interface AutoPlan {
   at: number;
@@ -144,6 +144,10 @@ export class AutoPlayEngine {
     private readonly cookieChainActive: () => boolean,
     private readonly fthofOrRefillPending: () => boolean,
   ) {}
+
+  /** Called once a shopping visit bought AUTO_KICK_UPGRADE (AUTO-19: the auto hammer's
+   * kick-off); wired in main.ts. */
+  onKickUpgrade: () => void = () => {};
 
   /** Candidates + decision for the "how good is a buy" overlay, cached for ~500ms (works
    * whether or not auto play is switched on; it never buys anything by itself). */
@@ -546,6 +550,10 @@ export class AutoPlayEngine {
           engine.runtime.autoNextEvalAt = 0;
 
           engine.logBuys([{ c: first, row: pick.row, why: pick.why }, ...spree.bought]);
+
+          if ([first, ...spree.bought.map((b) => b.c)].some((b) => b.kind === 'upgrade' && b.name === AUTO_KICK_UPGRADE)) {
+            engine.onKickUpgrade();
+          }
         } finally {
           closeStoreSection(section);
         }

@@ -25,6 +25,8 @@ export interface AutoHammerState {
   probeH0: number;
   cal: number;
   share: number;
+  /** AUTO-19: the kick-off hammering after the Heavenly key runs until then. */
+  kickUntil: number;
 }
 
 export interface AutoHandSample {
@@ -235,5 +237,6 @@ function freshAutoHammerState(): AutoHammerState {
     probeH0: 0,
     cal: 1,
     share: 0,
+    kickUntil: 0,
   };
 }

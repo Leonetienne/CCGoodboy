@@ -359,4 +359,23 @@ describe('selectJobRequest', () => {
     const job = selectJobRequest(makeDeps({ data }));
     expect(job).toBeNull();
   });
+  it('the kick-off hammering after the Heavenly key (AUTO-19) goes before shopping, a lump harvest still first', () => {
+    const autoPlay = { shopReady: () => true, shopJob: vi.fn() } as unknown as AutoPlayEngine;
+    const krumblor = { pending: () => true, job: vi.fn() } as unknown as KrumblorTrainer;
+
+    expect(selectJobRequest(makeDeps({ autoPlay, krumblor, hammerKick: () => true }))?.key).toBe('hammer');
+    expect(autoPlay.shopJob).not.toHaveBeenCalled();
+    expect(krumblor.job).not.toHaveBeenCalled();
+
+    const lumpHarvest = {
+      pending: () => true,
+      harvestJob: vi.fn().mockReturnValue({ action: { label: 'lump-harvest' }, priority: JOB_PRIORITY.LUMP_HARVEST, key: 'lump-harvest' }),
+    } as unknown as LumpHarvestActions;
+    expect(selectJobRequest(makeDeps({ autoPlay, lumpHarvest, hammerKick: () => true }))?.key).toBe('lump-harvest');
+
+
+    // without the kick, shopping goes first again
+    selectJobRequest(makeDeps({ autoPlay, hammerKick: () => false, hammerActive: () => true }));
+    expect(autoPlay.shopJob).toHaveBeenCalled();
+  });
 });

@@ -257,7 +257,8 @@ refactor) which `tests/visual/scenarios.mjs` scenario exercises it.
   3. FTHOF cast (and its FT-8 preparation steps), then lump refill
   4. a ripe sugar lump (LUMP-\*)
   5. a buildings-view recipe already under way / the "Show grimoire"
-     debug goal (DBG-9/11), then auto play: an ascension under way on the
+     debug goal (DBG-9/11), then the auto hammer's kick-off after the
+     Heavenly key (AUTO-19), then auto play: an ascension under way on the
      ascension screen (ASC-10), then the Grimoire unlock (AUTO-13), then the
      stock market unlock (AUTO-16), then the garden unlock (AUTO-17),
      then a Krumblor step (KRUMB-\*), then a Santa step (XMAS-4), then a
@@ -812,6 +813,19 @@ action log (UI-6); nothing here is stored.
   interrupts it within one buy. So the flood of cheap items after an
   ascension goes out in one spree instead of one trip each. The visit is
   logged as one `"auto buy"` entry per run of the same item.
+
+- **AUTO-19** Kick-off hammering: the moment a shopping visit of auto play
+  has bought "Heavenly key" (the last prestige potential unlock, so
+  normally right after an ascension), the paw hammers the big cookie for
+  10s (`AUTO_KICK_UPGRADE`, `AUTO_KICK_MS`; `AutoHammer.startKick()` /
+  `kicking()`, `runtime.autoHammerState.kickUntil`), whatever AUTO-11's
+  estimate says, so the handmade cookies unlock the clicking upgrades (the
+  mouse series) early. Meanwhile it outranks the rest of tier 5 (every
+  other auto play step, the stock market and the garden; only a
+  buildings-view recipe under way comes first) and does not give way to a
+  due purchase; golden cookies, Click Frenzy, FTHOF/refill and a ripe lump
+  still interrupt it, and the 10s run on regardless. Only with auto play
+  and "Auto: manage hammering" on. Logged as `"auto hammer"` ("kick-off").
 
 - **AUTO-15** Achievement top-offs: every building has count
   achievements (own 1, 50, 100, 150, ... of it; the unwon ones come from
@@ -1881,7 +1895,7 @@ file.**
 
 Three layers, each catching a different class of bug:
 
-1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 578 tests
+1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 581 tests
    across 51 files. Pure functions (route planner, `autoDecide`, the chart
    engine, `normalizeSetting`) are tested directly with plain data; the
    cursor queue/actions have their own fake mover/timing tests. Classes
@@ -2072,6 +2086,13 @@ mouse while the bot runs and confirm the "+N" number follows your cursor,
 not the paw's).
 
 ## 12. Changelog
+
+- **5.8.12** Kick-off hammering (AUTO-19): right after auto play buys
+  "Heavenly key" (after an ascension) the paw hammers the big cookie for
+  10s, ahead of shopping and the other auto play steps, so the clicking
+  upgrades unlock early. `AutoHammer.startKick()`/`kicking()`,
+  `AutoPlayEngine.onKickUpgrade`, `PriorityDeps.hammerKick`. Unit tests in
+  `tests/unit/auto-hammer.test.ts` and `tests/unit/priority.test.ts`.
 
 - **5.8.11** The ascension screen's overlay (the heavenly upgrade boxes,
   the Reincarnate box and its card, ASC-7) is only drawn while auto play is

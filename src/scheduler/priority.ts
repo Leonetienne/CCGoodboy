@@ -47,6 +47,8 @@ export interface PriorityDeps {
   happyDance: HappyDance;
   idleBehavior: IdleBehavior;
   hammerActive: () => boolean;
+  /** The auto hammer's kick-off after the Heavenly key is running (AUTO-19). */
+  hammerKick?: () => boolean;
 }
 
 /** Picks ONE job request by priority (SCHED-1):
@@ -57,7 +59,8 @@ export interface PriorityDeps {
  *   3 FTHOF, else refill     -> FthofAction / RefillAction (only outside Click Frenzy); FTHOF
  *                               first gets the Grimoire on screen (FT-8, GrimoireView steps)
  *   4 ripe sugar lump        -> LumpHarvestAction (harvest before the game auto-harvests it)
- *   5 a started buildings-view recipe / "Show grimoire" debug goal, then auto play: ascend
+ *   5 a started buildings-view recipe / "Show grimoire" debug goal, then the auto hammer's
+ *     kick-off after the Heavenly key (AUTO-19: HammerAction), then auto play: ascend
  *     (ASC-10), unlock the Grimoire, unlock the stock market, unlock the garden, train
  *     Krumblor, evolve Santa; then a stock market trade (STOCK-*) and a garden step
  *     (GARDEN-*), both not tied to auto play; then auto play again: pop
@@ -76,7 +79,7 @@ export interface PriorityDeps {
  * still falls through to lump harvest/auto-shop/hammer/dance/idle below it, exactly as the
  * original did. */
 export function selectJobRequest(deps: PriorityDeps): JobRequest | null {
-  const { queue, buffs, runtime, data, game, clickGolden, clickBigCookie, fthof, lumpHarvest, grimoireView, ascension, grimoireUnlock, bankUnlock, farmUnlock, krumblor, santa, stockTrader, gardener, autoPlay, wrinklerPopper, happyDance, idleBehavior, hammerActive } = deps;
+  const { queue, buffs, runtime, data, game, clickGolden, clickBigCookie, fthof, lumpHarvest, grimoireView, ascension, grimoireUnlock, bankUnlock, farmUnlock, krumblor, santa, stockTrader, gardener, autoPlay, wrinklerPopper, happyDance, idleBehavior, hammerActive, hammerKick } = deps;
 
   let job: JobRequest | null = null;
 
@@ -131,56 +134,64 @@ export function selectJobRequest(deps: PriorityDeps): JobRequest | null {
     job = grimoireView.job();
   }
 
+  // Auto play just bought the Heavenly key: hammer for a moment before anything else at this
+  // tier, so the handmade cookies unlock the clicking upgrades (AUTO-19).
+  const kick = !job && !!hammerKick && hammerKick();
+
+  if (kick && !game.clickFrenzyActive() && Date.now() >= runtime.nextBigClickAt - BIG_CLICK_LEAD_MS) {
+    job = clickBigCookie.job();
+  }
+
   // Auto play: an ascension that is due or under way (ASC-10): nothing else in this tier
   // makes sense during it.
-  if (!job && ascension.pending()) {
+  if (!job && !kick && ascension.pending()) {
     job = ascension.job();
   }
 
   // Auto play: unlock the Grimoire with a sugar lump as soon as possible (AUTO-13).
-  if (!job && grimoireUnlock.pending()) {
+  if (!job && !kick && grimoireUnlock.pending()) {
     job = grimoireUnlock.job();
   }
 
   // Auto play: unlock the stock market with a sugar lump when it is to be played (AUTO-16).
-  if (!job && bankUnlock.pending()) {
+  if (!job && !kick && bankUnlock.pending()) {
     job = bankUnlock.job();
   }
 
   // Auto play: unlock the garden with a sugar lump when it is to be tended (AUTO-17).
-  if (!job && farmUnlock.pending()) {
+  if (!job && !kick && farmUnlock.pending()) {
     job = farmUnlock.job();
   }
 
   // Auto play: train Krumblor up to the Dragon Cursor aura (KRUMB-*).
-  if (!job && krumblor.pending()) {
+  if (!job && !kick && krumblor.pending()) {
     job = krumblor.job();
   }
 
   // Auto play: evolve Santa up to Final Claus (XMAS-*).
-  if (!job && santa.pending()) {
+  if (!job && !kick && santa.pending()) {
     job = santa.job();
   }
 
   // The stock market: sell what peaked, hire a broker, buy what is low (STOCK-*). Its own
   // setting, with or without auto play.
-  if (!job && stockTrader.pending()) {
+  if (!job && !kick && stockTrader.pending()) {
     job = stockTrader.job();
   }
 
   // The garden: harvest, weed, soil, plant (GARDEN-*). Its own setting, with or without auto
   // play.
-  if (!job && gardener.pending()) {
+  if (!job && !kick && gardener.pending()) {
     job = gardener.job();
   }
 
   // Auto play: pop mature wrinklers whose cookies the next purchase needs (WRINK-2..6).
-  if (!job && wrinklerPopper.pending()) {
+  if (!job && !kick && wrinklerPopper.pending()) {
     job = wrinklerPopper.job();
   }
 
   // Auto play: buy something when the plan says so (below FTHOF/refill, above hammer mode).
-  if (!job && autoPlay.shopReady()) {
+  if (!job && !kick && autoPlay.shopReady()) {
     job = autoPlay.shopJob();
   }
 

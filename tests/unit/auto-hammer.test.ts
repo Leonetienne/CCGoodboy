@@ -68,4 +68,29 @@ describe('AutoHammer', () => {
     expect(est.rate).toBeCloseTo(1 * 8 * 2, 9);
     expect(est.share).toBeCloseTo((1 * 8 * 2) / 100, 9);
   });
+  it('kick-off (AUTO-19): hammers for 10s after the Heavenly key even when clicking is not worth it', () => {
+    data.config.autoPlay = true;
+    data.config.autoHammer = true;
+    data.config.autoHammerMinShare = 0.5;
+    data.config.autoProbeIntervalSec = 0;
+
+    const now = Date.now();
+    hammer.startKick(now);
+
+    expect(hammer.kicking(now + 9_000)).toBe(true);
+    expect(hammer.isActive()).toBe(true);
+    expect(hammer.kicking(now + 10_001)).toBe(false);
+  });
+
+  it('kick-off (AUTO-19) needs auto play and "Auto: manage hammering"', () => {
+    data.config.autoPlay = true;
+    data.config.autoHammer = false;
+    hammer.startKick();
+    expect(hammer.kicking()).toBe(false);
+
+    data.config.autoHammer = true;
+    data.config.autoPlay = false;
+    hammer.startKick();
+    expect(hammer.kicking()).toBe(false);
+  });
 });

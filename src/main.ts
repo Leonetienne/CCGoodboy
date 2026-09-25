@@ -108,22 +108,26 @@ stockTrader.holdBuys = () => ascensionRunner.armed();
 // STOCK-4: a smaller stock budget while auto play saves up for a purchase.
 stockTrader.saving = () => data.config.autoPlay === true && !!(runtime.autoPlan && runtime.autoPlan.save);
 ascension.leadSec = () => ascensionRunner.leadSec();
+// Buying the Heavenly key starts the auto hammer's kick-off (AUTO-19).
+autoPlay.onKickUpgrade = () => autoHammer.startKick();
 // Anything at the auto-shop tier that wants to run right now (the buildings-view recipe or a
 // debug goal, an ascension, the Grimoire, stock market or garden unlock, a Krumblor or Santa
 // step, a stock trade, a garden step, a wrinkler pop, a due purchase): it interrupts
-// hammering and idle play at once (AUTO-8).
+// hammering and idle play at once (AUTO-8), except during the kick-off, which outranks all
+// but the buildings-view recipe.
 const autoShopReady = () =>
   grimoireView.pending() ||
-  ascensionRunner.pending() ||
-  grimoireUnlock.pending() ||
-  bankUnlock.pending() ||
-  farmUnlock.pending() ||
-  krumblor.pending() ||
-  santa.pending() ||
-  stockTrader.pending() ||
-  gardener.pending() ||
-  wrinklerPopper.pending() ||
-  autoPlay.shopReady();
+  (!autoHammer.kicking() &&
+    (ascensionRunner.pending() ||
+      grimoireUnlock.pending() ||
+      bankUnlock.pending() ||
+      farmUnlock.pending() ||
+      krumblor.pending() ||
+      santa.pending() ||
+      stockTrader.pending() ||
+      gardener.pending() ||
+      wrinklerPopper.pending() ||
+      autoPlay.shopReady()));
 
 const pendingWork = new PendingWork(game, isGoodGoldenReady, hammerActive, fthofOrRefillPending, lumpHarvestPending, autoShopReady, cursorManager);
 
@@ -174,6 +178,7 @@ const scheduler = new Scheduler(runtime, game, log, buffLock, goldenCookieModel,
   happyDance,
   idleBehavior,
   hammerActive,
+  hammerKick: () => autoHammer.kicking(),
 });
 
 const bootstrap = new Bootstrap({

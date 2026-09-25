@@ -73,6 +73,12 @@ export const AUTO_HEAVENLY_UNLOCKS: Record<string, number> = {
   'Heavenly key': 0.25,
 };
 
+/** AUTO-19: once auto play buys this upgrade (the last prestige unlock, right after an
+ * ascension), the big cookie is hammered for AUTO_KICK_MS, so the handmade cookies unlock the
+ * clicking upgrades early. */
+export const AUTO_KICK_UPGRADE = 'Heavenly key';
+export const AUTO_KICK_MS = 10_000;
+
 /** Upgrade pools that are never store purchases for the auto player (research, switches,
  * debug and heavenly upgrades). */
 export const AUTO_NON_STORE_POOLS = new Set(['tech', 'toggle', 'debug', 'prestige', 'prestigeDecor']);

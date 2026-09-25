@@ -4,6 +4,7 @@ import type { RuntimeState } from '../core/runtime-state';
 import type { IGameAdapter } from '../game/game-adapter';
 import type { LogStore } from '../stats/log';
 import { autoPerClick, autoUnbuffedCps } from './building-valuation';
+import { AUTO_KICK_MS } from './valuation-tables';
 
 function num(v: unknown, d: number): number {
   const n = Number(v);
@@ -42,11 +43,32 @@ export class AutoHammer {
     return { rate, share: rate / Math.max(Number.isFinite(cps) ? cps : 0, 0.1) };
   }
 
+  /** AUTO-19: auto play just bought the Heavenly key; hammer for the next AUTO_KICK_MS. */
+  startKick(now = Date.now()): void {
+    if (this.data.config.autoPlay !== true || this.data.config.autoHammer === false) return;
+
+    this.runtime.autoHammerState.kickUntil = now + AUTO_KICK_MS;
+    this.log.log('auto hammer', `kick-off: ${AUTO_KICK_MS / 1000}s of clicking to unlock the clicking upgrades`);
+  }
+
+  /** Is the kick-off hammering (AUTO-19) running? It outranks auto play's other steps. */
+  kicking(now = Date.now()): boolean {
+    return (
+      this.data.config.autoPlay === true &&
+      this.data.config.autoHammer !== false &&
+      now < this.runtime.autoHammerState.kickUntil &&
+      this.game.isPresent() &&
+      this.game.isReady()
+    );
+  }
+
   /** Should the big cookie be hammered right now? */
   isActive(): boolean {
     if (this.data.config.autoPlay !== true || this.data.config.autoHammer === false || !this.game.isPresent() || !this.game.isReady()) {
       return false;
     }
+
+    if (this.kicking()) return true;
 
     const st = this.runtime.autoHammerState;
     const now = Date.now();
