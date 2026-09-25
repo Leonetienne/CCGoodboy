@@ -1224,8 +1224,9 @@ ascend", on by default) the bot also ascends by itself (ASC-10). Pure logic in `
   all, so the game's own Legacy tooltip stays readable. The card's right edge sits on the
   Legacy frame's right edge, so it grows to the left and never into the
   store.
-- **ASC-7** On the ascension screen every heavenly upgrade on screen
-  (`#heavenlyUpgrade{id}`) gets a box: on the shopping list for the chips
+- **ASC-7** On the ascension screen, only while auto play is on, every
+  heavenly upgrade on screen (`#heavenlyUpgrade{id}`) gets a box (without
+  auto play the tree is left bare; the Legacy card, ASC-6, is unaffected): on the shopping list for the chips
   owned right now (ASC-9 without waiting) thick pink with its place in the
   buying order above it; otherwise owned faint lavender, buyable and
   affordable green, buyable but too pricey amber dashed, not available yet
@@ -2071,6 +2072,10 @@ mouse while the bot runs and confirm the "+N" number follows your cursor,
 not the paw's).
 
 ## 12. Changelog
+
+- **5.8.11** The ascension screen's overlay (the heavenly upgrade boxes,
+  the Reincarnate box and its card, ASC-7) is only drawn while auto play is
+  on; the Legacy card (ASC-6) stays as it is.
 
 - **5.8.10** Two new main panel buttons for the stock market (STOCK-9):
   "Pause investments" (without auto play; `stockInvest`, stored) stops the

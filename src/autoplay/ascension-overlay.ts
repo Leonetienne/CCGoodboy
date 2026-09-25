@@ -30,17 +30,18 @@ export function legacyLabelLines(p: AscensionPlan, botLine = ''): string[] {
 }
 
 /** ASC-6/ASC-7: the Legacy button with the level after ascending and the plan, or on the
- * ascension screen every heavenly upgrade's hitbox plus the Reincarnate button. `botLine`:
- * what the bot does about it (ASC-11), '' for none. */
+ * ascension screen every heavenly upgrade's hitbox plus the Reincarnate button (only in auto
+ * play, `autoPlay`). `botLine`: what the bot does about it (ASC-11), '' for none. */
 export function drawAscensionOverlay(
   ctx: CanvasRenderingContext2D,
   game: IGameAdapter,
   planner: AscensionPlanner,
   botLine: string,
   mouse: CursorPoint | null,
+  autoPlay: boolean,
 ): void {
   if (game.onAscendScreen()) {
-    drawHeavenlyTree(ctx, game, planner.shoppingNow(), botLine);
+    if (autoPlay) drawHeavenlyTree(ctx, game, planner.shoppingNow(), botLine);
     return;
   }
 

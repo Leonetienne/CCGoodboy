@@ -67,7 +67,14 @@ export class OverlayLoop {
     }
 
     if (this.data.config.showAscendOverlay !== false) {
-      drawAscensionOverlay(this.ctx, this.game, this.ascension, this.ascensionRunner.botLine(), this.runtime.userMouse);
+      drawAscensionOverlay(
+        this.ctx,
+        this.game,
+        this.ascension,
+        this.ascensionRunner.botLine(),
+        this.runtime.userMouse,
+        !!this.data.config.autoPlay,
+      );
     }
 
     if (fx) {
