@@ -140,6 +140,23 @@ const CSS = `
     margin:8px 0;
 }
 
+#ccsb-more {
+    display:none;
+    margin-top:-3px;
+}
+
+#ccsb-more.open {
+    display:flex;
+}
+
+#ccsb-hud-details {
+    margin-top:2px;
+}
+
+#ccsb-hud-details .ccsb-row {
+    opacity:.85;
+}
+
 .ccsb-section {
     margin-top:7px;
     padding-top:6px;
@@ -208,8 +225,27 @@ const CSS = `
     display:block;
 }
 
-.ccsb-auto-title {
+.ccsb-auto-title,
+.ccsb-settings-title {
     color:#ffb3dc;
+    margin-bottom:4px;
+}
+
+.ccsb-advanced {
+    margin-top:8px;
+}
+
+.ccsb-advanced > summary {
+    cursor:pointer;
+    color:#c9a6e6;
+    user-select:none;
+}
+
+.ccsb-advanced > summary:hover {
+    color:#ffb3dc;
+}
+
+.ccsb-advanced[open] > summary {
     margin-bottom:4px;
 }
 

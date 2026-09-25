@@ -390,13 +390,28 @@ the paw clicks.
 - **UI-1** Draggable, minimizable panel (drag by the title bar; position
   saved and kept on screen). Title shows the script version.
 - **UI-2** Rows: Mood, Chasing, Shinies waiting (ready / fading in /
-  wrath), Click Frenzy, Buffies, Grimoire, LOCK_A, Click cooldown,
-  Background, Wrinklers (WRINK-7), Ascension (ASC-5), Stock market
-  (STOCK-7), Auto play, statistics.
-- **UI-3** Buttons: Pause/Resume, Hammer cookie, Auto play, Graphs, Logs,
-  Debug tools, Settings.
+  wrath), Click Frenzy, Grimoire, Wrinklers (WRINK-7), Ascension (ASC-5),
+  Stock market (STOCK-7), Auto play, then a "Details" fold (`<details>`,
+  collapsed by default, session-only) with Buffies, LOCK_A, Click cooldown
+  and Background, then the statistics.
+- **UI-3** Buttons: Pause/Resume, Hammer cookie, Auto play, Settings,
+  "More..."; "More..." toggles a second row (session-only, closed at start)
+  with Graphs, Logs and Debug tools. The Debug tools button only shows with
+  the Advanced setting "Show debug tools (cheats)" (`showDebugTools`, OFF by
+  default); switching it off also closes the debug frame.
 - **UI-4** Settings are STAGED: editing only marks "unsaved"; "Save
   settings" (or Enter) validates, clamps, applies and stores them at once.
+- **UI-11** Settings are split into "Basic" (what a nontechnical player
+  would touch: the on/off switches for overlays, the hunting show, idle
+  play, keep-alive, FTHOF, lumps and the stock market, the stock budget,
+  the dance length and the two opacities) and an "Advanced" section
+  (timings, speeds, click rates, history/log sizes, the ascension tuning),
+  a `<details>` collapsed by default. The auto play settings are split the
+  same way: basic are its on/off switches (manage hammering,
+  grandmapocalypse, pop wrinklers, Krumblor, ascend); advanced are all its
+  numbers, "spend the bank on achievements" and the dry run. "Show debug
+  tools" (UI-3) sits in the general Advanced section. Session-only:
+  every Advanced section starts collapsed after a reload.
 - **UI-5** Graphs: hourly golden-cookie clicks by effect and Grimoire
   actions. Every golden cookie effect the bot can catch has its own fixed,
   clearly different line colour (`CHART_PALETTE`/`chartColor()` in
@@ -1521,6 +1536,7 @@ saved (see `normalizeSetting()` in
 | `ascendShopWaitShare` | Ascend: wait for heavenly upgrades at most (x levels gained) (ASC-9) | 0.1 | 0-1 |
 | `ascendLuckyWaitSec` | Ascend: wait for a lucky level up to (s) (ASC-9) | 86400 | 0-2592000 |
 | `showAscendOverlay` | Show ascension overlay [checkbox] (ASC-6) | true | – |
+| `showDebugTools` | Show debug tools (cheats) [checkbox] (UI-3) | false | – |
 | `grimoireFthof` | Grimoire: cast Force the Hand of Fate [checkbox] (FT-9) | true | – |
 | `spendLumps` | Spend sugar lumps [checkbox] (FT-9: refills, AUTO-13/AUTO-16 unlocks) | true | – |
 | `stockMarket` | Play the stock market [checkbox] (STOCK-1) | true | – |
@@ -1869,6 +1885,16 @@ mouse while the bot runs and confirm the "+N" number follows your cursor,
 not the paw's).
 
 ## 12. Changelog
+
+- **5.7.5** De-cluttered the main panel: Graphs, Logs and Debug tools
+  moved behind a "More..." button (UI-3), the Debug tools button is hidden
+  unless the new Advanced setting "Show debug tools (cheats)"
+  (`showDebugTools`, off) is on, and the Buffies, LOCK_A, Click cooldown
+  and Background rows are folded under a collapsed "Details" (UI-2).
+
+- **5.7.4** Settings split into "Basic" and a collapsed "Advanced"
+  section, for the general and the auto play settings alike (UI-11), to
+  de-clutter the main panel.
 
 - **5.7.3** The multiplier counter (FX-4) is shown only for a moment again:
   8s after a catch or a change, fading out, instead of for the whole buff.

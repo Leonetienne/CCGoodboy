@@ -93,6 +93,7 @@ export class UiRoot {
 
     this.settingsPanel = new SettingsPanel(this.panel, data, runtime, keepAlive, () => {
       applyFrameOpacity(data.config.frameOpacity);
+      this.applyDebugVisibility();
 
       if (this.graphsPanel.isOpen) {
         this.graphsPanel.draw();
@@ -145,6 +146,9 @@ export class UiRoot {
     bindCheckbox('ccsb-ascend-overlay', data.config.showAscendOverlay !== false);
     bindCheckbox('ccsb-ascend-dump', data.config.ascendDumpBank !== false);
     bindCheckbox('ccsb-auto-ascend', data.config.autoAscend !== false);
+    bindCheckbox('ccsb-show-debug', data.config.showDebugTools === true);
+
+    this.applyDebugVisibility();
 
     autoPlay.applyVisibility();
 
@@ -191,6 +195,12 @@ export class UiRoot {
       data.scheduleSave();
     });
 
+    document.getElementById('ccsb-toggle-more')!.addEventListener('click', () => {
+      const more = document.getElementById('ccsb-more')!;
+      more.classList.toggle('open');
+      document.getElementById('ccsb-toggle-more')!.classList.toggle('active', more.classList.contains('open'));
+    });
+
     document.getElementById('ccsb-toggle-graphs')!.addEventListener('click', () => this.graphsPanel.toggle());
     document.getElementById('ccsb-close-graphs')!.addEventListener('click', () => this.graphsPanel.toggle());
 
@@ -227,6 +237,18 @@ export class UiRoot {
 
     window.addEventListener('resize', this.onResizeOverlay);
     window.addEventListener('resize', this.onResizePanel);
+  }
+
+  /** The Debug tools button (under More) only exists with "Show debug tools" on; switching it
+   * off also closes the debug frame. */
+  private applyDebugVisibility(): void {
+    const on = this.deps.data.config.showDebugTools === true;
+
+    document.getElementById('ccsb-toggle-debug')!.style.display = on ? '' : 'none';
+
+    if (!on && this.debugPanel.element.style.display === 'block') {
+      this.debugPanel.toggle();
+    }
   }
 
   private applyFramePositions = (): void => {

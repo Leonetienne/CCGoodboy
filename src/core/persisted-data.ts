@@ -31,6 +31,7 @@ export interface Config {
   ascendShopWaitSec: number;
   ascendShopWaitShare: number;
   showAscendOverlay: boolean;
+  showDebugTools: boolean;
   autoAscend: boolean;
   ascendDumpBank: boolean;
   autoPlay: boolean;
@@ -139,6 +140,7 @@ export const DEFAULTS: PersistedState = {
     ascendShopWaitSec: 21600,
     ascendShopWaitShare: 0.1,
     showAscendOverlay: true,
+    showDebugTools: false,
     autoAscend: true,
     ascendDumpBank: true,
     autoPlay: false,

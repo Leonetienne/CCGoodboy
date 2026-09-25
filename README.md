@@ -110,13 +110,17 @@ The panel can be dragged by its title bar and minimised. From there:
 | **Pause / Resume** | Stops and starts everything. |
 | **Hammer cookie** | Click the big cookie nonstop, frenzy or not. Resets on reload. |
 | **Auto play** | The shopping mode described above. |
+| **Settings** | What the paw does and shows on screen, and how auto play shops. The fine-tuning (timings, speeds, auto play's numbers) sits under **Advanced**. Nothing changes until you hit **Save**. |
+| **More...** | Opens a second row with the buttons below. |
 | **Graphs** | Golden cookies caught per hour, by effect, plus Grimoire activity. |
 | **Logs** | A diary of everything the bot did. You can search it and save a copy. |
-| **Debug tools** | Cheats for testing. See below. |
-| **Settings** | How patient, fast and fussy the paw is, what it shows on screen, and how auto play shops. Nothing changes until you hit **Save**. |
+| **Debug tools** | Cheats for testing. See below. Hidden until you tick **Settings → Advanced → Show debug tools**. |
+
+The panel's rarely needed rows (buffs, LOCK_A, click cooldown, background) are folded under **Details**.
 
 ### Debug tools
 
+Switch them on under **Settings → Advanced → Show debug tools**; the button then shows up under **More...**.
 These spawn golden cookies of any kind, hand you a quadrillion cookies, fill
 your mana, give you sugar lumps, ripen your current lump, spawn wrinklers, unlock Krumblor or the
 Christmas upgrades and so on. They exist so you can watch the bot react without waiting hours for the

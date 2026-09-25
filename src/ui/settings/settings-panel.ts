@@ -64,6 +64,7 @@ export class SettingsPanel {
     this.data.config.grimoireFthof = (document.getElementById('ccsb-grimoire-fthof') as HTMLInputElement).checked;
     this.data.config.spendLumps = (document.getElementById('ccsb-spend-lumps') as HTMLInputElement).checked;
     this.data.config.stockMarket = (document.getElementById('ccsb-stock-market') as HTMLInputElement).checked;
+    this.data.config.showDebugTools = (document.getElementById('ccsb-show-debug') as HTMLInputElement).checked;
 
     this.keepAlive.init();
 
