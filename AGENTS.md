@@ -894,9 +894,13 @@ action log (UI-6); nothing here is stored.
   of payback (cost / estimated CpS gain: paybacks span seconds to days, so
   a linear scale would let one very bad option make every other one look
   equally green): red on the worst payback currently on offer, green on
-  the best, amber in between, so it re-ranks as the store changes. Uses
-  the same scoring as `autoDecide()` (AUTO-3/AUTO-4), refreshed at most
-  twice a second.
+  the best, amber in between, so it re-ranks as the store changes. It
+  follows what the bot wants to buy: the tick's pick and every preferred
+  option (AUTO-4 B: the Bingo center, golden, click power and kitten
+  upgrades, Wizard towers below their target) score 100 whatever their payback, and
+  are left out of the others' scale (`buyValueRanks()`,
+  `src/autoplay/buy-value-overlay.ts`). Uses the same scoring as
+  `autoDecide()` (AUTO-3/AUTO-4), refreshed at most twice a second.
 - **BUY-3** A box is only drawn for an element that is genuinely on
   screen: hidden (`display:none`/`visibility:hidden`/`opacity 0`) or
   clipped away by a collapsed ancestor (e.g. the upgrade store folded into
@@ -2056,6 +2060,13 @@ not the paw's).
   doublers and golden upgrades (AUTO-4 B, `AUTO_PREF_TYPES`), so they score
   100 on the overlay (BUY-2). Unit test in
   `tests/unit/heavenly-unlocks.test.ts`.
+
+- **5.8.6** The "how good is a buy" score follows what the bot wants to buy
+  (BUY-2): its next pick and every preferred option (the Bingo center,
+  golden upgrades, the cursor doublers, Wizard towers below their target)
+  score 100 instead of their payback rank, so the overlay no longer shows a
+  Bingo center the bot is about to buy as a 70. New `buyValueRanks()`; unit
+  tests in `tests/unit/buy-value-overlay.test.ts`.
 
 - **5.8.5** The "mouse and cursors twice as efficient" upgrades are
   preferred like golden cookie upgrades (AUTO-4 B): cheap, and they double
