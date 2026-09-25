@@ -44,6 +44,10 @@ export interface IGameAdapter {
   isPromptOpen(): boolean;
   getMilkProgress(): number | null;
   getAchievementsOwned(): number;
+  /** The building counts at which `building` still has a count achievement to win
+   * (`building.tieredAchievs`, thresholds from `Game.Tiers[tier].achievUnlock`: 1, 50, 100,
+   * 150, ...), ascending (AUTO-15). */
+  getUnwonBuildingAchievementCounts(building: GameBuilding): number[];
   /** Game.prestige: the prestige level (each level is worth +1% CpS at full heavenly potential). */
   getPrestige(): number;
   /** Game.startDate: when the current ascension started (ms since epoch; Century egg). */
@@ -377,6 +381,29 @@ export class GameAdapter implements IGameAdapter {
   getAchievementsOwned(): number {
     const Game = window.Game;
     return Game ? Number(Game.AchievementsOwned) || 0 : 0;
+  }
+
+  getUnwonBuildingAchievementCounts(building: GameBuilding): number[] {
+    const Game = window.Game;
+    const out: number[] = [];
+
+    try {
+      const achievs = (building as { tieredAchievs?: Record<string, { won?: unknown; tier?: unknown }> }).tieredAchievs;
+      if (!Game || !Game.Tiers || !achievs) return out;
+
+      for (const key of Object.keys(achievs)) {
+        const a = achievs[key];
+        if (!a || a.won) continue;
+
+        const tier = Game.Tiers[String(a.tier ?? key)];
+        const n = Number(tier && tier.achievUnlock);
+        if (Number.isFinite(n) && n > 0) out.push(n);
+      }
+    } catch (_e) {
+      return [];
+    }
+
+    return out.sort((a, b) => a - b);
   }
 
   getPrestige(): number {

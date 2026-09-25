@@ -580,7 +580,17 @@ action log (UI-6); nothing here is stored.
 - **AUTO-9** Presentation: the paw visits the store item if it is visible
   and does the click pulse (visual only: NO click is sent to the store);
   the purchase itself uses the game's buy functions, so store modes (sell,
-  bulk) can never cause a mistake. HUD row "Auto play" shows the plan
+  bulk) can never cause a mistake. The upgrade store sections (Upgrades,
+  Switches, Research, Vault: `.storeSection`) show only one 60px row and
+  open only on a real `:hover`, which synthetic events never trigger, so
+  every time the paw gets to an upgrade it opens that section itself
+  (class `ccsb-store-open`, `height:auto` like the game's hover rule), moves
+  onto the crate, and closes the section again when it leaves (also when
+  interrupted). A crate folded away in a collapsed row is reached through
+  the section's visible strip (`storeApproachPoint()`,
+  `src/game/store-dom.ts`; `enterStoreElement()`,
+  `src/actions/store-visit.ts`). The same applies to Krumblor's egg
+  (KRUMB-3). HUD row "Auto play" shows the plan
   ("saving for X (+N% CpS, ~3m 20s)").
 - **AUTO-10** Every purchase is logged (`"auto buy"` with cost, `dCps`,
   payback, impact, reason) and counted (`stats.autoBuys`, shown in the
@@ -632,6 +642,29 @@ action log (UI-6); nothing here is stored.
   (AUTO-7) stay; golden cookies, Click Frenzy etc. interrupt it within one
   buy. Every buy counts in `stats.autoBuys`; the streak is logged once as
   `"auto buy"` (`"37x Cursor"`, with `count` and the total cost).
+
+- **AUTO-15** Achievement top-offs: every building has count
+  achievements (own 1, 50, 100, 150, ... of it; the unwon ones come from
+  `building.tieredAchievs` and `Game.Tiers[tier].achievUnlock`,
+  `IGameAdapter.getUnwonBuildingAchievementCounts()`). Each achievement is
+  +1/25 milk, which every owned kitten turns into CpS, so a building a few
+  copies short of one is valued as a project, like WRINK-1's research
+  chain: the n copies still missing pay back `their total price / (n ×
+  one copy's gain + the achievement's gain)` × 1.5 (`AUTO_MILESTONE_MARGIN`:
+  in the same ballpark as a real upgrade, the upgrade wins), and each copy
+  gets `dCps = its cost / that payback` when that beats its own gain. It
+  never locks in: `autoDecide()` judges such a copy by the whole top-off
+  (`projectCost`: "insignificant", the buy order and the "costs > 10% of
+  the target" postponement all use what the missing copies cost together,
+  not one cheap copy), and a top-off is never a save target, so the bot
+  never waits or holds anything back for an achievement. The
+  achievement's gain = CpS × Σ over owned kittens of `f × 1/25 / (1 +
+  milk × f)`, at least a nominal 0.1% of CpS without kittens
+  (`src/autoplay/achievement-milestones.ts`). So 98 cursors are topped
+  off to 100 even when the two cursors alone would rank low, while a far,
+  costly milestone changes nothing; never past a building cap (Wizard
+  tower target). The HUD plan reads "buying Cursor (to 100 for an
+  achievement)" and the `"auto buy"` log carries `milestone`.
 
 ### 3.15 Background operation (browser tab not in front)
 
@@ -1036,14 +1069,14 @@ gainLumps) — still guarded, still the only path to those `Game.*` calls.
 | Area | Path | Contents |
 |---|---|---|
 | Core state | `src/core/` | `constants.ts` (VERSION, clamp helpers), `console-voice.ts` (CON-\*), `persisted-data.ts`, `runtime-state.ts`, `state-machine.ts` |
-| Game facade | `src/game/` | `game-adapter.ts` (IGameAdapter + GameAdapter), `types.ts` (GameShimmer/RawBuff/CpsBuff/GrimoireMinigame/GameBuilding/GameUpgrade), `golden-cookie-model.ts` (fade curve, shimmer classification, GC-2/GC-3), `hurry-mode.ts` (HURRY-\*), `buffs-lock.ts` (LOCK_A, FT-6), `grimoire.ts` (FTHOF spell/cost lookup), `grimoire-dom.ts` (real Grimoire controls — FT-7), `lump-dom.ts` (`#lumps` control/centre — LUMP-\*), `wrinkler-dom.ts` (`#backgroundLeftCanvas`, a wrinkler's body point — WRINK-5), `dragon-dom.ts` (the special tabs on the left canvas, `#specialPopup`, the aura picker, Santa's "Evolve" button — KRUMB-3/XMAS-4), `buildings-view-dom.ts` (`#centerArea`, menu buttons, building rows/level buttons, the Options/Stats/Stats recipe, `centeredScrollTop` — AUTO-13), `reindeer.ts` (a reindeer's predicted path and the paw's meeting point — XMAS-6), `dom-geometry.ts` (visibleRect/looseRect/clippedByAncestor — shared by every overlay box, GC-2/BUY-3) |
+| Game facade | `src/game/` | `game-adapter.ts` (IGameAdapter + GameAdapter), `types.ts` (GameShimmer/RawBuff/CpsBuff/GrimoireMinigame/GameBuilding/GameUpgrade), `golden-cookie-model.ts` (fade curve, shimmer classification, GC-2/GC-3), `hurry-mode.ts` (HURRY-\*), `buffs-lock.ts` (LOCK_A, FT-6), `grimoire.ts` (FTHOF spell/cost lookup), `grimoire-dom.ts` (real Grimoire controls — FT-7), `lump-dom.ts` (`#lumps` control/centre — LUMP-\*), `wrinkler-dom.ts` (`#backgroundLeftCanvas`, a wrinkler's body point — WRINK-5), `dragon-dom.ts` (the special tabs on the left canvas, `#specialPopup`, the aura picker, Santa's "Evolve" button — KRUMB-3/XMAS-4), `buildings-view-dom.ts` (`#centerArea`, menu buttons, building rows/level buttons, the Options/Stats/Stats recipe, `centeredScrollTop` — AUTO-13), `reindeer.ts` (a reindeer's predicted path and the paw's meeting point — XMAS-6), `store-dom.ts` (the collapsible upgrade store sections, opened while the paw is there — AUTO-9), `dom-geometry.ts` (visibleRect/looseRect/clippedByAncestor — shared by every overlay box, GC-2/BUY-3) |
 | Cursor (queue) | `src/cursor/` | `types.ts` (`JOB_PRIORITY`, `CursorAction`, `CursorJob`, `CursorJobContext`, `CursorMover`, `CursorClickTiming`, `JobRequest`), `cursor-manager.ts` (owns the priority queue + all cursor motion: click gap → travel → pre-click pause → `cursor_at_position`, dedup by key, preemption, single cursor writer) |
-| Actions | `src/actions/` | `click-element.ts` (ClickElementAction/MoveAction/VisualPressAction), `golden-cookie.ts` (GoldenCookieAction, `effectPrettyName`), `hammer.ts` (HammerAction + big-cookie point helpers, CF-\*), `fthof.ts` (FthofAction/RefillAction), `lump-harvest.ts` (LumpHarvestAction, LUMP-\*), `buildings-view.ts` (MenuButtonAction, ScrollIntoViewAction, MinigameButtonAction — FT-8/AUTO-13/DBG-9..11), `grimoire-unlock.ts` (GrimoireUnlockAction, AUTO-13), `wrinkler-pop.ts` (WrinklerPopAction, WRINK-5), `krumblor.ts` (DragonClickAction/DragonStoreAction, KRUMB-3; Santa's clicks reuse DragonClickAction, XMAS-4), `dance.ts` (DanceAction + `danceEligible`/`anyGoldenPresent`/`getDanceMs`), `ponder.ts` (PonderAction), `idle.ts` (IdleWanderAction + `IDLE_SPOTS`/`pickIdleSpot`) |
+| Actions | `src/actions/` | `click-element.ts` (ClickElementAction/MoveAction/VisualPressAction), `golden-cookie.ts` (GoldenCookieAction, `effectPrettyName`), `hammer.ts` (HammerAction + big-cookie point helpers, CF-\*), `fthof.ts` (FthofAction/RefillAction), `lump-harvest.ts` (LumpHarvestAction, LUMP-\*), `buildings-view.ts` (MenuButtonAction, ScrollIntoViewAction, MinigameButtonAction — FT-8/AUTO-13/DBG-9..11), `grimoire-unlock.ts` (GrimoireUnlockAction, AUTO-13), `wrinkler-pop.ts` (WrinklerPopAction, WRINK-5), `krumblor.ts` (DragonClickAction/DragonStoreAction, KRUMB-3; Santa's clicks reuse DragonClickAction, XMAS-4), `store-visit.ts` (`enterStoreElement`: the paw opening an upgrade's store section and moving onto the crate, AUTO-9), `dance.ts` (DanceAction + `danceEligible`/`anyGoldenPresent`/`getDanceMs`), `ponder.ts` (PonderAction), `idle.ts` (IdleWanderAction + `IDLE_SPOTS`/`pickIdleSpot`) |
 | Hunting (modules) | `src/hunting/` | `click-golden.ts` (golden hunter: `jobFor` → GoldenCookieAction), `click-big-cookie.ts` (hammer module: `job` → HammerAction), `golden-queue.ts` (route caching, wraps route-planner), `fthof.ts` (FthofActions: `fthofOrRefillPending` + `castJob`/`refillJob`), `lump-harvest.ts` (LumpHarvestActions: `pending` + `harvestJob`), `happy-dance.ts` (HappyDance: `job` → DanceAction), `buildings-view.ts` (BuildingsViewNavigator: Options/Stats/Stats recipe + scroll-into-view steps, `PrepStep`), `grimoire-view.ts` (GrimoireView: step planner to an unlocked/open, on-screen Grimoire — FT-8/AUTO-13 — plus the DBG-9..11 tools and their scheduler tier), `hitbox-overlay.ts` (GC-2) |
 | Routing | `src/routing/route-planner.ts` | `exactRoute` (Held-Karp DP, <= 11 cookies), `heuristicRoute` (nearest-neighbor + 2-opt/Or-opt + restarts), `planRoute` (GC-5) |
 | Idle | `src/idle/` | `idle-behavior.ts` (IdleBehavior module: `idleJob` → IdleWanderAction), `pending-work.ts` (conditions + queue state via `CursorManager.hasJobsAbove` — the shared "is anything more important pending?" predicate) |
 | Input synthesis | `src/input/` | `dispatch.ts` (dispatchMouse/dispatchMove — MOUSE-\*), `human-click.ts` (ClickTiming: delays, waitUntil, humanClick), `cursor-controller.ts` (CursorController: low-level PAW-4 arc/spline/warp travel, moveCursorTo/glideCursor — the only file that writes `runtime.cursor.x/y`), `background-clock.ts` (BackgroundClock: BG-1/BG-2 worker timer), `keep-alive.ts` (BG-3) |
-| Auto play | `src/autoplay/` | `valuation-tables.ts` (AUTO_BLOCKED_\*, AUTO_GOLDEN_UPGRADES, AUTO_KITTEN_POWER, AUTO_FINGER_STEPS, AUTO_BUILDING_CAPS — AUTO-2 data), `building-valuation.ts` + `upgrade-classifier.ts` (AUTO-3 gain math per candidate type), `collector.ts` (`autoCollect`: gathers candidates + ctx, AUTO-7 safety gates), `strategy.ts` (`autoDecide`: the pure insignificant/good/postpone/save decision, AUTO-4 — flagship unit-test target), `buy-streak.ts` (pure: whether the paw buys one more of the same building in its streak, AUTO-14), `shopping.ts` (`AutoPlayEngine`: evaluate/shopJob/statusText, AUTO-1/8/9/10/12), `auto-hammer.ts` (AUTO-11), `grimoire-unlock.ts` (`GrimoireUnlocker`: AUTO-13 gating, steps from GrimoireView), `wrinkler-strategy.ts` (pure: respawn time, maturity, fewest-fattest pick — WRINK-2/3), `grandmapocalypse-valuation.ts` (pure: stage 1 gain, delay, chain-step dCps — WRINK-1), `wrinkler-popper.ts` (`WrinklerPopper`: WRINK-3/4 gating, plan, job, HUD text), `krumblor-strategy.ts` (pure: next Krumblor step — KRUMB-1/2/5), `krumblor.ts` (`KrumblorTrainer`: KRUMB-\* gating, state, jobs, the cursor sale/rebuy), `easter-eggs.ts` (pure-ish: egg values and order — EGG-\*), `christmas.ts` (pure-ish: Christmas upgrade values — XMAS-1..3), `santa-strategy.ts` (pure: next Santa step — XMAS-4), `santa.ts` (`SantaTrainer`: XMAS-4/5 gating, jobs), `income-tracker.ts` (smoothed clicking income for AUTO-3's `income`), `buy-value-overlay.ts` (BUY-\*) |
+| Auto play | `src/autoplay/` | `valuation-tables.ts` (AUTO_BLOCKED_\*, AUTO_GOLDEN_UPGRADES, AUTO_KITTEN_POWER, AUTO_FINGER_STEPS, AUTO_BUILDING_CAPS — AUTO-2 data), `building-valuation.ts` + `upgrade-classifier.ts` (AUTO-3 gain math per candidate type), `collector.ts` (`autoCollect`: gathers candidates + ctx, AUTO-7 safety gates), `strategy.ts` (`autoDecide`: the pure insignificant/good/postpone/save decision, AUTO-4 — flagship unit-test target), `buy-streak.ts` (pure: whether the paw buys one more of the same building in its streak, AUTO-14), `achievement-milestones.ts` (pure: a building's value on its way to a count achievement, AUTO-15), `shopping.ts` (`AutoPlayEngine`: evaluate/shopJob/statusText, AUTO-1/8/9/10/12), `auto-hammer.ts` (AUTO-11), `grimoire-unlock.ts` (`GrimoireUnlocker`: AUTO-13 gating, steps from GrimoireView), `wrinkler-strategy.ts` (pure: respawn time, maturity, fewest-fattest pick — WRINK-2/3), `grandmapocalypse-valuation.ts` (pure: stage 1 gain, delay, chain-step dCps — WRINK-1), `wrinkler-popper.ts` (`WrinklerPopper`: WRINK-3/4 gating, plan, job, HUD text), `krumblor-strategy.ts` (pure: next Krumblor step — KRUMB-1/2/5), `krumblor.ts` (`KrumblorTrainer`: KRUMB-\* gating, state, jobs, the cursor sale/rebuy), `easter-eggs.ts` (pure-ish: egg values and order — EGG-\*), `christmas.ts` (pure-ish: Christmas upgrade values — XMAS-1..3), `santa-strategy.ts` (pure: next Santa step — XMAS-4), `santa.ts` (`SantaTrainer`: XMAS-4/5 gating, jobs), `income-tracker.ts` (smoothed clicking income for AUTO-3's `income`), `buy-value-overlay.ts` (BUY-\*) |
 | Scheduler | `src/scheduler/` | `priority.ts` (`selectJobRequest`: the SCHED-1 cascade as pure data), `scheduler.ts` (`Scheduler.tick()`: wrath logging, queue build, enqueues ONE job via CursorManager), `overlay-loop.ts` (`OverlayLoop`: the requestAnimationFrame draw loop — hitboxes, buy-value overlay, paw) |
 | Rendering | `src/rendering/` | `paw-cursor.ts` (`PawCursor`: PAW-1..3, sprite rasterizing, click pulse, fallback drawn paw), `overlay-canvas.ts` (resize/DPR handling) |
 | Stats | `src/stats/` | `log.ts` (`LogStore`), `stats.ts` (`StatsRecorder`: GC-6/AUTO-10 counters + hourly buckets) |
@@ -1120,8 +1153,8 @@ file.**
 
 Three layers, each catching a different class of bug:
 
-1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 367 tests
-   across 39 files. Pure functions (route planner, `autoDecide`, the chart
+1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 384 tests
+   across 41 files. Pure functions (route planner, `autoDecide`, the chart
    engine, `normalizeSetting`) are tested directly with plain data; the
    cursor queue/actions have their own fake mover/timing tests. Classes
    that depend on the game are tested against `FakeGameAdapter`
@@ -1206,7 +1239,8 @@ an assertion — hence the visual suite instead.
   `#centerArea`/`#prefsButton`/`#statsButton`/`#row{id}`/`#productLevel{id}`
   DOM and building `level` (Grimoire unlock, AUTO-13), `Game.elderWrath`,
   `Game.wrinklers` (`phase`/`sucked`/`type`/`x`/`y`/`r`), `Game.cpsSucked`,
-  `Game.getWrinklersMax()`, the wrinkler spawn/pop formulas and hit box
+  `Game.getWrinklersMax()`, `building.tieredAchievs`/`Game.Tiers[tier].achievUnlock`
+  (count achievements, AUTO-15), the wrinkler spawn/pop formulas and hit box
   (WRINK-\*; read from the game's `main.js` 2.058, and one pop verified live:
   3 pokes, digested × 1.1 gained). If one is missing, the
   affected feature degrades quietly (see NFR-4) and the Debug tools report
@@ -1271,6 +1305,37 @@ mouse while the bot runs and confirm the "+N" number follows your cursor,
 not the paw's).
 
 ## 12. Changelog
+
+- **5.3.11** Achievement top-offs (AUTO-15) no longer lock in. A cheap
+  copy on its way to a far milestone counted as "insignificant" by its own
+  price and so was never held back, even when the whole top-off cost as
+  much as a better upgrade; `autoDecide()` now judges it by the whole
+  top-off (`PurchaseCandidate.projectCost`) for "insignificant", the buy
+  order and postponement. A top-off is never a save target any more, and
+  it must beat alternatives by 1.5× (`AUTO_MILESTONE_MARGIN`), so an
+  upgrade in the same ballpark wins. Unit tests in
+  `tests/unit/achievement-milestones.test.ts`.
+
+- **5.3.10** Auto play tops buildings off to their next count achievement
+  (AUTO-15): 98 cursors become 100 even when two more cursors alone would
+  rank low, because the achievement's milk makes every owned kitten worth
+  more. The missing copies are valued as one project (their price against
+  their own gain plus the achievement's), like the research chain. New
+  `src/autoplay/achievement-milestones.ts`; `IGameAdapter` gains
+  `getUnwonBuildingAchievementCounts()`; building candidates carry
+  `milestone`, shown in the HUD plan and the `"auto buy"` log. Unit tests
+  in `tests/unit/achievement-milestones.test.ts`.
+
+- **5.3.9** The upgrade store opens every time the paw gets there
+  (AUTO-9). The game's store sections are one row tall and only open on a
+  real CSS `:hover`, so a crate in a later row was clipped away: the paw
+  didn't visit it and the purchase happened out of sight. The paw now
+  heads for the section's visible strip, opens the section (class
+  `ccsb-store-open`, styled in `src/ui/styles.ts`), moves onto the crate,
+  buys, and closes the section on leaving. New `src/game/store-dom.ts`
+  and `src/actions/store-visit.ts`, used by the shop and Krumblor's egg
+  purchase (`DragonStoreAction` gains `el`). Unit tests in
+  `tests/unit/store-dom.test.ts`.
 
 - **5.3.8** Auto play's buy order (AUTO-4): on a flush bank it bought 100
   of every cheap building first, because the higher tiers have the worse

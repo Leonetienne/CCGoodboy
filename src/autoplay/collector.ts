@@ -2,6 +2,7 @@ import type { PersistedData } from '../core/persisted-data';
 import type { RuntimeState } from '../core/runtime-state';
 import type { IGameAdapter } from '../game/game-adapter';
 import type { GameBuilding, GameUpgrade } from '../game/types';
+import { achievementCpsShare, autoMilestoneValue, nextAchievementCount } from './achievement-milestones';
 import { autoBuildingGain, autoFingerBonus, autoPerClick, autoUnbuffedCps } from './building-valuation';
 import { CHRISTMAS_UPGRADES, christmasUpgradeGain } from './christmas';
 import { EASTER_EGGS, easterEggGain } from './easter-eggs';
@@ -12,6 +13,7 @@ import {
   AUTO_BUILDING_CAPS,
   AUTO_CURSOR_DOUBLERS,
   AUTO_ESCALATION_NAMES,
+  AUTO_KITTEN_POWER,
   AUTO_NON_STORE_POOLS,
   AUTO_PREF_GOLDEN,
   AUTO_PREF_WIZARD,
@@ -47,12 +49,27 @@ export interface PurchaseCandidate {
   obj: GameBuilding | GameUpgrade;
   cost: number;
   dCps: number;
+  /** A building copy valued as part of topping off to this count achievement (AUTO-15). */
+  milestone?: number;
+  /** With `milestone`: what ALL the copies still missing cost together. The decision judges
+   * the top-off by this, not by one cheap copy (AUTO-15). */
+  projectCost?: number;
   /** > 0 for candidates the bot should buy before ordinary ones (golden upgrades, Wizard
    * towers below their target). Higher = more preferred; Wizard towers use the top tier. */
   pref?: number;
 }
 
 export type CollectResult = { skip: string } | { cands: PurchaseCandidate[]; ctx: AutoCollectCtx };
+
+/** What buying `n` more of a building costs now: the game's getSumPrice(), else the 15% price
+ * step from its current price. */
+function buildingSumPrice(me: GameBuilding, n: number): number {
+  const p = me.getSumPrice ? Number(me.getSumPrice(n)) : NaN;
+  if (Number.isFinite(p) && p > 0) return p;
+
+  const c = Number(me.price) || 0;
+  return (c * (Math.pow(1.15, n) - 1)) / 0.15;
+}
 
 function num(v: unknown, d: number): number {
   const n = Number(v);
@@ -151,6 +168,14 @@ export function autoCollect(game: IGameAdapter, data: PersistedData, runtime: Ru
   };
 
   if (game.getBuyMode() !== -1) {
+    // AUTO-15: what one more achievement is worth through the milk and the owned kittens
+    const kittens = game
+      .getUpgrades()
+      .filter((u) => u && u.bought && /^kitten /i.test(String(u.name)))
+      .map((u) => AUTO_KITTEN_POWER[String(u.name).toLowerCase()] || 0.1);
+    const milk = game.getMilkProgress() ?? game.getAchievementsOwned() / 25;
+    const achievementGain = cps * achievementCpsShare(milk, kittens);
+
     for (const me of objs) {
       if (!me || me.locked) continue;
 
@@ -161,16 +186,21 @@ export function autoCollect(game: IGameAdapter, data: PersistedData, runtime: Ru
       if (!(cost > 0)) continue;
 
       const gain = autoBuildingGain(game, me, ctx);
+      const amount = Number(me.amount) || 0;
+      const next = nextAchievementCount(amount, game.getUnwonBuildingAchievementCounts(me), cap);
+      const projectCost = next != null ? buildingSumPrice(me, next - amount) : 0;
+      const v = autoMilestoneValue(cost, gain, amount, next, projectCost, achievementGain);
 
-      if (gain > 0) {
+      if (v.dCps > 0) {
         cands.push({
           kind: 'building',
           type: 'building',
           name: me.name,
           obj: me,
           cost,
-          dCps: gain,
+          dCps: v.dCps,
           pref: me.name === 'Wizard tower' ? AUTO_PREF_WIZARD : 0,
+          ...(v.milestone != null ? { milestone: v.milestone, projectCost } : {}),
         });
       }
     }

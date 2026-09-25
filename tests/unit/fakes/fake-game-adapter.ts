@@ -230,6 +230,13 @@ export class FakeGameAdapter implements IGameAdapter {
     return this.achievementsOwned;
   }
 
+  /** Unwon count achievement thresholds per building name. */
+  unwonBuildingAchievementCounts: Record<string, number[]> = {};
+
+  getUnwonBuildingAchievementCounts(building: GameBuilding): number[] {
+    return [...(this.unwonBuildingAchievementCounts[building.name] || [])].sort((a, b) => a - b);
+  }
+
   getPrestige(): number {
     return this.prestige;
   }

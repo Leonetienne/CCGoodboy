@@ -70,16 +70,18 @@ export function autoDecide(cands: PurchaseCandidate[], ctx: AutoCollectCtx): Dec
 
     const payback = c.cost / c.dCps;
     const wait = c.cost <= avail ? 0 : (c.cost - avail) / incEff;
+    // an achievement top-off is judged as the whole top-off, not one cheap copy (AUTO-15)
+    const whole = c.projectCost != null && c.projectCost > c.cost ? c.projectCost : c.cost;
 
     rows.push({
       c,
       payback,
-      order: Math.max(c.cost, AUTO_TRIVIAL_BANK_SHARE * avail) / c.dCps,
+      order: (Math.max(whole, AUTO_TRIVIAL_BANK_SHARE * avail) * payback) / whole,
       pp: wait + payback,
       impact: c.dCps / cpsEff,
       wait,
       affordable: wait === 0,
-      insignificant: c.cost <= cfg.insignificantSec * cpsEff,
+      insignificant: whole <= cfg.insignificantSec * cpsEff,
     });
   }
 
@@ -101,7 +103,9 @@ export function autoDecide(cands: PurchaseCandidate[], ctx: AutoCollectCtx): Dec
 
   // Worth deliberately saving up for: not affordable yet, in reach, and either a good deal
   // relative to everything else on offer or preferred (golden upgrades, Wizard towers).
-  const targets = inReach.filter((r) => !r.affordable && (good(r) || prefOf(r) > 0));
+  // An achievement top-off (AUTO-15) is never saved for: it is only bought when affordable
+  // and nothing better holds it back, so the bot never locks in on one.
+  const targets = inReach.filter((r) => !r.affordable && r.c.milestone == null && (good(r) || prefOf(r) > 0));
 
   // Held back for a target when (a) the target, even counting the wait for it, is the better
   // deal: buying the worse one first only pushes the better one further away (and a stream of
@@ -109,7 +113,9 @@ export function autoDecide(cands: PurchaseCandidate[], ctx: AutoCollectCtx): Dec
   // impact is diluted by hours of delay (WRINK-1) and so never passes (b); or (b) the target has
   // much more impact and this one would eat a real share of its price.
   const postponed = (p: DecisionRow) =>
-    targets.some((q) => q.pp < p.payback || (q.impact >= cfg.biggerImpact * p.impact && p.c.cost > 0.1 * q.c.cost));
+    targets.some(
+      (q) => q.pp < p.payback || (q.impact >= cfg.biggerImpact * p.impact && (p.c.projectCost ?? p.c.cost) > 0.1 * q.c.cost),
+    );
 
   // Buy now: every affordable candidate that isn't held back in favor of a save target.
   // Insignificant and preferred purchases are always exempt from postponement. Nothing else is

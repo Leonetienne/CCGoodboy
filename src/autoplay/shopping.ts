@@ -201,7 +201,7 @@ export class AutoPlayEngine {
           } else {
             plan.buy = d.buy;
             plan.row = d.row;
-            plan.note = `buying ${d.buy.name} (${d.why})`;
+            plan.note = `buying ${d.buy.name} (${d.buy.milestone != null ? `to ${d.buy.milestone} for an achievement` : d.why})`;
           }
         } else if (d.save && d.saveRow) {
           plan.note = `saving for ${d.save.name} (+${(d.saveRow.impact * 100).toFixed(1)}% CpS, ~${autoFmtTime(d.saveRow.wait)})`;
@@ -428,6 +428,7 @@ export class AutoPlayEngine {
           engine.log.log('auto buy', bought > 1 ? `${bought}x ${first.name}` : first.name, {
             type: first.type,
             ...(bought > 1 ? { count: bought } : {}),
+            ...(first.milestone != null ? { milestone: first.milestone } : {}),
             cost: Math.round(first.cost + streak.spent),
             dCps: first.dCps,
             payback: fresh.row && fresh.row.payback,
