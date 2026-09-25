@@ -16,6 +16,7 @@ import type { AutoPlayEngine } from '../../src/autoplay/shopping';
 import type { GrimoireUnlocker } from '../../src/autoplay/grimoire-unlock';
 import type { GrimoireView } from '../../src/hunting/grimoire-view';
 import type { WrinklerPopper } from '../../src/autoplay/wrinkler-popper';
+import type { KrumblorTrainer } from '../../src/autoplay/krumblor';
 
 function makeDeps(overrides: Partial<PriorityDeps> = {}): PriorityDeps {
   const runtime = overrides.runtime ?? new RuntimeState();
@@ -58,6 +59,11 @@ function makeDeps(overrides: Partial<PriorityDeps> = {}): PriorityDeps {
     shopJob: vi.fn().mockReturnValue({ action: { label: 'auto-shop' }, priority: JOB_PRIORITY.AUTO_SHOP, key: 'auto-shop:x' }),
   } as unknown as AutoPlayEngine;
 
+  const krumblor = {
+    pending: () => false,
+    job: vi.fn().mockReturnValue({ action: { label: 'krumblor' }, priority: JOB_PRIORITY.AUTO_SHOP, key: 'krumblor:train' }),
+  } as unknown as KrumblorTrainer;
+
   const wrinklerPopper = {
     pending: () => false,
     job: vi.fn().mockReturnValue({ action: { label: 'wrinkler-pop' }, priority: JOB_PRIORITY.AUTO_SHOP, key: 'wrinkler-pop:3' }),
@@ -83,6 +89,7 @@ function makeDeps(overrides: Partial<PriorityDeps> = {}): PriorityDeps {
     lumpHarvest,
     grimoireView: { pending: () => false } as unknown as GrimoireView,
     grimoireUnlock,
+    krumblor,
     autoPlay,
     wrinklerPopper,
     happyDance,
@@ -252,6 +259,25 @@ describe('selectJobRequest', () => {
       job: vi.fn().mockReturnValue({ action: { label: 'grimoire-unlock' }, priority: JOB_PRIORITY.AUTO_SHOP, key: 'grimoire-unlock:level' }),
     } as unknown as GrimoireUnlocker;
     expect(selectJobRequest(makeDeps({ grimoireUnlock, wrinklerPopper, autoPlay }))?.key).toBe('grimoire-unlock:level');
+  });
+
+  it('trains Krumblor after the Grimoire unlock, before a wrinkler pop and auto-shop', () => {
+    const krumblor = {
+      pending: () => true,
+      job: vi.fn().mockReturnValue({ action: { label: 'krumblor' }, priority: JOB_PRIORITY.AUTO_SHOP, key: 'krumblor:train' }),
+    } as unknown as KrumblorTrainer;
+    const wrinklerPopper = { pending: () => true, job: vi.fn() } as unknown as WrinklerPopper;
+    const autoPlay = { shopReady: () => true, shopJob: vi.fn() } as unknown as AutoPlayEngine;
+
+    expect(selectJobRequest(makeDeps({ krumblor, wrinklerPopper, autoPlay }))?.key).toBe('krumblor:train');
+    expect(wrinklerPopper.job).not.toHaveBeenCalled();
+    expect(autoPlay.shopJob).not.toHaveBeenCalled();
+
+    const grimoireUnlock = {
+      pending: () => true,
+      job: vi.fn().mockReturnValue({ action: { label: 'grimoire-unlock' }, priority: JOB_PRIORITY.AUTO_SHOP, key: 'grimoire-unlock:level' }),
+    } as unknown as GrimoireUnlocker;
+    expect(selectJobRequest(makeDeps({ grimoireUnlock, krumblor, autoPlay }))?.key).toBe('grimoire-unlock:level');
   });
 
   it('falls through to auto-shop when the wrinkler popper has no job to hand out', () => {

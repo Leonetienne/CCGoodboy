@@ -1,6 +1,6 @@
 {
   "name": "cc-good-boy",
-  "version": "5.0.11",
+  "version": "5.1.1",
   "private": true,
   "description": "Cookie Clicker golden-cookie hunter Tampermonkey userscript",
   "type": "module",

@@ -44,6 +44,12 @@ export class FakeGameAdapter implements IGameAdapter {
   cpsSucked = 0;
   wrinklerSpawnChance = 0;
   wrinklerPopMult = 1.1;
+  dragonLevel = 0;
+  dragonAuras: [number, number] = [0, 0];
+  selectingDragonAura = -1;
+  specialTabs: string[] = [];
+  specialTab = '';
+  krumblorUnlocked = false;
 
   isPresent(): boolean {
     return this.present;
@@ -277,5 +283,30 @@ export class FakeGameAdapter implements IGameAdapter {
     if (!w) throw new Error('every wrinkler slot is taken');
     w.phase = 1;
     return w.id;
+  }
+
+  getDragonLevel(): number {
+    return this.dragonLevel;
+  }
+
+  getDragonAuras(): [number, number] {
+    return this.dragonAuras;
+  }
+
+  getSelectingDragonAura(): number {
+    return this.selectingDragonAura;
+  }
+
+  getSpecialTabs(): string[] {
+    return this.specialTabs;
+  }
+
+  getSpecialTab(): string {
+    return this.specialTab;
+  }
+
+  unlockKrumblor(): boolean {
+    this.krumblorUnlocked = true;
+    return true;
   }
 }

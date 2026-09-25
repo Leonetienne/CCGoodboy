@@ -48,6 +48,11 @@ default and remembers your choice.
 - Takes the Grandmapocalypse to stage 1 for wrinklers **if you want to**, and **never** further.
   It pops fat wrinklers when it needs their cookies for a purchase. Shiny
   wrinklers are yours; it won't touch them.
+- Raises Krumblor, the cookie dragon, once you have the crumbly egg: it pays
+  the egg levels when they're pocket change, sacrifices 100 cursors (selling
+  the extras first and buying them back after, which is much cheaper) and puts
+  on the **Dragon Cursor** aura. It never swaps out an aura you picked
+  yourself. Switch it off with **Auto: train Krumblor**.
 
 Not sure you trust it with your cookies? Turn on **dry run** and it'll only
 write down what it *would* have bought.
@@ -111,7 +116,7 @@ The panel can be dragged by its title bar and minimised. From there:
 ### Debug tools
 
 These spawn golden cookies of any kind, hand you a quadrillion cookies, fill
-your mana, give you sugar lumps, ripen your current lump, spawn wrinklers and
+your mana, give you sugar lumps, ripen your current lump, spawn wrinklers, unlock Krumblor and
 so on. They exist so you can watch the bot react without waiting hours for the
 right cookie to show up.
 

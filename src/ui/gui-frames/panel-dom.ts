@@ -218,6 +218,10 @@ function panelBodyHtml(version: string): string {
                 <input id="ccsb-auto-pop-wrinklers" type="checkbox">
                 Auto: pop wrinklers for purchases :3
             </label>
+            <label style="display:flex;gap:6px;align-items:center;margin-top:5px" title="Buys the crumbly egg, trains Krumblor with cookies (only insignificant amounts), sacrifices 100 cursors (selling the ones above 100 first and buying them back after) and puts on the Dragon Cursor aura (switching an aura sacrifices 1 of your highest building)">
+                <input id="ccsb-auto-krumblor" type="checkbox">
+                Auto: train Krumblor (Dragon Cursor) ^w^
+            </label>
             <label style="display:flex;gap:6px;align-items:center;margin-top:5px">
                 <input id="ccsb-auto-dry" type="checkbox">
                 Auto play dry run (log only) :3

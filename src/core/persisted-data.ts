@@ -38,6 +38,7 @@ export interface Config {
   autoGrandmapocalypse: boolean;
   autoPopWrinklers: boolean;
   autoWrinklerMaturity: number;
+  autoKrumblor: boolean;
 }
 
 export interface Stats {
@@ -122,6 +123,7 @@ export const DEFAULTS: PersistedState = {
     autoGrandmapocalypse: true,
     autoPopWrinklers: true,
     autoWrinklerMaturity: 5,
+    autoKrumblor: true,
   },
   stats: {
     totalGolden: 0,

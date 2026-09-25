@@ -61,6 +61,20 @@ export interface IGameAdapter {
    * Dragon Guts, Pantheon; x3 for a shiny one). */
   getWrinklerPopMult(shiny: boolean): number;
 
+  // ---- Krumblor, the cookie dragon (KRUMB-*) ----
+  /** Game.dragonLevel: 0-4 egg (cookie costs), 5 knows Breath of Milk, 6 knows Dragon Cursor... */
+  getDragonLevel(): number;
+  /** Game.dragonAura / Game.dragonAura2: the aura ids in slot 0 and slot 1 (0 = No aura). */
+  getDragonAuras(): [number, number];
+  /** Game.SelectingDragonAura: the aura highlighted in the open "Set your dragon's aura"
+   * prompt (-1 when none). */
+  getSelectingDragonAura(): number;
+  /** Game.specialTabs: the tabs drawn at the bottom left of #backgroundLeftCanvas
+   * ('santa', 'dragon'), in draw order. */
+  getSpecialTabs(): string[];
+  /** Game.specialTab: the tab whose popup (#specialPopup) is open, '' if none. */
+  getSpecialTab(): string;
+
   // ---- debug-tools-only raw operations (see ui/debug/debug-tools.ts) ----
   spawnGoldenShimmer(opts: { wrath?: boolean }): Record<string, unknown>;
   spawnCookieChain(): Record<string, unknown>;
@@ -70,6 +84,9 @@ export interface IGameAdapter {
   ripenLump(): void;
   spawnFedWrinklers(fedSec: number): number;
   spawnWrinkler(): number;
+  /** Grants the heavenly upgrade "How to bake your dragon"; true when "A crumbly egg" is in
+   * the store now (the game only unlocks it once 1M cookies are baked). */
+  unlockKrumblor(): boolean;
 }
 
 export class GameAdapter implements IGameAdapter {
@@ -416,6 +433,32 @@ export class GameAdapter implements IGameAdapter {
     return m;
   }
 
+  getDragonLevel(): number {
+    const Game = window.Game;
+    return Game ? Number(Game.dragonLevel) || 0 : 0;
+  }
+
+  getDragonAuras(): [number, number] {
+    const Game = window.Game;
+    return Game ? [Number(Game.dragonAura) || 0, Number(Game.dragonAura2) || 0] : [0, 0];
+  }
+
+  getSelectingDragonAura(): number {
+    const Game = window.Game;
+    const v = Game ? Number(Game.SelectingDragonAura) : NaN;
+    return Number.isFinite(v) ? v : -1;
+  }
+
+  getSpecialTabs(): string[] {
+    const Game = window.Game;
+    return Game && Array.isArray(Game.specialTabs) ? Game.specialTabs : [];
+  }
+
+  getSpecialTab(): string {
+    const Game = window.Game;
+    return Game && typeof Game.specialTab === 'string' ? Game.specialTab : '';
+  }
+
   /** Pantheon slot (1-3) of a god, 0 when not slotted or the Pantheon isn't loaded. */
   private godLevel(god: string): number {
     try {
@@ -563,6 +606,30 @@ export class GameAdapter implements IGameAdapter {
     Game.SpawnWrinkler(w);
 
     return w.id;
+  }
+
+  /** Debug-only: grants the heavenly upgrade "How to bake your dragon" (Upgrade.earn(), like
+   * buying it in the ascension tree) and, once 1 million cookies are baked, unlocks "A crumbly
+   * egg" right away, exactly the game's own rule (it would do so on its next check anyway).
+   * Returns whether the egg is in the store now. */
+  unlockKrumblor(): boolean {
+    const Game = window.Game;
+    const tome = Game && Game.Upgrades ? Game.Upgrades['How to bake your dragon'] : null;
+
+    if (!Game || !tome || typeof tome.earn !== 'function' || typeof Game.Unlock !== 'function') {
+      throw new Error('"How to bake your dragon" is not available');
+    }
+
+    if (Game.Upgrades['A crumbly egg'] && Game.Upgrades['A crumbly egg'].bought) {
+      throw new Error('Krumblor is already unlocked (the crumbly egg is bought)');
+    }
+
+    if (!tome.bought) tome.earn();
+
+    if (!(Number(Game.cookiesEarned) >= 1000000)) return false;
+
+    Game.Unlock('A crumbly egg');
+    return true;
   }
 
   /** Debug-only: fills every empty wrinkler slot with an attached wrinkler that has already

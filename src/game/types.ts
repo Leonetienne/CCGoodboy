@@ -53,6 +53,11 @@ export interface GameBuilding {
   id?: number;
   plural?: string;
   buy(n: number): void;
+  /** Sells `n` (gives back 25%, x2 with Earth Shatterer). Unlike buy(), ignores the store's
+   * buy/sell mode. */
+  sell?(n: number, bypass?: number): void;
+  /** What buying `n` more would cost right now. */
+  getSumPrice?(n: number): number;
 }
 
 /** An upgrade (Game.Upgrades entry / a Game.UpgradesInStore row). */

@@ -41,6 +41,7 @@ export function moodText(action: string): string {
     'buildings-view': 'tidying up the view :3',
     'grimoire-unlock': 'unlocking the grimoire ^w^',
     'wrinkler-pop': 'popping a wrinkler owo',
+    krumblor: 'training Krumblor ^w^',
   };
 
   return map[action] || action;

@@ -131,6 +131,7 @@ export class UiRoot {
     bindCheckbox('ccsb-auto-hammer', data.config.autoHammer !== false);
     bindCheckbox('ccsb-auto-grandmapocalypse', data.config.autoGrandmapocalypse !== false);
     bindCheckbox('ccsb-auto-pop-wrinklers', data.config.autoPopWrinklers !== false);
+    bindCheckbox('ccsb-auto-krumblor', data.config.autoKrumblor !== false);
 
     autoPlay.applyVisibility();
 

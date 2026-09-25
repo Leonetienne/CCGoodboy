@@ -4,6 +4,7 @@ import type { IGameAdapter } from '../game/game-adapter';
 import { getFthofCost, refillCanReachCost } from '../game/grimoire';
 import type { CpsBuff } from '../game/types';
 import type { GrimoireUnlocker } from '../autoplay/grimoire-unlock';
+import type { KrumblorTrainer } from '../autoplay/krumblor';
 import type { AutoPlayEngine } from '../autoplay/shopping';
 import type { WrinklerPopper } from '../autoplay/wrinkler-popper';
 import type { JobRequest } from '../cursor/types';
@@ -28,6 +29,7 @@ export interface PriorityDeps {
   lumpHarvest: LumpHarvestActions;
   grimoireView: GrimoireView;
   grimoireUnlock: GrimoireUnlocker;
+  krumblor: KrumblorTrainer;
   autoPlay: AutoPlayEngine;
   wrinklerPopper: WrinklerPopper;
   happyDance: HappyDance;
@@ -42,9 +44,10 @@ export interface PriorityDeps {
  *                               first gets the Grimoire on screen (FT-8, GrimoireView steps)
  *   4 ripe sugar lump        -> LumpHarvestAction (harvest before the game auto-harvests it)
  *   5 a started buildings-view recipe / "Show grimoire" debug goal, then auto play: unlock
- *     the Grimoire, pop a wrinkler for a purchase, then shopping
+ *     the Grimoire, train Krumblor, pop a wrinkler for a purchase, then shopping
  *                            -> MenuButtonAction / ScrollIntoViewAction / MinigameButtonAction /
- *                               GrimoireUnlockAction / WrinklerPopAction, else the auto-shop
+ *                               GrimoireUnlockAction / DragonClickAction / DragonStoreAction /
+ *                               WrinklerPopAction, else the auto-shop
  *                               action (only when a purchase is due)
  *   6 hammer mode            -> HammerAction
  *   7 queued happy dance     -> DanceAction
@@ -54,7 +57,7 @@ export interface PriorityDeps {
  * still falls through to lump harvest/auto-shop/hammer/dance/idle below it, exactly as the
  * original did. */
 export function selectJobRequest(deps: PriorityDeps): JobRequest | null {
-  const { queue, buffs, runtime, data, game, clickGolden, clickBigCookie, fthof, lumpHarvest, grimoireView, grimoireUnlock, autoPlay, wrinklerPopper, happyDance, idleBehavior, hammerActive } = deps;
+  const { queue, buffs, runtime, data, game, clickGolden, clickBigCookie, fthof, lumpHarvest, grimoireView, grimoireUnlock, krumblor, autoPlay, wrinklerPopper, happyDance, idleBehavior, hammerActive } = deps;
 
   let job: JobRequest | null = null;
 
@@ -106,6 +109,11 @@ export function selectJobRequest(deps: PriorityDeps): JobRequest | null {
   // Auto play: unlock the Grimoire with a sugar lump as soon as possible (AUTO-13).
   if (!job && grimoireUnlock.pending()) {
     job = grimoireUnlock.job();
+  }
+
+  // Auto play: train Krumblor up to the Dragon Cursor aura (KRUMB-*).
+  if (!job && krumblor.pending()) {
+    job = krumblor.job();
   }
 
   // Auto play: pop mature wrinklers whose cookies the next purchase needs (WRINK-2..6).

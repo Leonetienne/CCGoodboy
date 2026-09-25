@@ -39,8 +39,9 @@ NEVER clicks anything except: good golden cookies, the big cookie, the
 FTHOF spell button, the lump-refill button, a ripe sugar lump, the
 Options/Stats menu buttons and the "View Grimoire" button needed to get the
 FTHOF spell on screen (FT-8), and — in auto play only — the Wizard tower's
-"lvl" button (AUTO-13) and mature wrinklers (WRINK-5) (the paw only
-"visits" store items, AUTO-9).
+"lvl" button (AUTO-13), mature wrinklers (WRINK-5) and Krumblor's tab,
+popup and aura picker (KRUMB-3) (the paw only "visits" store items,
+AUTO-9).
 
 ## 2. Terms
 
@@ -68,6 +69,7 @@ FTHOF spell on screen (FT-8), and — in auto play only — the Wizard tower's
 | stage | `Game.elderWrath`, the Grandmapocalypse stage: 0 calm, 1 awoken (One mind), 2 displeased (Communal brainsweep), 3 angered (Elder Pact). Stage 1 turns 1 in 3 golden cookies into wrath cookies and lets wrinklers spawn. |
 | wrinkler | a creature attached to the big cookie from stage 1 on (max 10, 12 with Elder spice). n attached wrinklers each digest n × 5% of CpS (n² × 5% together) while the bank only gets CpS × (1 − n × 5%); popping one returns what it digested × 1.1 (more with upgrades, × 3 for a shiny one). 10 wrinklers ≈ 6× the income, but only once popped. |
 | respawn time | how long an emptied wrinkler slot takes to digest again: `1 / (spawn chance per frame × fps) + 10s` crawl (~56 min at stage 1: 0.00001 per frame). |
+| Krumblor | the cookie dragon, unlocked by the upgrade "A crumbly egg" (in the store once the heavenly upgrade "How to bake your dragon" is owned and 1M cookies are baked). `Game.dragonLevel` 0-4 are egg levels paid in cookies (1M × 2^level), level 5 → 6 ("Train Dragon Cursor") sacrifices 100 cursors; aura `id` is known from level `id + 4`. |
 | mature | a wrinkler that has digested for >= "maturity" × the respawn time (estimated as `sucked / (CpS × cpsSucked)`). |
 
 ## 3. Functional requirements
@@ -218,8 +220,9 @@ refactor) which `tests/visual/scenarios.mjs` scenario exercises it.
   4. a ripe sugar lump (LUMP-\*)
   5. a buildings-view recipe already under way / the "Show grimoire"
      debug goal (DBG-9/11), then auto play: Grimoire unlock (AUTO-13),
-     then popping a wrinkler for a purchase (WRINK-3), then shopping (only
-     when a purchase is due, AUTO-8)
+     then a Krumblor step (KRUMB-\*), then popping a wrinkler for a
+     purchase (WRINK-3), then shopping (only when a purchase is due,
+     AUTO-8)
   6. hammer mode (manual button, or the auto hammer, AUTO-11)
   7. happy dance (only right after a catch, DANCE-1)
   8. idle behavior (IDLE-\*)
@@ -385,6 +388,12 @@ See [§7 State machine](#7-state-machine) for how this maps onto code.
   30s: a poke that didn't pop pauses 3s (WRINK-4) and then retries while
   the 30s last. Works without auto play; dry run only logs. Fails in red
   when no normal wrinkler is attached.
+- **DBG-15** Unlock crumblor: grants the heavenly upgrade "How to bake
+  your dragon" (`Upgrade.earn()`, as if bought in the ascension tree), so
+  KRUMB-\* can be tested without an ascension. With >= 1M cookies baked
+  the crumbly egg is unlocked into the store at once (the game's own rule;
+  below that it appears once 1M are baked). Fails in red when the egg is
+  already bought.
 ### 3.12 Console voice
 
 The bot talks in the browser console, in the same cute style as the UI
@@ -393,8 +402,9 @@ action log (UI-6); nothing here is stored.
 
 - **CON-1** Happy lines (`sayYay`, `console.log`): GC-8's catch message,
   one short, personal greeting when the bot starts (`Bootstrap.start()`),
-  and `"Popped a stinky wrinkler! Yuckies!"` after each successful pop
-  (WRINK-6).
+  `"Popped a stinky wrinkler! Yuckies!"` after each successful pop
+  (WRINK-6), and `"Krumblor wears Dragon Cursor now, clicky clicky ^w^"`
+  once the aura is on (KRUMB-5).
 - **CON-2** "Wanted to ..., but ..." lines (`console.log`) whenever the bot
   wants to do something and can't. Conditions re-checked every scheduler
   tick go through `sayCantWhile(wish, reasonCode, msg)`, which says each
@@ -412,8 +422,8 @@ action log (UI-6); nothing here is stored.
 
   One-off events use `sayCant(msg)`: a golden cookie click that didn't pop
   it (not for storm drops), a FTHOF/refill/lump click that did nothing,
-  FT-8 preparation falling back to a direct cast, the Grimoire unlock or
-  wrinkler popping pausing (with the reason), a purchase the shop refused,
+  FT-8 preparation falling back to a direct cast, the Grimoire unlock,
+  wrinkler popping or Krumblor training pausing (with the reason), a purchase the shop refused,
   a failed debug tool or "Show grimoire".
 - **CON-3** Errors (`sayOops`, `console.error` with the error object): a
   failing action (SCHED-4, `CursorManager`), a failing timer callback, the
@@ -669,6 +679,50 @@ action log (UI-6); nothing here is stored.
   many are mature, and a shiny one if present.
   Debug: DBG-12.
 
+### 3.18 Krumblor, the cookie dragon (auto play)
+
+- **KRUMB-1** With auto play and "Auto: train Krumblor (Dragon Cursor)"
+  (`config.autoKrumblor`, DEFAULT ON) on, the bot raises Krumblor up to
+  the Dragon Cursor aura and no further: it buys "A crumbly egg" once it
+  is in the store, pays the egg levels (1M, 2M, 4M, 8M, 16M cookies:
+  "Chip it" ×3, "Hatch it", "Train Breath of Milk"), trains Dragon Cursor
+  (level 5 → 6, sacrifices 100 cursors) and puts it on. Nothing without
+  the egg (it needs the heavenly upgrade "How to bake your dragon").
+- **KRUMB-2** Cookie costs (the egg, each egg level, cursors bought to
+  reach 100) are only paid when they are insignificant (AUTO-4 A: <=
+  `autoInsignificantSec` × CpS) and leave the reserve (AUTO-6) alone, so
+  the dragon never competes with real purchases. Right before the
+  sacrifice every cursor above 100 is sold (the 25% given back for the
+  priciest ones pays for far more than rebuying the cheapest ones), and
+  after it the sold ones are bought back (`runtime.krumblorRebuy`, as many
+  as the bank pays; the rest is left to shopping). Fewer than 100 cursors:
+  the missing ones are bought first. Buying never happens while the store
+  is in sell mode (the game's `buy()` sells then).
+- **KRUMB-3** Like a human, one step per scheduler tick, re-derived from
+  the live game each time (`nextKrumblorStep()`,
+  `src/autoplay/krumblor-strategy.ts`), so a preempted step is simply
+  picked up again: the paw opens the popup by clicking the dragon's tab,
+  which the game draws on `#backgroundLeftCanvas` and hit-tests itself
+  (`Game.UpdateSpecial`: x 24, y canvas height − 24 − 48 × tab count + 48 ×
+  tab index, ±24px), clicks the popup's train button, the aura slot, the
+  Dragon Cursor crate and "Confirm" in the "Set your dragon's aura" prompt,
+  and finally the popup's "x" — real synthetic clicks (NFR-8 a). The egg
+  purchase and the cursor sale/rebuy go through the game's API with the paw
+  visiting the store item and pulsing (NFR-8 b, like AUTO-9). The paw only
+  closes a popup it opened and only answers an aura picker it opened
+  (30s); it also closes its popup while waiting for cookies.
+- **KRUMB-4** Safety: same gates as AUTO-7 (golden cookie ready, Click
+  Frenzy, storm/chain, FTHOF/refill pending, ascending, paused; a prompt
+  other than its own aura picker). A click that didn't do its job pauses
+  training 3s, an element that doesn't show up for 5s pauses it 10s. Dry
+  run only logs "would do". Priority: tier 5, after the Grimoire unlock,
+  before wrinkler pops and shopping; a due step interrupts hammering and
+  idle play like a due purchase (AUTO-8).
+- **KRUMB-5** The aura goes into slot 0 only while slot 0 is "No aura":
+  an aura the player picked is never replaced. Switching costs 1 of the
+  highest building owned (the game's rule). Every step is logged
+  (`"krumblor"`). Debug: DBG-15.
+
 ## 4. Non-functional requirements
 
 - **NFR-1** Versioning: MAJOR.MINOR.PATCH, shown in the panel. Bump with
@@ -760,6 +814,7 @@ saved (see `normalizeSetting()` in
 | `autoWrinklerMaturity` | Auto: pop a wrinkler after (x its respawn time) | 5 | 1-50 |
 | `autoGrandmapocalypse` | Auto: grandmapocalypse stage 1 (wrinklers) [checkbox] | true | – |
 | `autoPopWrinklers` | Auto: pop wrinklers for purchases [checkbox] | true | – |
+| `autoKrumblor` | Auto: train Krumblor (Dragon Cursor) [checkbox] | true | – |
 
 (all "Auto" settings are only shown while Auto play is on)
 
@@ -814,14 +869,14 @@ gainLumps) — still guarded, still the only path to those `Game.*` calls.
 | Area | Path | Contents |
 |---|---|---|
 | Core state | `src/core/` | `constants.ts` (VERSION, clamp helpers), `console-voice.ts` (CON-\*), `persisted-data.ts`, `runtime-state.ts`, `state-machine.ts` |
-| Game facade | `src/game/` | `game-adapter.ts` (IGameAdapter + GameAdapter), `types.ts` (GameShimmer/RawBuff/CpsBuff/GrimoireMinigame/GameBuilding/GameUpgrade), `golden-cookie-model.ts` (fade curve, shimmer classification, GC-2/GC-3), `hurry-mode.ts` (HURRY-\*), `buffs-lock.ts` (LOCK_A, FT-6), `grimoire.ts` (FTHOF spell/cost lookup), `grimoire-dom.ts` (real Grimoire controls — FT-7), `lump-dom.ts` (`#lumps` control/centre — LUMP-\*), `wrinkler-dom.ts` (`#backgroundLeftCanvas`, a wrinkler's body point — WRINK-5), `buildings-view-dom.ts` (`#centerArea`, menu buttons, building rows/level buttons, the Options/Stats/Stats recipe, `centeredScrollTop` — AUTO-13), `dom-geometry.ts` (visibleRect/looseRect/clippedByAncestor — shared by every overlay box, GC-2/BUY-3) |
+| Game facade | `src/game/` | `game-adapter.ts` (IGameAdapter + GameAdapter), `types.ts` (GameShimmer/RawBuff/CpsBuff/GrimoireMinigame/GameBuilding/GameUpgrade), `golden-cookie-model.ts` (fade curve, shimmer classification, GC-2/GC-3), `hurry-mode.ts` (HURRY-\*), `buffs-lock.ts` (LOCK_A, FT-6), `grimoire.ts` (FTHOF spell/cost lookup), `grimoire-dom.ts` (real Grimoire controls — FT-7), `lump-dom.ts` (`#lumps` control/centre — LUMP-\*), `wrinkler-dom.ts` (`#backgroundLeftCanvas`, a wrinkler's body point — WRINK-5), `dragon-dom.ts` (the dragon's canvas tab, `#specialPopup`, the aura picker — KRUMB-3), `buildings-view-dom.ts` (`#centerArea`, menu buttons, building rows/level buttons, the Options/Stats/Stats recipe, `centeredScrollTop` — AUTO-13), `dom-geometry.ts` (visibleRect/looseRect/clippedByAncestor — shared by every overlay box, GC-2/BUY-3) |
 | Cursor (queue) | `src/cursor/` | `types.ts` (`JOB_PRIORITY`, `CursorAction`, `CursorJob`, `CursorJobContext`, `CursorMover`, `CursorClickTiming`, `JobRequest`), `cursor-manager.ts` (owns the priority queue + all cursor motion: click gap → travel → pre-click pause → `cursor_at_position`, dedup by key, preemption, single cursor writer) |
-| Actions | `src/actions/` | `click-element.ts` (ClickElementAction/MoveAction/VisualPressAction), `golden-cookie.ts` (GoldenCookieAction, `effectPrettyName`), `hammer.ts` (HammerAction + big-cookie point helpers, CF-\*), `fthof.ts` (FthofAction/RefillAction), `lump-harvest.ts` (LumpHarvestAction, LUMP-\*), `buildings-view.ts` (MenuButtonAction, ScrollIntoViewAction, MinigameButtonAction — FT-8/AUTO-13/DBG-9..11), `grimoire-unlock.ts` (GrimoireUnlockAction, AUTO-13), `wrinkler-pop.ts` (WrinklerPopAction, WRINK-5), `dance.ts` (DanceAction + `danceEligible`/`anyGoldenPresent`/`getDanceMs`), `ponder.ts` (PonderAction), `idle.ts` (IdleWanderAction + `IDLE_SPOTS`/`pickIdleSpot`) |
+| Actions | `src/actions/` | `click-element.ts` (ClickElementAction/MoveAction/VisualPressAction), `golden-cookie.ts` (GoldenCookieAction, `effectPrettyName`), `hammer.ts` (HammerAction + big-cookie point helpers, CF-\*), `fthof.ts` (FthofAction/RefillAction), `lump-harvest.ts` (LumpHarvestAction, LUMP-\*), `buildings-view.ts` (MenuButtonAction, ScrollIntoViewAction, MinigameButtonAction — FT-8/AUTO-13/DBG-9..11), `grimoire-unlock.ts` (GrimoireUnlockAction, AUTO-13), `wrinkler-pop.ts` (WrinklerPopAction, WRINK-5), `krumblor.ts` (DragonClickAction/DragonStoreAction, KRUMB-3), `dance.ts` (DanceAction + `danceEligible`/`anyGoldenPresent`/`getDanceMs`), `ponder.ts` (PonderAction), `idle.ts` (IdleWanderAction + `IDLE_SPOTS`/`pickIdleSpot`) |
 | Hunting (modules) | `src/hunting/` | `click-golden.ts` (golden hunter: `jobFor` → GoldenCookieAction), `click-big-cookie.ts` (hammer module: `job` → HammerAction), `golden-queue.ts` (route caching, wraps route-planner), `fthof.ts` (FthofActions: `fthofOrRefillPending` + `castJob`/`refillJob`), `lump-harvest.ts` (LumpHarvestActions: `pending` + `harvestJob`), `happy-dance.ts` (HappyDance: `job` → DanceAction), `buildings-view.ts` (BuildingsViewNavigator: Options/Stats/Stats recipe + scroll-into-view steps, `PrepStep`), `grimoire-view.ts` (GrimoireView: step planner to an unlocked/open, on-screen Grimoire — FT-8/AUTO-13 — plus the DBG-9..11 tools and their scheduler tier), `hitbox-overlay.ts` (GC-2) |
 | Routing | `src/routing/route-planner.ts` | `exactRoute` (Held-Karp DP, <= 11 cookies), `heuristicRoute` (nearest-neighbor + 2-opt/Or-opt + restarts), `planRoute` (GC-5) |
 | Idle | `src/idle/` | `idle-behavior.ts` (IdleBehavior module: `idleJob` → IdleWanderAction), `pending-work.ts` (conditions + queue state via `CursorManager.hasJobsAbove` — the shared "is anything more important pending?" predicate) |
 | Input synthesis | `src/input/` | `dispatch.ts` (dispatchMouse/dispatchMove — MOUSE-\*), `human-click.ts` (ClickTiming: delays, waitUntil, humanClick), `cursor-controller.ts` (CursorController: low-level PAW-4 arc/spline/warp travel, moveCursorTo/glideCursor — the only file that writes `runtime.cursor.x/y`), `background-clock.ts` (BackgroundClock: BG-1/BG-2 worker timer), `keep-alive.ts` (BG-3) |
-| Auto play | `src/autoplay/` | `valuation-tables.ts` (AUTO_BLOCKED_\*, AUTO_GOLDEN_UPGRADES, AUTO_KITTEN_POWER, AUTO_FINGER_STEPS, AUTO_BUILDING_CAPS — AUTO-2 data), `building-valuation.ts` + `upgrade-classifier.ts` (AUTO-3 gain math per candidate type), `collector.ts` (`autoCollect`: gathers candidates + ctx, AUTO-7 safety gates), `strategy.ts` (`autoDecide`: the pure insignificant/good/postpone/save decision, AUTO-4 — flagship unit-test target), `shopping.ts` (`AutoPlayEngine`: evaluate/shopJob/statusText, AUTO-1/8/9/10/12), `auto-hammer.ts` (AUTO-11), `grimoire-unlock.ts` (`GrimoireUnlocker`: AUTO-13 gating, steps from GrimoireView), `wrinkler-strategy.ts` (pure: respawn time, maturity, fewest-fattest pick — WRINK-2/3), `grandmapocalypse-valuation.ts` (pure: stage 1 gain, delay, chain-step dCps — WRINK-1), `wrinkler-popper.ts` (`WrinklerPopper`: WRINK-3/4 gating, plan, job, HUD text), `income-tracker.ts` (smoothed clicking income for AUTO-3's `income`), `buy-value-overlay.ts` (BUY-\*) |
+| Auto play | `src/autoplay/` | `valuation-tables.ts` (AUTO_BLOCKED_\*, AUTO_GOLDEN_UPGRADES, AUTO_KITTEN_POWER, AUTO_FINGER_STEPS, AUTO_BUILDING_CAPS — AUTO-2 data), `building-valuation.ts` + `upgrade-classifier.ts` (AUTO-3 gain math per candidate type), `collector.ts` (`autoCollect`: gathers candidates + ctx, AUTO-7 safety gates), `strategy.ts` (`autoDecide`: the pure insignificant/good/postpone/save decision, AUTO-4 — flagship unit-test target), `shopping.ts` (`AutoPlayEngine`: evaluate/shopJob/statusText, AUTO-1/8/9/10/12), `auto-hammer.ts` (AUTO-11), `grimoire-unlock.ts` (`GrimoireUnlocker`: AUTO-13 gating, steps from GrimoireView), `wrinkler-strategy.ts` (pure: respawn time, maturity, fewest-fattest pick — WRINK-2/3), `grandmapocalypse-valuation.ts` (pure: stage 1 gain, delay, chain-step dCps — WRINK-1), `wrinkler-popper.ts` (`WrinklerPopper`: WRINK-3/4 gating, plan, job, HUD text), `krumblor-strategy.ts` (pure: next Krumblor step — KRUMB-1/2/5), `krumblor.ts` (`KrumblorTrainer`: KRUMB-\* gating, state, jobs, the cursor sale/rebuy), `income-tracker.ts` (smoothed clicking income for AUTO-3's `income`), `buy-value-overlay.ts` (BUY-\*) |
 | Scheduler | `src/scheduler/` | `priority.ts` (`selectJobRequest`: the SCHED-1 cascade as pure data), `scheduler.ts` (`Scheduler.tick()`: wrath logging, queue build, enqueues ONE job via CursorManager), `overlay-loop.ts` (`OverlayLoop`: the requestAnimationFrame draw loop — hitboxes, buy-value overlay, paw) |
 | Rendering | `src/rendering/` | `paw-cursor.ts` (`PawCursor`: PAW-1..3, sprite rasterizing, click pulse, fallback drawn paw), `overlay-canvas.ts` (resize/DPR handling) |
 | Stats | `src/stats/` | `log.ts` (`LogStore`), `stats.ts` (`StatsRecorder`: GC-6/AUTO-10 counters + hourly buckets) |
@@ -874,6 +929,7 @@ target)`) instead of scattering direct field writes across every task.
 | `buildings-view` | clicking Options/Stats back to the buildings, scrolling `#centerArea`, or clicking "View Grimoire" (FT-8, AUTO-13, DBG-9..11) | `MenuButtonAction` / `ScrollIntoViewAction` / `MinigameButtonAction` |
 | `grimoire-unlock` | spending a sugar lump on Wizard tower level 1 (AUTO-13) | `GrimoireUnlockAction` |
 | `wrinkler-pop` | poking a mature wrinkler until it bursts (WRINK-5) | `WrinklerPopAction` |
+| `krumblor` | buying the crumbly egg, clicking Krumblor's tab/popup/aura picker, selling/buying cursors for the sacrifice (KRUMB-\*) | `DragonClickAction` / `DragonStoreAction` |
 | `auto-shop` | visiting/buying a store item (AUTO-9) | auto-shop `CursorAction` from `AutoPlayEngine.shopJob()` |
 | `happy-dance` | post-catch celebration (DANCE-\*) | `DanceAction` |
 
@@ -896,8 +952,8 @@ file.**
 
 Three layers, each catching a different class of bug:
 
-1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 302 tests
-   across 34 files. Pure functions (route planner, `autoDecide`, the chart
+1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 319 tests
+   across 35 files. Pure functions (route planner, `autoDecide`, the chart
    engine, `normalizeSetting`) are tested directly with plain data; the
    cursor queue/actions have their own fake mover/timing tests. Classes
    that depend on the game are tested against `FakeGameAdapter`
@@ -1030,7 +1086,11 @@ building list to the top before spawning a Frenzy + "Fill Up Mana"), sugar lump 
 lump" then watch the paw harvest it), wrinkler popping (WRINK-\*: auto
 play on, "Spawn fed wrinklers", then make the next purchase need them —
 e.g. spend the bank down; watch the paw poke one wrinkler 3 times and the
-purchase follow; a Frenzy must hold it back), Grimoire unlock (AUTO-13: on a test
+purchase follow; a Frenzy must hold it back), Krumblor (KRUMB-\*: on
+a test save with > 100 cursors and some CpS, auto play on, "Unlock
+crumblor"; watch the egg bought, the tab clicked, 5 trainings, the cursors sold
+to 100, the sacrifice, the rebuy, the aura picked and confirmed, the popup
+closed), Grimoire unlock (AUTO-13: on a test
 save with a Wizard tower at level 0, give lumps, open Options, switch auto
 play on, scroll the building list to the top; watch Options/Stats/Stats,
 the wheel-scroll and the "lvl" click; DBG-9/10 exercise the first two
@@ -1040,6 +1100,27 @@ mouse while the bot runs and confirm the "+N" number follows your cursor,
 not the paw's).
 
 ## 12. Changelog
+
+- **5.1.1** The Krumblor debug tool (DBG-15) is now "Unlock crumblor": it
+  grants the heavenly upgrade "How to bake your dragon" instead of only
+  unlocking the crumbly egg, and unlocks the egg right away when 1M
+  cookies are baked. `IGameAdapter.unlockCrumblyEgg()` became
+  `unlockKrumblor()`.
+
+- **5.1.0** New auto play module: Krumblor (KRUMB-\*). With the crumbly egg
+  in the store it buys the egg, trains the dragon through the egg levels
+  (only with insignificant cookie costs), sells the cursors above 100,
+  sacrifices 100 cursors for Dragon Cursor, buys the sold ones back, puts on
+  the Dragon Cursor aura (never replacing a player-picked one) and closes
+  the popup — every step a real click (the dragon's tab on the left canvas,
+  the popup, the aura picker) or a store visit with a pulse. New setting
+  "Auto: train Krumblor (Dragon Cursor)" (`autoKrumblor`, on), mood
+  `krumblor`, debug tool "Unlock crumbly egg (Krumblor)" (DBG-15);
+  `IGameAdapter` gains `getDragonLevel`/`getDragonAuras`/
+  `getSelectingDragonAura`/`getSpecialTabs`/`getSpecialTab` and
+  `unlockCrumblyEgg`. Checked end to end against a local copy of the game
+  (2.058). Unit tests in `tests/unit/krumblor.test.ts` and
+  `tests/unit/priority.test.ts`.
 
 - **5.0.11** Auto play never buys Exotic nuts any more: it starts the
   research of Communal brainsweep (stage 2), which is out of scope. It

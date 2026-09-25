@@ -90,6 +90,14 @@ export class RuntimeState {
   wrinklerBlockUntil = 0;
   /** Debug tool "Pop a wrinkler": force one pop through the normal pipeline until then. */
   wrinklerForcePopUntil = 0;
+  /** Krumblor (KRUMB-*): a pause after a failure, cursors sold before the sacrifice that are
+   * still to be bought back, whether the paw opened the dragon's popup / aura picker (it only
+   * closes / answers its own), and since when a step's element can't be found. */
+  krumblorBlockUntil = 0;
+  krumblorRebuy = 0;
+  krumblorMenuOurs = false;
+  krumblorPickerAt = 0;
+  krumblorStuckSince = 0;
   autoHammerState: AutoHammerState = {
     on: false,
     wanted: null,

@@ -50,6 +50,7 @@ export class DebugTools {
       { label: 'Spawn fed wrinklers (sets stage 1)', run: () => this.spawnFedWrinklers() },
       { label: 'Spawn a wrinkler', run: () => this.spawnWrinkler() },
       { label: 'Pop a wrinkler', run: () => this.wrinklers.debugPopWrinkler() },
+      { label: 'Unlock crumblor', run: () => this.unlockKrumblor() },
       { label: 'Show buildings view', run: () => this.buildingsNav.debugShowBuildingsView() },
       { label: 'Scroll to Wizard towers', run: () => this.buildingsNav.debugScrollToWizardTowers() },
       { label: 'Show grimoire', run: () => this.buildingsNav.debugShowGrimoire() },
@@ -122,6 +123,14 @@ export class DebugTools {
     const n = this.game.spawnFedWrinklers(6 * 3600);
 
     return n > 0 ? `spawned ${n} fed wrinklers (6h of digesting each)` : 'every wrinkler slot is already taken';
+  }
+
+  /** DBG-15: grants the heavenly upgrade "How to bake your dragon", so the crumbly egg
+   * shows up in the store. */
+  private unlockKrumblor(): string {
+    return this.game.unlockKrumblor()
+      ? '"How to bake your dragon" granted, a crumbly egg is in the store: with auto play on, the paw trains Krumblor owo'
+      : '"How to bake your dragon" granted: the crumbly egg shows up once you have baked 1 million cookies';
   }
 
   /** DBG-13: one wrinkler crawls into the first free slot. */

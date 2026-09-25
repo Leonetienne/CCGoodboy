@@ -69,6 +69,7 @@ export class SettingsPanel {
     this.data.config.autoGrandmapocalypse = (document.getElementById('ccsb-auto-grandmapocalypse') as HTMLInputElement).checked;
     this.data.config.autoPopWrinklers = (document.getElementById('ccsb-auto-pop-wrinklers') as HTMLInputElement).checked;
     this.runtime.wrinklerNextEvalAt = 0;
+    this.data.config.autoKrumblor = (document.getElementById('ccsb-auto-krumblor') as HTMLInputElement).checked;
 
     this.runtime.autoNextEvalAt = 0;
 
