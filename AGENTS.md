@@ -401,6 +401,13 @@ See [§7 State machine](#7-state-machine) for how this maps onto code.
   wrinklers during Easter season) that is neither unlocked nor bought, so
   all of them sit in the store (EGG-\*). Fails in red when every egg is
   already unlocked or bought.
+- **DBG-17** Unlock all halloween upgrades: unlocks every Halloween cookie
+  (`Game.halloweenDrops`: Skull, Ghost, Bat, Slime, Pumpkin, Eyeball and
+  Spider cookies, normally random drops from popped wrinklers during
+  Halloween season) that is neither unlocked nor bought, so all of them sit
+  in the store. They are ordinary cookie upgrades (+2% CpS, fixed price),
+  so auto play buys them as biscuits (AUTO-2). Fails in red when every one
+  is already unlocked or bought.
 ### 3.12 Console voice
 
 The bot talks in the browser console, in the same cute style as the UI
@@ -1141,6 +1148,10 @@ mouse while the bot runs and confirm the "+N" number follows your cursor,
 not the paw's).
 
 ## 12. Changelog
+
+- **5.2.2** New debug tool "Unlock all halloween upgrades" (DBG-17): puts
+  the 7 Halloween cookies in the store; `IGameAdapter` gains
+  `unlockHalloweenCookies()`. Auto play already bought them as biscuits.
 
 - **5.2.1** Removed the "Auto: buy Easter eggs" setting (`autoEasterEggs`)
   from 5.2.0: auto play always buys the Easter eggs (EGG-1).

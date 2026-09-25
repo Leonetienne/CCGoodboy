@@ -52,6 +52,7 @@ export class FakeGameAdapter implements IGameAdapter {
   specialTab = '';
   krumblorUnlocked = false;
   easterEggsUnlocked = 0;
+  halloweenCookiesUnlocked = 0;
 
   isPresent(): boolean {
     return this.present;
@@ -313,6 +314,10 @@ export class FakeGameAdapter implements IGameAdapter {
 
   unlockEasterEggs(): number {
     return this.easterEggsUnlocked;
+  }
+
+  unlockHalloweenCookies(): number {
+    return this.halloweenCookiesUnlocked;
   }
 
   unlockKrumblor(): boolean {

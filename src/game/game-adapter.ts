@@ -92,6 +92,9 @@ export interface IGameAdapter {
   /** Unlocks every Easter egg upgrade (Game.easterEggs) that is not yet unlocked or bought, so
    * it sits in the store; returns how many were unlocked. */
   unlockEasterEggs(): number;
+  /** Unlocks every Halloween cookie (Game.halloweenDrops) that is not yet unlocked or bought,
+   * so it sits in the store; returns how many were unlocked. */
+  unlockHalloweenCookies(): number;
 }
 
 export class GameAdapter implements IGameAdapter {
@@ -653,6 +656,26 @@ export class GameAdapter implements IGameAdapter {
     let n = 0;
 
     for (const name of Game.easterEggs) {
+      const up = Game.Upgrades[name];
+      if (!up || up.bought || up.unlocked) continue;
+
+      Game.Unlock(name);
+      n++;
+    }
+
+    return n;
+  }
+
+  unlockHalloweenCookies(): number {
+    const Game = window.Game;
+
+    if (!Game || !Array.isArray(Game.halloweenDrops) || typeof Game.Unlock !== 'function' || !Game.Upgrades) {
+      throw new Error('Game.halloweenDrops is not available');
+    }
+
+    let n = 0;
+
+    for (const name of Game.halloweenDrops) {
       const up = Game.Upgrades[name];
       if (!up || up.bought || up.unlocked) continue;
 

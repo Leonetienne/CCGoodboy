@@ -52,6 +52,7 @@ export class DebugTools {
       { label: 'Pop a wrinkler', run: () => this.wrinklers.debugPopWrinkler() },
       { label: 'Unlock crumblor', run: () => this.unlockKrumblor() },
       { label: 'Unlock all easter upgrades', run: () => this.unlockEasterEggs() },
+      { label: 'Unlock all halloween upgrades', run: () => this.unlockHalloweenCookies() },
       { label: 'Show buildings view', run: () => this.buildingsNav.debugShowBuildingsView() },
       { label: 'Scroll to Wizard towers', run: () => this.buildingsNav.debugScrollToWizardTowers() },
       { label: 'Show grimoire', run: () => this.buildingsNav.debugShowGrimoire() },
@@ -144,6 +145,17 @@ export class DebugTools {
     }
 
     return `${n} Easter eggs are in the store now: with auto play on, the paw buys them owo`;
+  }
+
+  /** DBG-17: puts every Halloween cookie (usually random wrinkler drops) in the store. */
+  private unlockHalloweenCookies(): string {
+    const n = this.game.unlockHalloweenCookies();
+
+    if (!n) {
+      throw new Error('every Halloween cookie is already unlocked or bought');
+    }
+
+    return `${n} Halloween cookies are in the store now: with auto play on, the paw buys them owo`;
   }
 
   /** DBG-13: one wrinkler crawls into the first free slot. */
