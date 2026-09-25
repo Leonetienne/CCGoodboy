@@ -66,7 +66,8 @@ export interface GameUpgrade {
   desc?: string;
   bought?: boolean | number;
   pool?: string;
-  power?: number;
+  /** +power% CpS of a cookie upgrade; a function for a few (heart biscuits: 2, 3 with Starlove). */
+  power?: number | ((up: GameUpgrade) => number);
   basePrice?: number;
   getPrice?: () => number;
   /** `bypass` skips the upgrade's confirmation prompt (e.g. One mind), exactly like the

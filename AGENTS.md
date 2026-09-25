@@ -426,6 +426,13 @@ See [§7 State machine](#7-state-machine) for how this maps onto code.
   (`new Game.shimmer('reindeer')`, works in any season), and the paw
   catches it (XMAS-6). Fails in red if the game has no reindeer shimmer
   type.
+- **DBG-20** Unlock all valentines upgrades: unlocks every Valentine's heart
+  biscuit (`Game.heartDrops`: Pure, Ardent, Sour, Weeping, Golden, Eternal
+  and Prism heart biscuits, normally unlocked one after another during
+  Valentine's season, each once the previous one is bought) that is neither
+  unlocked nor bought, so all of them sit in the store. They are ordinary
+  cookie upgrades, so auto play buys them as biscuits (AUTO-2/AUTO-3). Fails
+  in red when every one is already unlocked or bought.
 ### 3.12 Console voice
 
 The bot talks in the browser console, in the same cute style as the UI
@@ -511,7 +518,8 @@ action log (UI-6); nothing here is stored.
   the Grandmapocalypse past stage 1, and nothing it cannot classify.
 - **AUTO-3** Value model per option: cost; approximate CpS gain `dCps`
   (buildings: per-building CpS × global multiplier; "twice as efficient":
-  that building's CpS; biscuit: its power % of CpS; golden upgrades: an
+  that building's CpS; biscuit: its power % of CpS, evaluated when the game
+  gives it as a function, like the heart biscuits' 2%/3% with Starlove; golden upgrades: an
   assumed share of CpS; CLICKING upgrades are valued in cookies/s at the
   hammer rate: click power × clicks per second, so the cursor doubling
   upgrades are worth their click gain even with 0 cursors); payback = cost
@@ -1088,7 +1096,7 @@ file.**
 
 Three layers, each catching a different class of bug:
 
-1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 357 tests
+1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 359 tests
    across 38 files. Pure functions (route planner, `autoDecide`, the chart
    engine, `normalizeSetting`) are tested directly with plain data; the
    cursor queue/actions have their own fake mover/timing tests. Classes
@@ -1239,6 +1247,18 @@ mouse while the bot runs and confirm the "+N" number follows your cursor,
 not the paw's).
 
 ## 12. Changelog
+
+- **5.3.5** Fixed: auto play never bought the Valentine's heart biscuits.
+  The game gives their power as a function (`heartPower`), which the
+  biscuit valuation read as NaN and so left them unclassified. New
+  `biscuitPower()` (`src/autoplay/upgrade-classifier.ts`) evaluates it
+  (AUTO-3), also for the bought-biscuit base; the "how good is a buy"
+  overlay scores them too. Unit tests in
+  `tests/unit/upgrade-classifier.test.ts`.
+
+- **5.3.4** New debug tool "Unlock all valentines upgrades" (DBG-20): puts
+  the 7 heart biscuits in the store; `IGameAdapter` gains
+  `unlockValentinesCookies()`.
 
 - **5.3.3** Fixed: the paw chased a reindeer to where it had been and
   clicked long after it had run on. It now leads the reindeer (XMAS-6):

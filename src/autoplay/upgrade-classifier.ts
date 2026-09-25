@@ -21,6 +21,17 @@ export function autoPrice(up: GameUpgrade): number {
   return typeof up.getPrice === 'function' ? Number(up.getPrice()) : Number(up.basePrice);
 }
 
+/** +N% CpS of a cookie (biscuit) upgrade: `power` is a number, or a function the game
+ * evaluates the same way (the heart biscuits' `heartPower`). 0 if unknown. */
+export function biscuitPower(up: GameUpgrade): number {
+  try {
+    const p = Number(typeof up.power === 'function' ? up.power(up) : up.power);
+    return p > 0 ? p : 0;
+  } catch {
+    return 0;
+  }
+}
+
 /** Classifies a store upgrade and estimates the CpS it adds. Only these are considered:
  *   golden   golden cookie upgrades (AUTO_GOLDEN_UPGRADES)
  *   grandma  grandma "cofactor" upgrades: grandmas twice as efficient + 1% CpS of a building
@@ -98,7 +109,7 @@ export function autoUpgradeGain(game: IGameAdapter, up: GameUpgrade, ctx: Upgrad
   }
 
   if (up.pool === 'cookie') {
-    const p = Number(up.power);
+    const p = biscuitPower(up);
     if (!(p > 0)) return null;
 
     if (ctx.biscuitBase == null) {
@@ -106,7 +117,7 @@ export function autoUpgradeGain(game: IGameAdapter, up: GameUpgrade, ctx: Upgrad
 
       for (const u of game.getUpgrades()) {
         if (u && u.pool === 'cookie' && u.bought) {
-          a += (Number(u.power) || 0) / 100;
+          a += biscuitPower(u) / 100;
         }
       }
 

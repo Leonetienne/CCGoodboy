@@ -55,6 +55,7 @@ export class DebugTools {
       { label: 'Unlock all easter upgrades', run: () => this.unlockEasterEggs() },
       { label: 'Unlock all halloween upgrades', run: () => this.unlockHalloweenCookies() },
       { label: 'Unlock all christmas upgrades', run: () => this.unlockChristmasUpgrades() },
+      { label: 'Unlock all valentines upgrades', run: () => this.unlockValentinesCookies() },
       { label: 'Show buildings view', run: () => this.buildingsNav.debugShowBuildingsView() },
       { label: 'Scroll to Wizard towers', run: () => this.buildingsNav.debugScrollToWizardTowers() },
       { label: 'Show grimoire', run: () => this.buildingsNav.debugShowGrimoire() },
@@ -176,6 +177,18 @@ export class DebugTools {
     }
 
     return `${n} Christmas upgrades are in the store now: with auto play on, the paw buys them and evolves Santa owo`;
+  }
+
+  /** DBG-20: puts every Valentine's heart biscuit (usually unlocked one by one during
+   * Valentine's season) in the store. */
+  private unlockValentinesCookies(): string {
+    const n = this.game.unlockValentinesCookies();
+
+    if (!n) {
+      throw new Error("every Valentine's heart biscuit is already unlocked or bought");
+    }
+
+    return `${n} heart biscuits are in the store now: with auto play on, the paw buys them owo`;
   }
 
   /** DBG-13: one wrinkler crawls into the first free slot. */

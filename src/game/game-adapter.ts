@@ -108,6 +108,9 @@ export interface IGameAdapter {
    * gifts Game.santaDrops, the reindeer biscuits Game.reindeerDrops, Santa's dominion), so it
    * sits in the store; returns how many were unlocked. */
   unlockChristmasUpgrades(): number;
+  /** Unlocks every Valentine's heart biscuit (Game.heartDrops) that is not yet unlocked or
+   * bought, so it sits in the store; returns how many were unlocked. */
+  unlockValentinesCookies(): number;
 }
 
 export class GameAdapter implements IGameAdapter {
@@ -730,6 +733,26 @@ export class GameAdapter implements IGameAdapter {
     let n = 0;
 
     for (const name of ['A festive hat', ...Game.santaDrops, ...Game.reindeerDrops, "Santa's dominion"]) {
+      const up = Game.Upgrades[name];
+      if (!up || up.bought || up.unlocked) continue;
+
+      Game.Unlock(name);
+      n++;
+    }
+
+    return n;
+  }
+
+  unlockValentinesCookies(): number {
+    const Game = window.Game;
+
+    if (!Game || !Array.isArray(Game.heartDrops) || typeof Game.Unlock !== 'function' || !Game.Upgrades) {
+      throw new Error('Game.heartDrops is not available');
+    }
+
+    let n = 0;
+
+    for (const name of Game.heartDrops) {
       const up = Game.Upgrades[name];
       if (!up || up.bought || up.unlocked) continue;
 

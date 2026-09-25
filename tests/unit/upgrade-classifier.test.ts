@@ -55,6 +55,22 @@ describe('autoUpgradeGain', () => {
     expect(g).toEqual({ gain: 10, type: 'biscuit' });
   });
 
+  it('values a biscuit whose power is a function (heart biscuits)', () => {
+    const game = new FakeGameAdapter();
+    game.upgrades = [upgrade('Pure heart biscuits', { pool: 'cookie', power: () => 2, bought: 1 })];
+    const g = autoUpgradeGain(game, upgrade('Ardent heart biscuits', { pool: 'cookie', power: () => 2 }), baseCtx({ cps: 102 }));
+    expect(g!.type).toBe('biscuit');
+    expect(g!.gain).toBeCloseTo(2); // 102 x 2% / 1.02 (the bought heart biscuit counts in the base)
+  });
+
+  it('ignores a biscuit whose power function throws', () => {
+    const game = new FakeGameAdapter();
+    const power = () => {
+      throw new Error('boom');
+    };
+    expect(autoUpgradeGain(game, upgrade('Broken biscuit', { pool: 'cookie', power }), baseCtx())).toBeNull();
+  });
+
   it('values a mouse "clicking gains" upgrade using the hammer click rate', () => {
     const game = new FakeGameAdapter();
     const up = upgrade('Fingertips', { desc: 'Clicking gains +5% of your CpS.' });

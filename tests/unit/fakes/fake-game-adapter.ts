@@ -54,6 +54,7 @@ export class FakeGameAdapter implements IGameAdapter {
   easterEggsUnlocked = 0;
   halloweenCookiesUnlocked = 0;
   christmasUpgradesUnlocked = 0;
+  valentinesCookiesUnlocked = 0;
   santaLevel = 0;
   reindeerSpawned = 0;
   shimmerFieldWidth = 1000;
@@ -331,6 +332,10 @@ export class FakeGameAdapter implements IGameAdapter {
 
   unlockChristmasUpgrades(): number {
     return this.christmasUpgradesUnlocked;
+  }
+
+  unlockValentinesCookies(): number {
+    return this.valentinesCookiesUnlocked;
   }
 
   getSantaLevel(): number {
