@@ -167,6 +167,11 @@ function panelBodyHtml(version: string): string {
             Pretty overlays ^w^
         </label>
 
+        <label style="display:flex;gap:6px;align-items:center;margin-top:5px" title="An osu!-style light show while hunting golden cookies and reindeer: approach circles, bursts, a combo counter, a rainbow trail and sweeping spotlights. Needs Pretty overlays. Flashes are rate-limited and skipped with reduced motion.">
+            <input id="ccsb-hunt-fx" type="checkbox">
+            Over-the-top hunting show (osu! mode) !!
+        </label>
+
         <label style="display:flex;gap:6px;align-items:center;margin-top:5px">
             <input id="ccsb-idle-wander" type="checkbox">
             Idle playtime (paw wanders) :3

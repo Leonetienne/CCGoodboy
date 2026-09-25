@@ -209,7 +209,7 @@ export class Bootstrap {
       goldenCookieModel,
       goldenQueue,
       cursor: runtime.cursor,
-    });
+    }, hurryMode);
     this.overlayLoop.start();
 
     window.addEventListener('beforeunload', this.saveNow);

@@ -2,6 +2,7 @@ import type { AutoPlan } from '../autoplay/shopping';
 import type { Decision } from '../autoplay/strategy';
 import type { WrinklerPopPlan } from '../autoplay/wrinkler-strategy';
 import type { IntervalHandle } from '../input/background-clock';
+import type { HuntFxEvent } from '../rendering/hunt-fx';
 
 export interface CursorPoint {
   x: number;
@@ -60,6 +61,8 @@ export class RuntimeState {
   goldenReadyAt = new Map<number, number>();
   route: RoutePlan | null = null;
   seenWrath = new Set<number>();
+  /** Catches and misses waiting for the hunting show (FX-3/FX-4), drained every frame. */
+  huntFxEvents: HuntFxEvent[] = [];
 
   // ---- idle / dance / hammer ----
   nextIdleAt = 0;

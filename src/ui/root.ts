@@ -131,6 +131,7 @@ export class UiRoot {
     };
 
     bindCheckbox('ccsb-visuals', !!data.config.visuals);
+    bindCheckbox('ccsb-hunt-fx', data.config.huntFx !== false);
     bindCheckbox('ccsb-idle-wander', data.config.idleWander !== false);
     bindCheckbox('ccsb-buyvalue', data.config.showBuyValue !== false);
     bindCheckbox('ccsb-keepalive', data.config.keepAlive !== false);

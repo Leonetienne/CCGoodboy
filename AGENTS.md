@@ -329,6 +329,51 @@ See [§7 State machine](#7-state-machine) for how this maps onto code.
   exact. Duration clamp 22..420ms (default).
 - **PAW-5** Visual overlays can be switched off ("Pretty overlays").
 
+### 3.8a The hunting show (osu! mode)
+
+An over-the-top, purely cosmetic layer on the overlay canvas while golden
+cookies or reindeer are around (`HuntFx`, `src/rendering/hunt-fx.ts`, driven
+by `OverlayLoop`). It never touches the game and never changes what or when
+the paw clicks.
+
+- **FX-1** ON by default, opt-out via the setting "Over-the-top hunting
+  show (osu! mode)" (`huntFx`); needs "Pretty overlays" (PAW-5) and follows
+  the overlay opacity (UI-9). Active while a catchable shimmer is ready or
+  fading in, during a cookie storm or chain, and ~2.5s after a catch; then
+  it fades out and draws nothing. While active: sweeping, hue-cycling
+  spotlights from the screen edges and a vignette pulsing on a 140 BPM beat
+  (more beams, wider sweep in a storm/chain), a soft spotlight on every
+  waiting cookie, a rainbow trail behind the paw, and osu! follow points
+  (chevrons drifting along the planned route, GC-5).
+- **FX-2** Every queued good shimmer gets an osu! hit circle (its route
+  number inside, the same number as the GC-2 box) and an approach circle
+  shrinking from 3.5× to 1× between the moment it became ready and the
+  planned click (click delay + pre-click pause + ~250ms trip, × the hurry
+  factor), then beating on the circle. Pending ones get a spinning dotted
+  ring that fills with their fade. GC-2's boxes stay as they are.
+- **FX-3** A catch (`GoldenCookieAction`, via `runtime.huntFxEvents`):
+  a particle burst (snowflakes for a reindeer), stars, two shockwave rings,
+  a "300" judgement with the effect shouted under it ("LUCKY!!", "CLICK
+  FRENZY!!!", "HO HO HO!!" for a reindeer) and a short radial screen flash.
+  A cookie storm drop only gets a small burst and ring.
+- **FX-4** Multiplier: bottom left, where osu! shows its combo, the CpS
+  multiplier of every active buff together (the product of their
+  `multCpS`, `buffMultiplier()`): "7x" during a Frenzy, "70x" with a
+  Frenzy and a 10x Building special, a red "0.5x" during a Clot. Gold,
+  pops up for 8s after a catch or when it changes (bumping, fading out
+  over the last second), hidden at 1x. A cookie or reindeer that got away shows a
+  red "X" / "MISS" (the combo, which only picks the circles' colours,
+  resets; 60s without a catch resets it too). A banner "COOKIE STORM!!!" /
+  "COOKIE CHAIN xN!!" in rainbow at the top during a storm/chain.
+- **FX-5** Switched off (or with "Pretty overlays" off) nothing is drawn
+  and queued events are dropped.
+- **FX-6** Photosensitivity: flashes are at most one per 350ms, low alpha
+  (0.22) and 180ms long; nothing strobes. With `prefers-reduced-motion`
+  there is no flash and no sweeping beam.
+- **FX-7** Performance: at most 500 particles, at most 32 queued events,
+  events older than 1s when drawn (a background tab coming back) are
+  dropped without a show.
+
 ### 3.9 Real-mouse compatibility
 
 - **MOUSE-1** Before the game handles the USER's mousedown/mouseup/click,
@@ -1463,6 +1508,7 @@ saved (see `normalizeSetting()` in
 | `idleSpeedPxPerSec` | Paw idle speed px/s | 320 | 60-2000 |
 | `happyDanceMs` | Happy dance length (ms, 0 = off) | 2200 | 0-10000 |
 | `visuals` | Pretty overlays [checkbox] | true | – |
+| `huntFx` | Over-the-top hunting show (osu! mode) [checkbox] (FX-1) | true | – |
 | `chartHours` | Chart hours | 48 | 6-720 |
 | `retentionDays` | Remember history (days) | 30 | 1-365 |
 | `logLimit` | Log entries to keep | 10000 | 100-50000 |
@@ -1561,8 +1607,8 @@ gainLumps) — still guarded, still the only path to those `Game.*` calls.
 | Input synthesis | `src/input/` | `dispatch.ts` (dispatchMouse/dispatchMove — MOUSE-\*), `human-click.ts` (ClickTiming: delays, waitUntil, humanClick), `cursor-controller.ts` (CursorController: low-level PAW-4 arc/spline/warp travel, moveCursorTo/glideCursor — the only file that writes `runtime.cursor.x/y`), `background-clock.ts` (BackgroundClock: BG-1/BG-2 worker timer), `keep-alive.ts` (BG-3) |
 | Auto play | `src/autoplay/` | `valuation-tables.ts` (AUTO_BLOCKED_\*, AUTO_GOLDEN_UPGRADES, AUTO_KITTEN_POWER, AUTO_FINGER_STEPS, AUTO_BUILDING_CAPS — AUTO-2 data), `building-valuation.ts` + `upgrade-classifier.ts` (AUTO-3 gain math per candidate type), `collector.ts` (`autoCollect`: gathers candidates + ctx, AUTO-7 safety gates), `strategy.ts` (`autoDecide`: the pure insignificant/good/postpone/save decision, AUTO-4 — flagship unit-test target), `buy-streak.ts` (pure: whether the paw buys one more of the same building in its streak, AUTO-14), `achievement-milestones.ts` (pure: a building's value on its way to a count achievement, AUTO-15), `shopping.ts` (`AutoPlayEngine`: evaluate/shopJob/statusText, AUTO-1/8/9/10/12), `auto-hammer.ts` (AUTO-11), `grimoire-unlock.ts` (`GrimoireUnlocker`: AUTO-13 gating, steps from GrimoireView), `bank-unlock.ts` (`BankUnlocker`: AUTO-16 gating, steps from the Bank's MinigameView), `wrinkler-strategy.ts` (pure: respawn time, maturity, fewest-fattest pick — WRINK-2/3), `grandmapocalypse-valuation.ts` (pure: stage 1 gain, delay, chain-step dCps — WRINK-1), `wrinkler-popper.ts` (`WrinklerPopper`: WRINK-3/4 gating, plan, job, HUD text), `krumblor-strategy.ts` (pure: next Krumblor step — KRUMB-1/2/5), `krumblor.ts` (`KrumblorTrainer`: KRUMB-\* gating, state, jobs, the cursor sale/rebuy), `easter-eggs.ts` (pure-ish: egg values and order — EGG-\*), `christmas.ts` (pure-ish: Christmas upgrade values — XMAS-1..3), `santa-strategy.ts` (pure: next Santa step — XMAS-4), `santa.ts` (`SantaTrainer`: XMAS-4/5 gating, jobs), `ascension-strategy.ts` (pure: pending level, stagnation, boost gate, verdict — ASC-1..4/8), `heavenly-shopping.ts` (pure: the heavenly priority list, lucky 7s, the shopping list and the level it needs — ASC-9), `ascension-steps.ts` (pure: the next step of an automatic ascension — ASC-10), `achievement-dump.ts` (pure: the cheapest-first achievement plan for the bank before an ascension — ASC-13), `ascension-runner.ts` (`AscensionRunner`: ASC-10 gating, steps, jobs, the per-run reset), `ascension.ts` (`AscensionPlanner`: measured income, cached plan, HUD text — ASC-2/5), `ascension-overlay.ts` (Legacy button and heavenly tree boxes — ASC-6/7), `income-tracker.ts` (smoothed clicking income for AUTO-3's `income`), `buy-value-overlay.ts` (BUY-\*) |
 | Stock market | `src/market/` | `market-strategy.ts` (pure: thresholds, trailing stop, budget, brokers, the next trade — STOCK-2..4), `stock-trader.ts` (`StockTrader`: STOCK-\* gating, peaks, jobs, HUD text; the Bank's `MinigameView`) |
-| Scheduler | `src/scheduler/` | `priority.ts` (`selectJobRequest`: the SCHED-1 cascade as pure data), `scheduler.ts` (`Scheduler.tick()`: wrath logging, queue build, enqueues ONE job via CursorManager), `overlay-loop.ts` (`OverlayLoop`: the requestAnimationFrame draw loop — hitboxes, buy-value overlay, ascension overlay, paw) |
-| Rendering | `src/rendering/` | `paw-cursor.ts` (`PawCursor`: PAW-1..3, sprite rasterizing, click pulse, fallback drawn paw), `overlay-canvas.ts` (resize/DPR handling) |
+| Scheduler | `src/scheduler/` | `priority.ts` (`selectJobRequest`: the SCHED-1 cascade as pure data), `scheduler.ts` (`Scheduler.tick()`: wrath logging, queue build, enqueues ONE job via CursorManager), `overlay-loop.ts` (`OverlayLoop`: the requestAnimationFrame draw loop — hunting show, hitboxes, buy-value overlay, ascension overlay, paw) |
+| Rendering | `src/rendering/` | `paw-cursor.ts` (`PawCursor`: PAW-1..3, sprite rasterizing, click pulse, fallback drawn paw), `hunt-fx.ts` (`HuntFx`: the osu!-style hunting show, FX-\*), `overlay-canvas.ts` (resize/DPR handling) |
 | Stats | `src/stats/` | `log.ts` (`LogStore`), `stats.ts` (`StatsRecorder`: GC-6/AUTO-10 counters + hourly buckets) |
 | UI | `src/ui/` | `root.ts` (`UiRoot`: composes every panel, wires ~25 event listeners — was `createUi()`), `styles.ts` (UI-7 theme), `format.ts` (escapeHtml/formatNum/moodText/targetText), `gui-frames/` (panel DOM template, drag-to-move, the 200ms `PanelUpdater`), `settings/` (`normalize-setting.ts` clamps, `settings-panel.ts` UI-4 staged save), `stats-window/` (`chart-engine.ts` canvas chart drawing, `graphs-panel.ts` UI-5, `logs-panel.ts` UI-6 filter/export), `debug/debug-tools.ts` (DBG-\*) |
 | Lifecycle | `src/lifecycle/` | `bootstrap.ts` (`Bootstrap`: start/destroy, API-1, MOUSE-1 real-mouse sync, `waitForGame` polling), `update-check.ts` (`UpdateChecker`: UPD-\*) |
@@ -1640,8 +1686,8 @@ file.**
 
 Three layers, each catching a different class of bug:
 
-1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 528 tests
-   across 48 files. Pure functions (route planner, `autoDecide`, the chart
+1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 543 tests
+   across 49 files. Pure functions (route planner, `autoDecide`, the chart
    engine, `normalizeSetting`) are tested directly with plain data; the
    cursor queue/actions have their own fake mover/timing tests. Classes
    that depend on the game are tested against `FakeGameAdapter`
@@ -1824,6 +1870,14 @@ not the paw's).
 
 ## 12. Changelog
 
+- **5.7.3** The multiplier counter (FX-4) is shown only for a moment again:
+  8s after a catch or a change, fading out, instead of for the whole buff.
+
+- **5.7.2** The hunting show's counter bottom left (FX-4) shows the buffs'
+  total CpS multiplier ("7x" during a Frenzy, `buffMultiplier()`) instead
+  of the catch combo, for the whole buff; a miss just says "MISS". Unit
+  tests in `tests/unit/hunt-fx.test.ts`.
+
 - **5.7.1** Fixed: the paw seemed to click into thin air over the store.
   The store column (`#sectionRight`) scrolls on its own, and a building far
   down the list (e.g. the Javascript console) was scrolled out of it:
@@ -1834,6 +1888,18 @@ not the paw's).
   ascension (AUTO-9; `storeScrollTarget()`, `storeScrollJob()`;
   `ScrollIntoViewAction` takes a `container`). Unit tests in
   `tests/unit/store-dom.test.ts`.
+
+- **5.7.0** The hunting show (FX-\*): an over-the-top, osu!-style layer
+  while golden cookies and reindeer are hunted, on by default, opt-out via
+  the new setting "Over-the-top hunting show (osu! mode)" (`huntFx`).
+  Hit circles with approach circles timed to the planned click, follow
+  points along the route, a rainbow paw trail, sweeping spotlights and a
+  beat-pulsing vignette, particle bursts, shockwaves, "300" judgements
+  shouting the effect, a combo counter with combo breaks on a miss, and a
+  rainbow storm/chain banner. Flashes are rate-limited and skipped with
+  reduced motion. New `src/rendering/hunt-fx.ts`, `collectHunt()` shared by
+  the hitboxes, `runtime.huntFxEvents` filled by `GoldenCookieAction`. Unit
+  tests in `tests/unit/hunt-fx.test.ts`.
 
 - **5.6.12** Fixed: the committed ascension (ASC-12) could still wait past
   its level. Only the whole block of levels holding the 7s had to last

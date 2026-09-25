@@ -1,10 +1,10 @@
 import { looseRect, visibleRect } from '../game/dom-geometry';
 import type { IGameAdapter } from '../game/game-adapter';
-import type { GoldenCookieModel } from '../game/golden-cookie-model';
+import type { GoldenCookieModel, GoldenShimmers } from '../game/golden-cookie-model';
 import { getFthofSpell } from '../game/grimoire';
 import { drawRect } from '../rendering/overlay-canvas';
 import type { CursorPoint } from '../core/runtime-state';
-import type { GoldenQueue } from './golden-queue';
+import type { GoldenQueue, GoldenQueueItem } from './golden-queue';
 
 export interface HitboxOverlayDeps {
   game: IGameAdapter;
@@ -13,15 +13,26 @@ export interface HitboxOverlayDeps {
   cursor: CursorPoint;
 }
 
+/** What the overlay draws this frame: the classified shimmers and the planned route. */
+export interface HuntSnapshot {
+  shimmers: GoldenShimmers;
+  queue: GoldenQueueItem[];
+}
+
+/** Classifies the live shimmers and plans the route once per frame, shared by the hitboxes
+ * and the hunting show (FX-*). */
+export function collectHunt(deps: HitboxOverlayDeps): HuntSnapshot {
+  const shimmers = deps.goldenCookieModel.getGoldenShimmers();
+  return { shimmers, queue: deps.goldenQueue.build(shimmers.good) };
+}
+
 /** Draws the golden-cookie hunting layer of the overlay: the planned route (dashed pink),
  * ready cookies (pink numbered boxes), pending cookies (dashed lavender + fade %), wrath
  * cookies (dashed red), a ring on the big cookie during Click Frenzy, and the real Grimoire
  * buttons. */
-export function drawHitboxes(ctx: CanvasRenderingContext2D, deps: HitboxOverlayDeps): void {
-  const { game, goldenCookieModel, goldenQueue, cursor } = deps;
-
-  const shimmers = goldenCookieModel.getGoldenShimmers();
-  const queue = goldenQueue.build(shimmers.good);
+export function drawHitboxes(ctx: CanvasRenderingContext2D, deps: HitboxOverlayDeps, hunt: HuntSnapshot = collectHunt(deps)): void {
+  const { game, cursor } = deps;
+  const { shimmers, queue } = hunt;
 
   // Planned route in pink.
   if (queue.length) {

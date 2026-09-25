@@ -5,6 +5,7 @@ import type { IGameAdapter } from '../game/game-adapter';
 import { isReindeer } from '../game/golden-cookie-model';
 import { reindeerCenterAhead, reindeerIntercept, type ReindeerMotion } from '../game/reindeer';
 import { expectedTravelMs, pawTravelSpeed } from '../input/cursor-controller';
+import { pushHuntFxEvent } from '../rendering/hunt-fx';
 import type { GameShimmer } from '../game/types';
 import type { CursorAction, CursorJobContext } from '../cursor/types';
 import type { LogStore } from '../stats/log';
@@ -137,7 +138,7 @@ export class GoldenCookieAction implements CursorAction {
     await ctx.clickTiming.humanClick(this.shimmer.l, pos.x, pos.y);
 
     if (isReindeer(this.shimmer)) {
-      this.afterReindeerClick();
+      this.afterReindeerClick(pos);
       return;
     }
 
@@ -160,17 +161,27 @@ export class GoldenCookieAction implements CursorAction {
         sayYay('Caught a cookie!! I am such a gewd boy :3');
       }
 
+      // FX-3: the hunting show's burst (a storm drop only gets a small one).
+      this.showFx('catch', pos, kind, internal === 'cookie storm drop');
+
       // Happy dance only if this exact moment is otherwise idle.
       this.runtime.danceQueued = this.danceEligible();
     } else if (preForce !== 'cookie storm drop') {
       sayCant('Wanted to catch a cookie, but it got away :c');
+      this.showFx('miss', pos, '', false);
     }
   }
 
+  /** Hands a catch or miss to the hunting show (FX-3/FX-4); drawn only while it is on. */
+  private showFx(kind: 'catch' | 'miss', pos: { x: number; y: number }, label: string, small: boolean): void {
+    pushHuntFxEvent(this.runtime.huntFxEvents, { kind, x: pos.x, y: pos.y, label, reindeer: isReindeer(this.shimmer), small, t: performance.now() });
+  }
+
   /** XMAS-6: record and brag about a caught reindeer (one stats series, "Reindeer"). */
-  private afterReindeerClick(): void {
+  private afterReindeerClick(pos: { x: number; y: number }): void {
     if (!this.shimmer.popped) {
       sayCant('Wanted to catch a reindeer, but it ran away :c');
+      this.showFx('miss', pos, '', false);
       return;
     }
 
@@ -178,6 +189,7 @@ export class GoldenCookieAction implements CursorAction {
     this.stats.recordGolden('Reindeer');
     this.log.log('click reindeer', 'reindeer', { shimmerId: this.shimmer.id });
     sayYay('Caught a reindeer!! Ho ho ho, gewd boy :3');
+    this.showFx('catch', pos, 'Reindeer', false);
     this.runtime.danceQueued = this.danceEligible();
   }
 }

@@ -56,6 +56,7 @@ export class SettingsPanel {
     }
 
     this.data.config.visuals = (document.getElementById('ccsb-visuals') as HTMLInputElement).checked;
+    this.data.config.huntFx = (document.getElementById('ccsb-hunt-fx') as HTMLInputElement).checked;
     this.data.config.idleWander = (document.getElementById('ccsb-idle-wander') as HTMLInputElement).checked;
     this.data.config.showBuyValue = (document.getElementById('ccsb-buyvalue') as HTMLInputElement).checked;
     this.data.config.showAscendOverlay = (document.getElementById('ccsb-ascend-overlay') as HTMLInputElement).checked;

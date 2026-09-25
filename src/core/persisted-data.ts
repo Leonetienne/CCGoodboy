@@ -14,6 +14,7 @@ export interface Config {
   clickFrenzyJitterMs: number;
   cursorSpeedPxPerSec: number;
   visuals: boolean;
+  huntFx: boolean;
   chartHours: number;
   retentionDays: number;
   logLimit: number;
@@ -121,6 +122,7 @@ export const DEFAULTS: PersistedState = {
     clickFrenzyJitterMs: 30,
     cursorSpeedPxPerSec: 4200,
     visuals: true,
+    huntFx: true,
     chartHours: 48,
     retentionDays: 30,
     logLimit: 10000,
