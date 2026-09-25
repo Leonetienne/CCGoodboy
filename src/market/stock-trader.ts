@@ -13,7 +13,18 @@ import type { LogStore } from '../stats/log';
 import type { StatsRecorder } from '../stats/stats';
 import { autoFmtTime } from '../autoplay/shopping';
 import { formatShort } from '../ui/format';
-import { marketHoldingsValue, marketPeakFromHistory, planMarketMove, type MarketMove } from './market-strategy';
+import {
+  MARKET_SAVING_SHARE,
+  marketCashable,
+  marketCashOutValue,
+  marketHoldingsValue,
+  marketPeakFromHistory,
+  planMarketMove,
+  type MarketMove,
+} from './market-strategy';
+
+/** How long "Cash stock market wins" keeps trying (STOCK-9). */
+const CASH_OUT_MS = 120000;
 
 /** The Bank's minigame, for MinigameView (STOCK-*, AUTO-16). */
 export const STOCK_MARKET_INFO: MinigameInfo = {
@@ -115,14 +126,79 @@ export class StockTrader {
    * only be sold again before ascending), sales and everything else go on. */
   holdBuys: () => boolean = () => false;
 
+  /** STOCK-4: set to auto play's "is saving for a purchase"; while it returns true stocks may
+   * hold at most MARKET_SAVING_SHARE of bank + stocks. */
+  saving: () => boolean = () => false;
+
   private plan(snap: MarketSnapshot): MarketMove | null {
+    if (this.cashingOut()) {
+      const g = marketCashable(snap)[0];
+      if (g) return { kind: 'sell', good: g, button: '-All', why: 'cashing out the wins (asked)' };
+
+      this.endCashOut('done: nothing left to sell without a loss');
+    }
+
     const move = planMarketMove(snap, this.runtime.marketPeaks, this.game.getCookies(), this.maxShare());
-    return move && move.kind !== 'sell' && this.holdBuys() ? null : move;
+    return move && move.kind !== 'sell' && (this.holdBuys() || !this.investAllowed()) ? null : move;
+  }
+
+  /** STOCK-9: the "Pause investments" button (`stockInvest`, investing by default). Paused,
+   * the trader still sells but spends nothing (no buys, no brokers). Auto play always
+   * invests. */
+  investAllowed(): boolean {
+    return this.data.config.autoPlay === true || this.data.config.stockInvest !== false;
+  }
+
+  /** The "Pause investments" button is shown: the market is played and unlocked, auto play off. */
+  investButtonShown(): boolean {
+    return stockMarketEnabled(this.data.config) && this.data.config.autoPlay !== true && !!this.game.getMarketSnapshot();
+  }
+
+  toggleInvest(): void {
+    this.data.config.stockInvest = this.data.config.stockInvest === false;
+    this.data.scheduleSave();
+    this.log.log('stock market', `investments ${this.data.config.stockInvest ? 'resumed' : 'paused'}`);
+  }
+
+  /** STOCK-9: the "Cash stock market wins" button: shown while the market is played and
+   * unlocked; what it would sell and bring back right now. */
+  cashOutPreview(): { shown: boolean; goods: string[]; cookies: number } {
+    const snap = stockMarketEnabled(this.data.config) ? this.game.getMarketSnapshot() : null;
+    if (!snap) return { shown: false, goods: [], cookies: 0 };
+
+    return { shown: true, goods: marketCashable(snap).map((g) => g.symbol), cookies: marketCashOutValue(snap) };
+  }
+
+  cashingOut(): boolean {
+    if (!this.runtime.marketCashOutUntil) return false;
+    if (Date.now() < this.runtime.marketCashOutUntil) return true;
+
+    this.endCashOut('gave up after 2 minutes');
+    return false;
+  }
+
+  /** Starts cashing out (the paw sells every cashable good with its "All" button), or stops
+   * it when it is already running. */
+  toggleCashOut(): void {
+    if (this.runtime.marketCashOutUntil) {
+      this.endCashOut('stopped');
+      return;
+    }
+
+    const p = this.cashOutPreview();
+    this.runtime.marketCashOutUntil = Date.now() + CASH_OUT_MS;
+    this.log.log('stock market', `cashing out ${p.goods.join(', ') || 'nothing'}`, { cookies: Math.round(p.cookies) });
+  }
+
+  private endCashOut(why: string): void {
+    this.runtime.marketCashOutUntil = 0;
+    this.log.log('stock market', `cash out ${why}`);
   }
 
   private maxShare(): number {
     const v = Number(this.data.config.stockMaxShare);
-    return Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0.5;
+    const share = Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0.5;
+    return this.saving() ? Math.min(share, MARKET_SAVING_SHARE) : share;
   }
 
   /** A trade is due right now (the scheduler, PendingWork and hammering use it). */
@@ -307,6 +383,7 @@ export class StockTrader {
       `paw made ${signedCookies(this.data.stats.stockProfit || 0)}`,
       ...(held.some((g) => this.stats.stockBasisOf(g.id)) ? [`unrealized ${signedCookies(this.unrealized(snap))}`] : []),
       `${snap.brokers} broker${snap.brokers === 1 ? '' : 's'}`,
+      ...(this.saving() ? [`budget ${Math.round(this.maxShare() * 100)}% while shopping saves`] : []),
       next,
     ].join('; ');
   }

@@ -26,6 +26,7 @@ export interface Config {
   spendLumps: boolean;
   stockMarket: boolean;
   stockMaxShare: number;
+  stockInvest: boolean;
   garden: boolean;
   ascendLuckyWaitSec: number;
   ascendMinBoost: number;
@@ -142,6 +143,7 @@ export const DEFAULTS: PersistedState = {
     spendLumps: true,
     stockMarket: true,
     stockMaxShare: 0.5,
+    stockInvest: true,
     garden: true,
     ascendLuckyWaitSec: 86400,
     ascendMinBoost: 2,

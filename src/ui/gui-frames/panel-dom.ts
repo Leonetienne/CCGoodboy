@@ -80,6 +80,8 @@ function panelBodyHtml(version: string): string {
         <button class="ccsb-btn" id="ccsb-pause">Pause :3</button>
         <button class="ccsb-btn" id="ccsb-hammer" title="Click the big cookie non-stop (like Click Frenzy). Lowest priority, above idling.">Hammer cookie :3</button>
         <button class="ccsb-btn" id="ccsb-auto-toggle" title="Full auto play: also buys buildings and upgrades (off by default).">Auto play :3</button>
+        <button class="ccsb-btn" id="ccsb-stock-invest" title="Paused, the paw spends nothing on the stock market (no stocks, no brokers), e.g. while you save up for something yourself, but still sells what it holds when the price is right. Auto play always invests.">Pause investments :3</button>
+        <button class="ccsb-btn" id="ccsb-stock-cashout">Cash stock market wins :3</button>
         <button class="ccsb-btn" id="ccsb-toggle-settings">Settings :3</button>
         <button class="ccsb-btn" id="ccsb-toggle-more" title="Graphs, logs and debug tools">More...</button>
     </div>

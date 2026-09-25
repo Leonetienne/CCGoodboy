@@ -33,6 +33,9 @@ export const MARKET_MIN_BUY_UNITS = 10;
 /** A broker is hired when the overhead it saves on this many full warehouse refills (at
  * the buy threshold) pays for it. */
 export const MARKET_BROKER_ROUNDS = 3;
+/** While auto play saves up for a purchase, stocks may hold at most this share of bank +
+ * stocks (or the setting's share, if lower), so the trader doesn't eat the savings. */
+export const MARKET_SAVING_SHARE = 0.1;
 
 /** The price a good is measured against: its resting value + 10. */
 export function marketReference(g: MarketGood): number {
@@ -178,4 +181,16 @@ export function marketPeakFromHistory(g: MarketGood): number {
   }
 
   return peak;
+}
+
+/** STOCK-9: the goods "Cash stock market wins" sells: held, on the market, not bought this
+ * tick (the game refuses the sale), and not at a loss (the price beats what a unit cost,
+ * like every other sale). */
+export function marketCashable(snap: MarketSnapshot): MarketGood[] {
+  return snap.goods.filter((g) => g.active && g.stock > 0 && g.last !== 1 && g.val > marketPaid(g, snap.overhead));
+}
+
+/** What cashing out would bring back right now, in cookies. */
+export function marketCashOutValue(snap: MarketSnapshot): number {
+  return marketCashable(snap).reduce((sum, g) => sum + g.stock * g.val, 0) * snap.cookiesPerDollar;
 }

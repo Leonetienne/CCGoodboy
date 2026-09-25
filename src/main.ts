@@ -105,6 +105,8 @@ const ascension = new AscensionPlanner(data, game);
 const wrinklerPopper = new WrinklerPopper(runtime, data, game, log, stats, autoPlay);
 const ascensionRunner = new AscensionRunner(runtime, data, game, log, stats, ascension, () => autoPlay.shoppingInterrupted(), stockTrader);
 stockTrader.holdBuys = () => ascensionRunner.armed();
+// STOCK-4: a smaller stock budget while auto play saves up for a purchase.
+stockTrader.saving = () => data.config.autoPlay === true && !!(runtime.autoPlan && runtime.autoPlan.save);
 ascension.leadSec = () => ascensionRunner.leadSec();
 // Anything at the auto-shop tier that wants to run right now (the buildings-view recipe or a
 // debug goal, an ascension, the Grimoire, stock market or garden unlock, a Krumblor or Santa

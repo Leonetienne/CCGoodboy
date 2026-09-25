@@ -110,6 +110,11 @@ const CSS = `
     background:rgba(255,158,210,.38);
 }
 
+.ccsb-btn:disabled {
+    opacity:.45;
+    cursor:default;
+}
+
 .ccsb-btn.active {
     background:rgba(255,143,207,.6);
     border-color:#fff;

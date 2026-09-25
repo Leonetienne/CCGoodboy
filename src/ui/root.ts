@@ -162,6 +162,16 @@ export class UiRoot {
       this.panelUpdater.update();
     });
 
+    document.getElementById('ccsb-stock-invest')!.addEventListener('click', () => {
+      deps.stockTrader.toggleInvest();
+      this.panelUpdater.update();
+    });
+
+    document.getElementById('ccsb-stock-cashout')!.addEventListener('click', () => {
+      deps.stockTrader.toggleCashOut();
+      this.panelUpdater.update();
+    });
+
     document.getElementById('ccsb-save-settings')!.addEventListener('click', () => this.settingsPanel.save());
 
     document.getElementById('ccsb-minimize')!.addEventListener('click', () => {

@@ -157,7 +157,7 @@ function buildDom(buyRect: DOMRect = RECT): void {
     <div id="prefsButton"></div><div id="statsButton"></div>
     <div id="centerArea"><div id="rows"><div id="row5">
       <div id="productLevel5">lvl 0</div><div id="productMinigameButton5">View Stock Market</div>
-      <div id="bankGood-0_Max"></div><div id="bankGood-0_-All"></div><div id="bankBrokersBuy"></div>
+      <div id="bankGood-0_Max"></div><div id="bankGood-0_10"></div><div id="bankGood-0_-All"></div><div id="bankBrokersBuy"></div>
     </div></div></div>`;
 
   for (const el of Array.from(document.body.querySelectorAll('div'))) el.style.opacity = '1';
@@ -166,7 +166,7 @@ function buildDom(buyRect: DOMRect = RECT): void {
     document.getElementById(id)!.getBoundingClientRect = () => r;
   };
 
-  for (const id of ['prefsButton', 'statsButton', 'row5', 'productLevel5', 'productMinigameButton5', 'bankGood-0_-All', 'bankBrokersBuy']) stub(id, RECT);
+  for (const id of ['prefsButton', 'statsButton', 'row5', 'productLevel5', 'productMinigameButton5', 'bankGood-0_10', 'bankGood-0_-All', 'bankBrokersBuy']) stub(id, RECT);
   stub('centerArea', COLUMN);
   stub('rows', COLUMN);
   stub('bankGood-0_Max', buyRect);
@@ -218,6 +218,20 @@ describe('StockTrader (STOCK-*)', () => {
     expect(job.action).toBeInstanceOf(MarketClickAction);
     expect(job.priority).toBe(JOB_PRIORITY.AUTO_SHOP);
     expect(job.key).toBe('stock-market:buy:0:Max');
+  });
+
+  it('spends at most 10% of bank + stocks while auto play saves up (STOCK-4)', () => {
+    const s = setup();
+    s.game.cookies = 2000; // Max = 100 x $5 x 1.2 = 600 cookies
+
+    expect(s.trader.job()!.key).toBe('stock-market:buy:0:Max'); // 50%: 1000 to spend
+
+    s.trader.saving = () => true;
+    expect(s.trader.job()!.key).toBe('stock-market:buy:0:10'); // 10%: 200 to spend, 33 units
+    expect(s.trader.statusText()).toContain('budget 10% while shopping saves');
+
+    s.game.market!.goods.push(good({ id: 1, symbol: 'CHC', restingVal: 20, stock: 50, val: 30, vals: [30, 30] })); // holds 1500
+    expect(s.trader.pending()).toBe(false); // already above 10%, nothing more (and nothing sold for it)
   });
 
   it('scrolls to the button first, and opens a closed market', () => {
@@ -286,6 +300,65 @@ describe('StockTrader (STOCK-*)', () => {
     s.game.market = snap([good({ stock: 50, lastBuyVal: 5, val: 15, vals: [15, 17, 16, 10, 4] })]);
 
     expect(s.trader.job()!.key).toBe('stock-market:sell:0:-All'); // peak 17 from the graph
+  });
+});
+
+describe('Pause investments and Cash stock market wins (STOCK-9)', () => {
+  it('invests by default; paused it buys nothing but still sells', () => {
+    const s = setup();
+    expect(new PersistedData().config.stockInvest).toBe(true);
+
+    s.trader.toggleInvest();
+    expect(s.data.config.stockInvest).toBe(false);
+    expect(s.trader.pending()).toBe(false); // the cheap good is not bought
+
+    s.game.market = snap([good({ stock: 50, lastBuyVal: 5, val: 15, vals: [15, 17, 16, 10, 4] })]);
+    expect(s.trader.job()!.key).toBe('stock-market:sell:0:-All');
+
+    s.game.market = snap([good()], { maxBrokers: 5, brokerPrice: 1 });
+    expect(s.trader.pending()).toBe(false); // no broker either
+  });
+
+  it('auto play always invests, and the button only shows without it on an unlocked market', () => {
+    const s = setup();
+    s.data.config.stockInvest = false;
+    expect(s.trader.investButtonShown()).toBe(true);
+
+    s.data.config.autoPlay = true;
+    expect(s.trader.investButtonShown()).toBe(false);
+    expect(s.trader.job()!.key).toBe('stock-market:buy:0:Max');
+
+    s.data.config.autoPlay = false;
+    s.game.market = null;
+    expect(s.trader.investButtonShown()).toBe(false);
+  });
+
+  it('previews and sells every good that is not at a loss, then stops', () => {
+    const s = setup();
+    s.data.config.stockInvest = false;
+    s.game.market = snap([
+      good({ id: 0, stock: 50, lastBuyVal: 5, val: 7, vals: [7, 7] }), // 7 > 5 x 1.2: a win, not a peak sale yet
+      good({ id: 1, symbol: 'CHC', stock: 10, lastBuyVal: 20, val: 21, vals: [21, 21] }), // 21 < 24: a loss
+    ]);
+
+    expect(s.trader.cashOutPreview()).toEqual({ shown: true, goods: ['CRL'], cookies: 350 });
+    expect(s.trader.pending()).toBe(false);
+
+    s.trader.toggleCashOut();
+    expect(s.trader.cashingOut()).toBe(true);
+    expect(s.trader.job()!.key).toBe('stock-market:sell:0:-All');
+
+    s.game.market.goods[0]!.stock = 0;
+    expect(s.trader.pending()).toBe(false);
+    expect(s.trader.cashingOut()).toBe(false); // nothing left: done
+    expect(s.log.log).toHaveBeenCalledWith('stock market', expect.stringContaining('cash out done'));
+  });
+
+  it('a second click stops cashing out', () => {
+    const s = setup();
+    s.trader.toggleCashOut();
+    s.trader.toggleCashOut();
+    expect(s.trader.cashingOut()).toBe(false);
   });
 });
 

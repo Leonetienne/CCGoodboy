@@ -397,8 +397,9 @@ the paw clicks.
   Stock market (STOCK-7), Garden (GARDEN-8), Auto play, then a "Details" fold (`<details>`,
   collapsed by default, session-only) with Buffies, LOCK_A, Click cooldown
   and Background, then the statistics.
-- **UI-3** Buttons: Pause/Resume, Hammer cookie, Auto play, Settings,
-  "More..."; "More..." toggles a second row (session-only, closed at start)
+- **UI-3** Buttons: Pause/Resume, Hammer cookie, Auto play, "Pause
+  investments" and "Cash stock market wins" (STOCK-9, only when they
+  apply), Settings, "More..."; "More..." toggles a second row (session-only, closed at start)
   with Graphs, Logs and Debug tools. The Debug tools button only shows with
   the Advanced setting "Show debug tools (cheats)" (`showDebugTools`, OFF by
   default); switching it off also closes the debug frame.
@@ -1470,7 +1471,11 @@ was read for every rule below.
 - **STOCK-4** Budget and brokers: stocks may hold at most "Stocks: invest at
   most (share of bank)" (`stockMaxShare`, default 0.5) of bank + stocks
   (valued at today's prices), and never more than the bank
-  (`marketBudget()`). A broker (20 minutes of the highest raw CpS, max
+  (`marketBudget()`). While auto play is saving up for a purchase (its plan
+  has a save target, AUTO-4) the share is at most 10%
+  (`MARKET_SAVING_SHARE`, `StockTrader.saving`), so stocks don't eat the
+  savings; stocks above that are kept, not sold for it, and the HUD row says
+  "budget 10% while shopping saves". A broker (20 minutes of the highest raw CpS, max
   `M.getMaxBrokers()`) is hired (the "Hire" button) when the overhead it
   saves on 3 refills of every active warehouse at the buy price pays for it
   (`marketBrokerWorth()`, `MARKET_BROKER_ROUNDS`) and the budget allows.
@@ -1511,6 +1516,23 @@ was read for every rule below.
   like the bank itself; an automatic ascension sells everything first
   (ASC-13), the trader itself never sells for it; `runtime.marketPeaks`
   is reset with the run. Debug: DBG-22, DBG-23.
+- **STOCK-9** Two main panel buttons, for a player who saves up by hand:
+  (a) "Pause investments" (`stockInvest`, stored, investing by default;
+  shown only while STOCK-1 is on, the market is unlocked and auto play is
+  off, since auto play always invests): paused, the trader spends nothing
+  on the market (no buys, no brokers) but still sells what it holds by
+  STOCK-2's rules; the button then reads "Investments paused" (active
+  style). (b) "Cash stock market wins" (shown while STOCK-1 is on and the
+  market is unlocked, auto play or not): the paw sells, one "All" click
+  per good, every good that is not at a loss (price above the game's "last
+  bought at" × today's overhead, like every sale; a good bought this very
+  tick can't be sold; `marketCashable()`), before any other trade, then
+  stops; a second click stops it early, and it gives up after 2 minutes
+  (`runtime.marketCashOutUntil`). Its tooltip names the goods and what they
+  bring back right now (`marketCashOutValue()`, `cashOutPreview()`); it is
+  greyed out when nothing qualifies. Same gates, clicks, logs and profit
+  bookkeeping as any sale (STOCK-5/6); the start, end and pauses are logged
+  (`"stock market"`).
 
 ### 3.24 Garden (the Farm's minigame)
 
@@ -1692,6 +1714,7 @@ saved (see `normalizeSetting()` in
 | `spendLumps` | Spend sugar lumps [checkbox] (FT-9: refills, AUTO-13/AUTO-16/AUTO-17 unlocks) | true | – |
 | `stockMarket` | Play the stock market [checkbox] (STOCK-1) | true | – |
 | `stockMaxShare` | Stocks: invest at most (share of bank) (STOCK-4) | 0.5 | 0-1 |
+| `stockInvest` | ("Pause investments" button, stored; STOCK-9) | true | – |
 | `garden` | Tend the garden [checkbox] (GARDEN-1) | true | – |
 | `autoPlay` | (Auto play button, stored) | false | – |
 | `autoDryRun` | Auto play dry run (log only) [checkbox] | false | – |
@@ -1857,8 +1880,8 @@ file.**
 
 Three layers, each catching a different class of bug:
 
-1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 563 tests
-   across 50 files. Pure functions (route planner, `autoDecide`, the chart
+1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 578 tests
+   across 51 files. Pure functions (route planner, `autoDecide`, the chart
    engine, `normalizeSetting`) are tested directly with plain data; the
    cursor queue/actions have their own fake mover/timing tests. Classes
    that depend on the game are tested against `FakeGameAdapter`
@@ -2048,6 +2071,22 @@ mouse while the bot runs and confirm the "+N" number follows your cursor,
 not the paw's).
 
 ## 12. Changelog
+
+- **5.8.10** Two new main panel buttons for the stock market (STOCK-9):
+  "Pause investments" (without auto play; `stockInvest`, stored) stops the
+  paw from spending on stocks and brokers while it keeps selling, and "Cash
+  stock market wins" sells every stock that isn't at a loss, with the
+  goods and the cookies it brings back in its tooltip. New
+  `marketCashable()`/`marketCashOutValue()`,
+  `StockTrader.investAllowed()`/`toggleInvest()`/`cashOutPreview()`/
+  `toggleCashOut()`, `runtime.marketCashOutUntil`. Unit tests in
+  `tests/unit/stock-market.test.ts`.
+
+- **5.8.9** While auto play saves up for a purchase, the stock trader puts
+  at most 10% of bank + stocks into stocks (was the full 50%,
+  `stockMaxShare`), so a dip in the market can't eat the savings (STOCK-4,
+  `MARKET_SAVING_SHARE`, `StockTrader.saving`). Unit test in
+  `tests/unit/stock-market.test.ts`.
 
 - **5.8.8** Preference order (AUTO-4 B): golden, click power and kitten
   upgrades (and the Easter eggs and Santa's gifts that share their tier)

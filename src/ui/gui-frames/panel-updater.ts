@@ -15,7 +15,7 @@ import type { WrinklerPopper } from '../../autoplay/wrinkler-popper';
 import { signedCookies, type StockTrader } from '../../market/stock-trader';
 import type { Gardener } from '../../garden/gardener';
 import type { GoldenQueue } from '../../hunting/golden-queue';
-import { escapeHtml, formatNum, moodText, targetText } from '../format';
+import { escapeHtml, formatNum, formatShort, moodText, targetText } from '../format';
 
 /** Refreshes the HUD every 200ms: Mood (+ hurry note), Chasing, Shinies waiting, Click Frenzy,
  * Buffies, Grimoire (mana, cost, lumps, refill state), LOCK_A, Click cooldown, Ascension, statistics,
@@ -112,6 +112,26 @@ export class PanelUpdater {
     if (gardenText) el('ccsb-garden-status')!.textContent = gardenText;
 
     el('ccsb-bg')!.textContent = backgroundStatusText(this.clock, this.runtime, this.data);
+
+    // STOCK-9: "Pause investments" only without auto play (auto play always invests)
+    const investBtn = el<HTMLButtonElement>('ccsb-stock-invest')!;
+    const investPaused = this.data.config.stockInvest === false;
+    investBtn.style.display = this.stockTrader.investButtonShown() ? '' : 'none';
+    investBtn.textContent = investPaused ? 'Investments paused ^w^' : 'Pause investments :3';
+    investBtn.classList.toggle('active', investPaused);
+
+    const cash = this.stockTrader.cashOutPreview();
+    const cashing = this.stockTrader.cashingOut();
+    const cashBtn = el<HTMLButtonElement>('ccsb-stock-cashout')!;
+    cashBtn.style.display = cash.shown ? '' : 'none';
+    cashBtn.textContent = cashing ? 'Cashing out... owo' : 'Cash stock market wins :3';
+    cashBtn.classList.toggle('active', cashing);
+    cashBtn.disabled = !cashing && !cash.goods.length;
+    cashBtn.title = cashing
+      ? 'The paw is selling every stock that is not at a loss. Click to stop.'
+      : cash.goods.length
+        ? `Sells every stock that is not at a loss (${cash.goods.join(', ')}): you get back about ${formatShort(cash.cookies)} cookies`
+        : 'Nothing to cash out: no stock is above what it cost';
 
     const autoBtn = el('ccsb-auto-toggle')!;
     autoBtn.textContent = this.data.config.autoPlay === true ? 'Auto play ON ^w^' : 'Auto play :3';
