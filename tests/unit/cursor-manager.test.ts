@@ -55,6 +55,10 @@ class FakeTiming implements CursorClickTiming {
     return this.delayMs;
   }
 
+  getPreClickDelayMs(): number {
+    return 0;
+  }
+
   async waitUntil(_ts: number, _abortForGolden?: boolean, _abortIf?: () => boolean): Promise<boolean> {
     this.waitUntilCalls++;
     return this.waitUntilResult;

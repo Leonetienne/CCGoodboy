@@ -118,6 +118,16 @@ export function buildSpeedWarp(dips: number[]): (tau: number) => number {
   };
 }
 
+/** Travel speed of the paw (px/s): setting 'Paw zoomies' / hurry factor, or `speed`. */
+export function pawTravelSpeed(data: PersistedData, hurryMode: Pick<HurryMode, 'urgencyFactor'>, speed?: number): number {
+  return speed ? clamp(speed, 20, 20000) : clamp((Number(data.config.cursorSpeedPxPerSec) || 4200) / hurryMode.urgencyFactor(), 500, 200000);
+}
+
+/** Average duration of a trip of `dist` px (moveCursorTo randomises it by 0.85..1.2). */
+export function expectedTravelMs(dist: number, speed: number, maxMs = 420): number {
+  return clamp((dist / speed) * 1000 * 1.025, 22, maxMs);
+}
+
 export interface MoveCursorOpts {
   speed?: number;
   maxMs?: number;
@@ -157,9 +167,7 @@ export class CursorController {
 
     const dist = Math.hypot(end.x - start.x, end.y - start.y);
 
-    const speed = opts.speed
-      ? clamp(opts.speed, 20, 20000)
-      : clamp((Number(this.data.config.cursorSpeedPxPerSec) || 4200) / this.hurryMode.urgencyFactor(), 500, 200000);
+    const speed = pawTravelSpeed(this.data, this.hurryMode, opts.speed);
 
     // Every trip is a little faster or slower than the last.
     const duration = clamp((dist / speed) * 1000 * (0.85 + Math.random() * 0.35), 22, opts.maxMs || 420);

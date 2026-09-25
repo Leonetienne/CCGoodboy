@@ -77,9 +77,18 @@ export interface IGameAdapter {
   /** Game.specialTab: the tab whose popup (#specialPopup) is open, '' if none. */
   getSpecialTab(): string;
 
+  // ---- Christmas (XMAS-*) ----
+  /** Game.santaLevel: 0 Festive test tube ... 14 Final Claus. */
+  getSantaLevel(): number;
+  /** Game.bounds width (px): how far a reindeer runs over its lifespan (XMAS-6). Falls back to
+   * the window width. */
+  getShimmerFieldWidth(): number;
+
   // ---- debug-tools-only raw operations (see ui/debug/debug-tools.ts) ----
   spawnGoldenShimmer(opts: { wrath?: boolean }): Record<string, unknown>;
   spawnCookieChain(): Record<string, unknown>;
+  /** Spawns one reindeer shimmer (Christmas; works in any season). */
+  spawnReindeer(): Record<string, unknown>;
   resetLumpRefillCooldown(): 'ready' | 'overridden';
   earnCookies(n: number): void;
   gainLumps(n: number): void;
@@ -95,6 +104,10 @@ export interface IGameAdapter {
   /** Unlocks every Halloween cookie (Game.halloweenDrops) that is not yet unlocked or bought,
    * so it sits in the store; returns how many were unlocked. */
   unlockHalloweenCookies(): number;
+  /** Unlocks every Christmas upgrade that is not yet unlocked or bought (A festive hat, Santa's
+   * gifts Game.santaDrops, the reindeer biscuits Game.reindeerDrops, Santa's dominion), so it
+   * sits in the store; returns how many were unlocked. */
+  unlockChristmasUpgrades(): number;
 }
 
 export class GameAdapter implements IGameAdapter {
@@ -473,6 +486,17 @@ export class GameAdapter implements IGameAdapter {
     return Game && typeof Game.specialTab === 'string' ? Game.specialTab : '';
   }
 
+  getSantaLevel(): number {
+    const Game = window.Game;
+    return Game ? Math.max(0, Number(Game.santaLevel) || 0) : 0;
+  }
+
+  getShimmerFieldWidth(): number {
+    const b = window.Game ? window.Game.bounds : null;
+    const w = b ? Number(b.right) - Number(b.left) : NaN;
+    return Number.isFinite(w) && w > 0 ? w : window.innerWidth;
+  }
+
   /** Pantheon slot (1-3) of a god, 0 when not slotted or the Pantheon isn't loaded. */
   private godLevel(god: string): number {
     try {
@@ -491,6 +515,16 @@ export class GameAdapter implements IGameAdapter {
     }
 
     return new Game.shimmer('golden', opts.wrath ? { wrath: true } : { noWrath: true });
+  }
+
+  spawnReindeer(): Record<string, unknown> {
+    const Game = window.Game;
+
+    if (!Game || typeof Game.shimmer !== 'function' || !Game.shimmerTypes || !Game.shimmerTypes.reindeer) {
+      throw new Error('reindeer shimmers are not available');
+    }
+
+    return new Game.shimmer('reindeer');
   }
 
   /** Spawns the first cookie of a REAL cookie chain. Unlike a plain forced 'chain cookie'
@@ -676,6 +710,26 @@ export class GameAdapter implements IGameAdapter {
     let n = 0;
 
     for (const name of Game.halloweenDrops) {
+      const up = Game.Upgrades[name];
+      if (!up || up.bought || up.unlocked) continue;
+
+      Game.Unlock(name);
+      n++;
+    }
+
+    return n;
+  }
+
+  unlockChristmasUpgrades(): number {
+    const Game = window.Game;
+
+    if (!Game || !Array.isArray(Game.santaDrops) || !Array.isArray(Game.reindeerDrops) || typeof Game.Unlock !== 'function' || !Game.Upgrades) {
+      throw new Error('Game.santaDrops / Game.reindeerDrops are not available');
+    }
+
+    let n = 0;
+
+    for (const name of ['A festive hat', ...Game.santaDrops, ...Game.reindeerDrops, "Santa's dominion"]) {
       const up = Game.Upgrades[name];
       if (!up || up.bought || up.unlocked) continue;
 

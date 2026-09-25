@@ -2,6 +2,7 @@ import { AutoHammer } from './autoplay/auto-hammer';
 import { GrimoireUnlocker } from './autoplay/grimoire-unlock';
 import { IncomeTracker } from './autoplay/income-tracker';
 import { KrumblorTrainer } from './autoplay/krumblor';
+import { SantaTrainer } from './autoplay/santa';
 import { AutoPlayEngine } from './autoplay/shopping';
 import { WrinklerPopper } from './autoplay/wrinkler-popper';
 import { PersistedData } from './core/persisted-data';
@@ -85,12 +86,13 @@ const autoPlay = new AutoPlayEngine(
 );
 const grimoireUnlock = new GrimoireUnlocker(runtime, data, game, log, grimoireView, () => autoPlay.shoppingInterrupted());
 const krumblor = new KrumblorTrainer(runtime, data, game, log, () => autoPlay.shoppingInterrupted());
+const santa = new SantaTrainer(runtime, data, game, log, () => autoPlay.shoppingInterrupted());
 const wrinklerPopper = new WrinklerPopper(runtime, data, game, log, stats, autoPlay);
 // Anything at the auto-shop tier that wants to run right now (the buildings-view recipe or a
-// debug goal, the Grimoire unlock, a Krumblor step, a wrinkler pop, a due purchase): it
+// debug goal, the Grimoire unlock, a Krumblor or Santa step, a wrinkler pop, a due purchase): it
 // interrupts hammering and idle play at once (AUTO-8).
 const autoShopReady = () =>
-  grimoireView.pending() || grimoireUnlock.pending() || krumblor.pending() || wrinklerPopper.pending() || autoPlay.shopReady();
+  grimoireView.pending() || grimoireUnlock.pending() || krumblor.pending() || santa.pending() || wrinklerPopper.pending() || autoPlay.shopReady();
 
 const pendingWork = new PendingWork(game, isGoodGoldenReady, hammerActive, fthofOrRefillPending, lumpHarvestPending, autoShopReady, cursorManager);
 
@@ -130,6 +132,7 @@ const scheduler = new Scheduler(runtime, game, log, buffLock, goldenCookieModel,
   grimoireView,
   grimoireUnlock,
   krumblor,
+  santa,
   autoPlay,
   wrinklerPopper,
   happyDance,

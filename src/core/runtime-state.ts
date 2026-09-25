@@ -98,6 +98,11 @@ export class RuntimeState {
   krumblorMenuOurs = false;
   krumblorPickerAt = 0;
   krumblorStuckSince = 0;
+  /** Santa (XMAS-*): a pause after a failure, whether the paw opened Santa's popup (it only
+   * closes its own), and since when a step's element can't be found. */
+  santaBlockUntil = 0;
+  santaMenuOurs = false;
+  santaStuckSince = 0;
   autoHammerState: AutoHammerState = {
     on: false,
     wanted: null,

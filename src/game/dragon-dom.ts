@@ -62,6 +62,12 @@ export function getDragonTrainButton(): Element | null {
   return withHandler(getSpecialPopup(), 'a.option', 'Game.UpgradeDragon(');
 }
 
+/** Santa's popup's "Evolve | sacrifice ..." button (XMAS-*; the popup is shared with the
+ * dragon's, Game.specialTab says whose it is). */
+export function getSantaEvolveButton(): Element | null {
+  return withHandler(getSpecialPopup(), 'a.option', 'Game.UpgradeSanta(');
+}
+
 /** The popup's aura slot crate (slot 0 = the primary aura, top right of the popup). */
 export function getDragonAuraSlot(slot: 0 | 1): Element | null {
   return withHandler(getSpecialPopup(), '.crate', `Game.SelectDragonAura(${slot})`);

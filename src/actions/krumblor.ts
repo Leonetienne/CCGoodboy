@@ -14,18 +14,20 @@ export interface DragonClickParams {
   /** Checked SETTLE_MS after the click: did the click do what it should? */
   onResult: (ok: boolean) => void;
   worked: () => boolean;
+  /** HUD mood (§7); 'krumblor' unless given (Santa's popup uses 'santa'). */
+  mood?: string;
 }
 
 /** One real synthetic click in Krumblor's UI (KRUMB-3): the dragon's tab on the left canvas,
  * the popup's train button, its aura slot, the aura picker's crate / Confirm, the popup's
- * close "x". Conditions are re-checked right before the click (FT-4 pattern). */
+ * close "x". Santa's tab, "Evolve" button and "x" (XMAS-4) use it too. Conditions are re-checked right before the click (FT-4 pattern). */
 export class DragonClickAction implements CursorAction {
   readonly label: string;
   readonly hud: { action: string; target: string };
 
   constructor(private readonly p: DragonClickParams) {
     this.label = p.label;
-    this.hud = { action: 'krumblor', target: p.target };
+    this.hud = { action: p.mood || 'krumblor', target: p.target };
   }
 
   target(): { x: number; y: number } | null {
@@ -55,6 +57,8 @@ export interface DragonStoreParams {
   stillWanted: () => boolean;
   /** The game API call (buy/sell); runs right at the click pulse. */
   run: () => void;
+  /** HUD mood (§7); 'krumblor' unless given. */
+  mood?: string;
 }
 
 /** A store action done through the game's own API (the egg upgrade, selling / buying
@@ -70,7 +74,7 @@ export class DragonStoreAction implements CursorAction {
   constructor(private readonly p: DragonStoreParams) {
     this.label = p.label;
     this.target = p.point;
-    this.hud = { action: 'krumblor', target: p.target };
+    this.hud = { action: p.mood || 'krumblor', target: p.target };
   }
 
   abortIf(): boolean {

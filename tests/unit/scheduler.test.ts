@@ -17,6 +17,7 @@ import type { GrimoireView } from '../../src/hunting/grimoire-view';
 import type { AutoPlayEngine } from '../../src/autoplay/shopping';
 import type { WrinklerPopper } from '../../src/autoplay/wrinkler-popper';
 import type { KrumblorTrainer } from '../../src/autoplay/krumblor';
+import type { SantaTrainer } from '../../src/autoplay/santa';
 import { JOB_PRIORITY, type CursorAction, type CursorJob, type EnqueueOpts } from '../../src/cursor/types';
 import { Scheduler, type SchedulerDeps } from '../../src/scheduler/scheduler';
 import { LogStore } from '../../src/stats/log';
@@ -64,6 +65,7 @@ function makeScheduler(game: FakeGameAdapter, overrides: Partial<SchedulerDeps> 
     grimoireView: { pending: () => false } as unknown as GrimoireView,
     grimoireUnlock: { pending: () => false } as unknown as GrimoireUnlocker,
     krumblor: { pending: () => false } as unknown as KrumblorTrainer,
+    santa: { pending: () => false } as unknown as SantaTrainer,
     autoPlay: { shopReady: () => false } as unknown as AutoPlayEngine,
     wrinklerPopper: { pending: () => false } as unknown as WrinklerPopper,
     happyDance: {

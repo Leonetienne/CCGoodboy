@@ -5,6 +5,7 @@ import { getFthofCost, refillCanReachCost } from '../game/grimoire';
 import type { CpsBuff } from '../game/types';
 import type { GrimoireUnlocker } from '../autoplay/grimoire-unlock';
 import type { KrumblorTrainer } from '../autoplay/krumblor';
+import type { SantaTrainer } from '../autoplay/santa';
 import type { AutoPlayEngine } from '../autoplay/shopping';
 import type { WrinklerPopper } from '../autoplay/wrinkler-popper';
 import type { JobRequest } from '../cursor/types';
@@ -30,6 +31,7 @@ export interface PriorityDeps {
   grimoireView: GrimoireView;
   grimoireUnlock: GrimoireUnlocker;
   krumblor: KrumblorTrainer;
+  santa: SantaTrainer;
   autoPlay: AutoPlayEngine;
   wrinklerPopper: WrinklerPopper;
   happyDance: HappyDance;
@@ -44,7 +46,7 @@ export interface PriorityDeps {
  *                               first gets the Grimoire on screen (FT-8, GrimoireView steps)
  *   4 ripe sugar lump        -> LumpHarvestAction (harvest before the game auto-harvests it)
  *   5 a started buildings-view recipe / "Show grimoire" debug goal, then auto play: unlock
- *     the Grimoire, train Krumblor, pop a wrinkler for a purchase, then shopping
+ *     the Grimoire, train Krumblor, evolve Santa, pop a wrinkler for a purchase, then shopping
  *                            -> MenuButtonAction / ScrollIntoViewAction / MinigameButtonAction /
  *                               GrimoireUnlockAction / DragonClickAction / DragonStoreAction /
  *                               WrinklerPopAction, else the auto-shop
@@ -57,7 +59,7 @@ export interface PriorityDeps {
  * still falls through to lump harvest/auto-shop/hammer/dance/idle below it, exactly as the
  * original did. */
 export function selectJobRequest(deps: PriorityDeps): JobRequest | null {
-  const { queue, buffs, runtime, data, game, clickGolden, clickBigCookie, fthof, lumpHarvest, grimoireView, grimoireUnlock, krumblor, autoPlay, wrinklerPopper, happyDance, idleBehavior, hammerActive } = deps;
+  const { queue, buffs, runtime, data, game, clickGolden, clickBigCookie, fthof, lumpHarvest, grimoireView, grimoireUnlock, krumblor, santa, autoPlay, wrinklerPopper, happyDance, idleBehavior, hammerActive } = deps;
 
   let job: JobRequest | null = null;
 
@@ -114,6 +116,11 @@ export function selectJobRequest(deps: PriorityDeps): JobRequest | null {
   // Auto play: train Krumblor up to the Dragon Cursor aura (KRUMB-*).
   if (!job && krumblor.pending()) {
     job = krumblor.job();
+  }
+
+  // Auto play: evolve Santa up to Final Claus (XMAS-*).
+  if (!job && santa.pending()) {
+    job = santa.job();
   }
 
   // Auto play: pop mature wrinklers whose cookies the next purchase needs (WRINK-2..6).

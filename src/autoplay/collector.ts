@@ -3,6 +3,7 @@ import type { RuntimeState } from '../core/runtime-state';
 import type { IGameAdapter } from '../game/game-adapter';
 import type { GameBuilding, GameUpgrade } from '../game/types';
 import { autoBuildingGain, autoFingerBonus, autoPerClick, autoUnbuffedCps } from './building-valuation';
+import { CHRISTMAS_UPGRADES, christmasUpgradeGain } from './christmas';
 import { EASTER_EGGS, easterEggGain } from './easter-eggs';
 import type { IncomeTracker } from './income-tracker';
 import { autoPrice, autoResearchCandidateGain, autoUpgradeGain } from './upgrade-classifier';
@@ -202,8 +203,12 @@ export function autoCollect(game: IGameAdapter, data: PersistedData, runtime: Ru
       continue;
     }
 
-    // Easter eggs (EGG-*) have their own valuation.
-    const g = EASTER_EGGS.has(up.name) ? easterEggGain(game, up, { ...ctx, maturity, reachSec: cfg.reachSec }) : autoUpgradeGain(game, up, ctx);
+    // Easter eggs (EGG-*) and the Christmas upgrades (XMAS-*) have their own valuation.
+    const g = EASTER_EGGS.has(up.name)
+      ? easterEggGain(game, up, { ...ctx, maturity, reachSec: cfg.reachSec })
+      : CHRISTMAS_UPGRADES.has(up.name)
+        ? christmasUpgradeGain(game, up, { ...ctx, santaLevel: game.getSantaLevel() })
+        : autoUpgradeGain(game, up, ctx);
     if (!g || !(g.gain > 0)) continue;
 
     const cost = autoPrice(up);

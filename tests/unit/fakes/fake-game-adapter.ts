@@ -53,6 +53,10 @@ export class FakeGameAdapter implements IGameAdapter {
   krumblorUnlocked = false;
   easterEggsUnlocked = 0;
   halloweenCookiesUnlocked = 0;
+  christmasUpgradesUnlocked = 0;
+  santaLevel = 0;
+  reindeerSpawned = 0;
+  shimmerFieldWidth = 1000;
 
   isPresent(): boolean {
     return this.present;
@@ -261,6 +265,11 @@ export class FakeGameAdapter implements IGameAdapter {
     throw new Error('Game.shimmer is not available');
   }
 
+  spawnReindeer(): Record<string, unknown> {
+    this.reindeerSpawned++;
+    return { type: 'reindeer' };
+  }
+
   spawnCookieChain(): Record<string, unknown> {
     throw new Error('Game.shimmer is not available');
   }
@@ -318,6 +327,18 @@ export class FakeGameAdapter implements IGameAdapter {
 
   unlockHalloweenCookies(): number {
     return this.halloweenCookiesUnlocked;
+  }
+
+  unlockChristmasUpgrades(): number {
+    return this.christmasUpgradesUnlocked;
+  }
+
+  getSantaLevel(): number {
+    return this.santaLevel;
+  }
+
+  getShimmerFieldWidth(): number {
+    return this.shimmerFieldWidth;
   }
 
   unlockKrumblor(): boolean {

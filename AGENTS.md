@@ -16,6 +16,11 @@ Commit messages: a single lowercase `type: summary` subject line (`fix:`,
 `Co-Authored-By:` trailer or any other AI/tool attribution line, whatever
 an agent's defaults say.
 
+Never launch the local test server (the Cookie Clicker copy served over
+HTTP for in-game checks) or drive the game in a browser unless the user
+asks for it. After a change: `make typecheck`, `make test`, `make build`,
+then stop.
+
 The refactor from the single 11k-line monolith to this module tree was
 done to be **behavior-identical**: every requirement below held for the
 original file and holds for this one. If you find a divergence, it's a bug
@@ -33,16 +38,18 @@ shows all of that through a little paw cursor, a HUD, charts and logs. It
 also ships "debug tools" (cheats) to test the hunter on a test save.
 
 Out of scope: seasons (switching them; auto play does buy the Easter egg
-upgrades a season drops, EGG-\*), garden, stock market, pantheon, ascending,
+upgrades a season drops, EGG-\*, and the Christmas upgrades, evolving Santa,
+XMAS-\*), garden, stock market, pantheon, ascending,
 and any Grandmapocalypse beyond stage 1 (WRINK-1).
 Buying is only done by the optional, OFF-by-default "Auto play" mode
 (AUTO-\*) and even then only through the game's own buy functions. The bot
-NEVER clicks anything except: good golden cookies, the big cookie, the
+NEVER clicks anything except: good golden cookies, reindeer (XMAS-6), the big cookie, the
 FTHOF spell button, the lump-refill button, a ripe sugar lump, the
 Options/Stats menu buttons and the "View Grimoire" button needed to get the
 FTHOF spell on screen (FT-8), and — in auto play only — the Wizard tower's
-"lvl" button (AUTO-13), mature wrinklers (WRINK-5) and Krumblor's tab,
-popup and aura picker (KRUMB-3) (the paw only "visits" store items,
+"lvl" button (AUTO-13), mature wrinklers (WRINK-5), Krumblor's tab,
+popup and aura picker (KRUMB-3) and Santa's tab, "Evolve" button and popup
+"x" (XMAS-4) (the paw only "visits" store items,
 AUTO-9).
 
 ## 2. Terms
@@ -72,6 +79,7 @@ AUTO-9).
 | wrinkler | a creature attached to the big cookie from stage 1 on (max 10, 12 with Elder spice). n attached wrinklers each digest n × 5% of CpS (n² × 5% together) while the bank only gets CpS × (1 − n × 5%); popping one returns what it digested × 1.1 (more with upgrades, × 3 for a shiny one). 10 wrinklers ≈ 6× the income, but only once popped. |
 | respawn time | how long an emptied wrinkler slot takes to digest again: `1 / (spawn chance per frame × fps) + 10s` crawl (~56 min at stage 1: 0.00001 per frame). |
 | Krumblor | the cookie dragon, unlocked by the upgrade "A crumbly egg" (in the store once the heavenly upgrade "How to bake your dragon" is owned and 1M cookies are baked). `Game.dragonLevel` 0-4 are egg levels paid in cookies (1M × 2^level), level 5 → 6 ("Train Dragon Cursor") sacrifices 100 cursors; aura `id` is known from level `id + 4`. |
+| Santa | the Christmas special, unlocked by the upgrade "A festive hat" (in the store during Christmas season once 25 cookies are baked). `Game.santaLevel` 0 (Festive test tube) to 14 (Final Claus); evolving from level `l` costs `(l+1)^(l+1)` cookies and unlocks one Santa gift (`Game.santaDrops`), which costs `2525 × 3^santaLevel`. |
 | mature | a wrinkler that has digested for >= "maturity" × the respawn time (estimated as `sucked / (CpS × cpsSucked)`). |
 
 ## 3. Functional requirements
@@ -82,7 +90,7 @@ refactor) which `tests/visual/scenarios.mjs` scenario exercises it.
 
 ### 3.1 Golden cookies
 
-- **GC-1** Only good golden cookies are clicked. Wrath cookies are never
+- **GC-1** Only good golden cookies (and reindeer, XMAS-6) are clicked. Wrath cookies are never
   clicked; each wrath cookie is logged once (`"ignore wrath cookie"`).
 - **GC-2** EVERY golden cookie (good, fading in, wrath) gets a hitbox
   overlay the moment it exists: ready = pink numbered box, pending =
@@ -222,8 +230,8 @@ refactor) which `tests/visual/scenarios.mjs` scenario exercises it.
   4. a ripe sugar lump (LUMP-\*)
   5. a buildings-view recipe already under way / the "Show grimoire"
      debug goal (DBG-9/11), then auto play: Grimoire unlock (AUTO-13),
-     then a Krumblor step (KRUMB-\*), then popping a wrinkler for a
-     purchase (WRINK-3), then shopping (only when a purchase is due,
+     then a Krumblor step (KRUMB-\*), then a Santa step (XMAS-4), then
+     popping a wrinkler for a purchase (WRINK-3), then shopping (only when a purchase is due,
      AUTO-8)
   6. hammer mode (manual button, or the auto hammer, AUTO-11)
   7. happy dance (only right after a catch, DANCE-1)
@@ -408,6 +416,16 @@ See [§7 State machine](#7-state-machine) for how this maps onto code.
   in the store. They are ordinary cookie upgrades (+2% CpS, fixed price),
   so auto play buys them as biscuits (AUTO-2). Fails in red when every one
   is already unlocked or bought.
+- **DBG-18** Unlock all christmas upgrades: unlocks every Christmas upgrade
+  that is neither unlocked nor bought: "A festive hat", the 14 Santa gifts
+  (`Game.santaDrops`), the 7 reindeer biscuits (`Game.reindeerDrops`) and
+  Santa's dominion, so all of them sit in the store (XMAS-\*). Buying the hat
+  adds Santa's tab, so Santa's evolution can be tested outside Christmas
+  season. Fails in red when every one is already unlocked or bought.
+- **DBG-19** Spawn reindeer: one reindeer shimmer runs across the screen
+  (`new Game.shimmer('reindeer')`, works in any season), and the paw
+  catches it (XMAS-6). Fails in red if the game has no reindeer shimmer
+  type.
 ### 3.12 Console voice
 
 The bot talks in the browser console, in the same cute style as the UI
@@ -417,8 +435,10 @@ action log (UI-6); nothing here is stored.
 - **CON-1** Happy lines (`sayYay`, `console.log`): GC-8's catch message,
   one short, personal greeting when the bot starts (`Bootstrap.start()`),
   `"Popped a stinky wrinkler! Yuckies!"` after each successful pop
-  (WRINK-6), and `"Krumblor wears Dragon Cursor now, clicky clicky ^w^"`
-  once the aura is on (KRUMB-5).
+  (WRINK-6), `"Krumblor wears Dragon Cursor now, clicky clicky ^w^"`
+  once the aura is on (KRUMB-5), and `"Santa is Final Claus now, ho ho ho
+  ^w^"` once Santa reaches his last level (XMAS-4); a caught reindeer
+  says `"Caught a reindeer!! Ho ho ho, gewd boy :3"` (XMAS-6).
 - **CON-2** "Wanted to ..., but ..." lines (`console.log`) whenever the bot
   wants to do something and can't. Conditions re-checked every scheduler
   tick go through `sayCantWhile(wish, reasonCode, msg)`, which says each
@@ -435,9 +455,9 @@ action log (UI-6); nothing here is stored.
   - Grimoire unlock wanted (AUTO-13): sugar lumps not unlocked, no lumps.
 
   One-off events use `sayCant(msg)`: a golden cookie click that didn't pop
-  it (not for storm drops), a FTHOF/refill/lump click that did nothing,
+  it (not for storm drops) or a reindeer that ran away, a FTHOF/refill/lump click that did nothing,
   FT-8 preparation falling back to a direct cast, the Grimoire unlock,
-  wrinkler popping or Krumblor training pausing (with the reason), a purchase the shop refused,
+  wrinkler popping, Krumblor training or Santa's evolution pausing (with the reason), a purchase the shop refused,
   a failed debug tool or "Show grimoire".
 - **CON-3** Errors (`sayOops`, `console.error` with the error object): a
   failing action (SCHED-4, `CursorManager`), a failing timer callback, the
@@ -771,6 +791,73 @@ remaining egg pricier: common ones cost 999 × 2^owned, rare ones 999 ×
   store visit + pulse (AUTO-9), `"auto buy"` log with type `egg` (the
   Golden goose egg: `golden`). Debug: DBG-16.
 
+### 3.20 Christmas (auto play)
+
+During Christmas season "A festive hat" (25 cookies) unlocks once 25
+cookies are baked; bought, it gives Santa's tab and one random Santa gift.
+Every Santa evolution unlocks one more gift, and Final Claus (level 14)
+unlocks Santa's dominion. Clicked reindeer drop the 7 reindeer biscuits
+(the paw catches reindeer, XMAS-6). Pure logic in
+`src/autoplay/christmas.ts` and `src/autoplay/santa-strategy.ts`.
+
+- **XMAS-1** Auto play always buys every Christmas upgrade, like any other
+  candidate (AUTO-2..4); there is no separate switch. The reindeer
+  biscuits are ordinary cookie upgrades (+2% CpS) and bought as biscuits;
+  the hat, the 14 gifts and Santa's dominion are valued by
+  `christmasUpgradeGain()`.
+- **XMAS-2** Values: Increased merriness / Improved jolliness +15% CpS; A
+  lump of coal / An itchy sweater +1%; Season savings (buildings 1%
+  cheaper) +1%; Naughty list the grandmas' CpS (twice as efficient);
+  Santa's helpers 10% of the clicking income at the hammer rate; Santa's
+  legacy +3% CpS × (Santa level + 1); Santa's dominion +21% (20% CpS plus
+  the discounts). Everything else (the hat, the three reindeer upgrades,
+  Santa's bottomless bag, Toy workshop, Santa's milk and cookies) gets the
+  nominal 0.1% of CpS.
+- **XMAS-3** Order: a gift costs 2525 × 3^santaLevel, so every evolution
+  triples the price of the gifts still in the store. The hat and the gifts
+  are preferred (AUTO-4 B, bought whenever affordable) and Santa does not
+  evolve while a gift waits unbought in the store. Santa's dominion (2.5
+  quadrillion) is not preferred; it competes on payback.
+- **XMAS-4** With auto play on, Santa evolves up to Final Claus and no
+  further (`SantaTrainer`, `src/autoplay/santa.ts`): an evolution is paid
+  when the bank holds more than its cost after the reserve (AUTO-6) and
+  the cost is insignificant (AUTO-4 A) or pays back within 1h
+  (`SANTA_MAX_PAYBACK_SEC`; gain = Santa's legacy's +3% if owned, plus for
+  Final Claus Santa's dominion's +20% against its price on top). Like
+  KRUMB-3, one step per scheduler tick re-derived from the live game
+  (`nextSantaStep()`): the paw clicks Santa's tab on `#backgroundLeftCanvas`
+  (same hit test as the dragon's tab), the popup's "Evolve" button, and
+  finally the popup's "x" — real synthetic clicks (NFR-8 a). It only closes
+  a popup it opened; it also closes its popup while waiting. Every
+  evolution is logged (`"santa"`).
+- **XMAS-5** Safety: same gates as AUTO-7 (golden cookie ready, Click
+  Frenzy, storm/chain, FTHOF/refill pending, ascending, a prompt open,
+  paused). A click that didn't do its job pauses evolving 3s, an element
+  that doesn't show up for 5s pauses it 10s. Dry run only logs "would do".
+  Priority: tier 5, after a Krumblor step, before wrinkler pops and
+  shopping; a due step interrupts hammering and idle play like a due
+  purchase (AUTO-8). Debug: DBG-18.
+- **XMAS-6** Reindeer are caught like good golden cookies (GC-2..7): they
+  join the same queue and route, get the same hitbox, click delay and
+  pre-click pause, at the same absolute priority (`CATCHABLE_SHIMMER_TYPES`,
+  `src/game/golden-cookie-model.ts`). Their fade curve uses the game's
+  power 12 instead of 4 (visible almost at once). A reindeer runs left to
+  right (the whole `Game.bounds` width over its lifespan) and bounces, so
+  the paw LEADS it: its path is predicted from the game's own drawing
+  formula (`reindeerCenterAhead()`, `src/game/reindeer.ts`) and the paw
+  travels to where the reindeer will be once the trip, the pre-click pause
+  and the press are over (`reindeerIntercept()`, a fixed point over the
+  paw's average trip time). The paw then waits in its path, re-aims after
+  the pause at where the reindeer will be at that planned moment, and
+  clicks as it runs into the paw. A reindeer that would leave the screen
+  before the paw gets there is let go. A
+  catch is recorded as the effect "Reindeer" (stats, graphs with its own
+  colour), logged (`"click reindeer"`), says `"Caught a reindeer!! Ho ho ho,
+  gewd boy :3"` (CON-1) and may be followed by the happy dance (DANCE-1; a
+  reindeer on screen also counts as a cookie present). Hurry mode and the
+  cookie storm/chain checks still only look at golden cookies. Debug:
+  DBG-19.
+
 ## 4. Non-functional requirements
 
 - **NFR-1** Versioning: MAJOR.MINOR.PATCH, shown in the panel. Bump with
@@ -917,14 +1004,14 @@ gainLumps) — still guarded, still the only path to those `Game.*` calls.
 | Area | Path | Contents |
 |---|---|---|
 | Core state | `src/core/` | `constants.ts` (VERSION, clamp helpers), `console-voice.ts` (CON-\*), `persisted-data.ts`, `runtime-state.ts`, `state-machine.ts` |
-| Game facade | `src/game/` | `game-adapter.ts` (IGameAdapter + GameAdapter), `types.ts` (GameShimmer/RawBuff/CpsBuff/GrimoireMinigame/GameBuilding/GameUpgrade), `golden-cookie-model.ts` (fade curve, shimmer classification, GC-2/GC-3), `hurry-mode.ts` (HURRY-\*), `buffs-lock.ts` (LOCK_A, FT-6), `grimoire.ts` (FTHOF spell/cost lookup), `grimoire-dom.ts` (real Grimoire controls — FT-7), `lump-dom.ts` (`#lumps` control/centre — LUMP-\*), `wrinkler-dom.ts` (`#backgroundLeftCanvas`, a wrinkler's body point — WRINK-5), `dragon-dom.ts` (the dragon's canvas tab, `#specialPopup`, the aura picker — KRUMB-3), `buildings-view-dom.ts` (`#centerArea`, menu buttons, building rows/level buttons, the Options/Stats/Stats recipe, `centeredScrollTop` — AUTO-13), `dom-geometry.ts` (visibleRect/looseRect/clippedByAncestor — shared by every overlay box, GC-2/BUY-3) |
+| Game facade | `src/game/` | `game-adapter.ts` (IGameAdapter + GameAdapter), `types.ts` (GameShimmer/RawBuff/CpsBuff/GrimoireMinigame/GameBuilding/GameUpgrade), `golden-cookie-model.ts` (fade curve, shimmer classification, GC-2/GC-3), `hurry-mode.ts` (HURRY-\*), `buffs-lock.ts` (LOCK_A, FT-6), `grimoire.ts` (FTHOF spell/cost lookup), `grimoire-dom.ts` (real Grimoire controls — FT-7), `lump-dom.ts` (`#lumps` control/centre — LUMP-\*), `wrinkler-dom.ts` (`#backgroundLeftCanvas`, a wrinkler's body point — WRINK-5), `dragon-dom.ts` (the special tabs on the left canvas, `#specialPopup`, the aura picker, Santa's "Evolve" button — KRUMB-3/XMAS-4), `buildings-view-dom.ts` (`#centerArea`, menu buttons, building rows/level buttons, the Options/Stats/Stats recipe, `centeredScrollTop` — AUTO-13), `reindeer.ts` (a reindeer's predicted path and the paw's meeting point — XMAS-6), `dom-geometry.ts` (visibleRect/looseRect/clippedByAncestor — shared by every overlay box, GC-2/BUY-3) |
 | Cursor (queue) | `src/cursor/` | `types.ts` (`JOB_PRIORITY`, `CursorAction`, `CursorJob`, `CursorJobContext`, `CursorMover`, `CursorClickTiming`, `JobRequest`), `cursor-manager.ts` (owns the priority queue + all cursor motion: click gap → travel → pre-click pause → `cursor_at_position`, dedup by key, preemption, single cursor writer) |
-| Actions | `src/actions/` | `click-element.ts` (ClickElementAction/MoveAction/VisualPressAction), `golden-cookie.ts` (GoldenCookieAction, `effectPrettyName`), `hammer.ts` (HammerAction + big-cookie point helpers, CF-\*), `fthof.ts` (FthofAction/RefillAction), `lump-harvest.ts` (LumpHarvestAction, LUMP-\*), `buildings-view.ts` (MenuButtonAction, ScrollIntoViewAction, MinigameButtonAction — FT-8/AUTO-13/DBG-9..11), `grimoire-unlock.ts` (GrimoireUnlockAction, AUTO-13), `wrinkler-pop.ts` (WrinklerPopAction, WRINK-5), `krumblor.ts` (DragonClickAction/DragonStoreAction, KRUMB-3), `dance.ts` (DanceAction + `danceEligible`/`anyGoldenPresent`/`getDanceMs`), `ponder.ts` (PonderAction), `idle.ts` (IdleWanderAction + `IDLE_SPOTS`/`pickIdleSpot`) |
+| Actions | `src/actions/` | `click-element.ts` (ClickElementAction/MoveAction/VisualPressAction), `golden-cookie.ts` (GoldenCookieAction, `effectPrettyName`), `hammer.ts` (HammerAction + big-cookie point helpers, CF-\*), `fthof.ts` (FthofAction/RefillAction), `lump-harvest.ts` (LumpHarvestAction, LUMP-\*), `buildings-view.ts` (MenuButtonAction, ScrollIntoViewAction, MinigameButtonAction — FT-8/AUTO-13/DBG-9..11), `grimoire-unlock.ts` (GrimoireUnlockAction, AUTO-13), `wrinkler-pop.ts` (WrinklerPopAction, WRINK-5), `krumblor.ts` (DragonClickAction/DragonStoreAction, KRUMB-3; Santa's clicks reuse DragonClickAction, XMAS-4), `dance.ts` (DanceAction + `danceEligible`/`anyGoldenPresent`/`getDanceMs`), `ponder.ts` (PonderAction), `idle.ts` (IdleWanderAction + `IDLE_SPOTS`/`pickIdleSpot`) |
 | Hunting (modules) | `src/hunting/` | `click-golden.ts` (golden hunter: `jobFor` → GoldenCookieAction), `click-big-cookie.ts` (hammer module: `job` → HammerAction), `golden-queue.ts` (route caching, wraps route-planner), `fthof.ts` (FthofActions: `fthofOrRefillPending` + `castJob`/`refillJob`), `lump-harvest.ts` (LumpHarvestActions: `pending` + `harvestJob`), `happy-dance.ts` (HappyDance: `job` → DanceAction), `buildings-view.ts` (BuildingsViewNavigator: Options/Stats/Stats recipe + scroll-into-view steps, `PrepStep`), `grimoire-view.ts` (GrimoireView: step planner to an unlocked/open, on-screen Grimoire — FT-8/AUTO-13 — plus the DBG-9..11 tools and their scheduler tier), `hitbox-overlay.ts` (GC-2) |
 | Routing | `src/routing/route-planner.ts` | `exactRoute` (Held-Karp DP, <= 11 cookies), `heuristicRoute` (nearest-neighbor + 2-opt/Or-opt + restarts), `planRoute` (GC-5) |
 | Idle | `src/idle/` | `idle-behavior.ts` (IdleBehavior module: `idleJob` → IdleWanderAction), `pending-work.ts` (conditions + queue state via `CursorManager.hasJobsAbove` — the shared "is anything more important pending?" predicate) |
 | Input synthesis | `src/input/` | `dispatch.ts` (dispatchMouse/dispatchMove — MOUSE-\*), `human-click.ts` (ClickTiming: delays, waitUntil, humanClick), `cursor-controller.ts` (CursorController: low-level PAW-4 arc/spline/warp travel, moveCursorTo/glideCursor — the only file that writes `runtime.cursor.x/y`), `background-clock.ts` (BackgroundClock: BG-1/BG-2 worker timer), `keep-alive.ts` (BG-3) |
-| Auto play | `src/autoplay/` | `valuation-tables.ts` (AUTO_BLOCKED_\*, AUTO_GOLDEN_UPGRADES, AUTO_KITTEN_POWER, AUTO_FINGER_STEPS, AUTO_BUILDING_CAPS — AUTO-2 data), `building-valuation.ts` + `upgrade-classifier.ts` (AUTO-3 gain math per candidate type), `collector.ts` (`autoCollect`: gathers candidates + ctx, AUTO-7 safety gates), `strategy.ts` (`autoDecide`: the pure insignificant/good/postpone/save decision, AUTO-4 — flagship unit-test target), `shopping.ts` (`AutoPlayEngine`: evaluate/shopJob/statusText, AUTO-1/8/9/10/12), `auto-hammer.ts` (AUTO-11), `grimoire-unlock.ts` (`GrimoireUnlocker`: AUTO-13 gating, steps from GrimoireView), `wrinkler-strategy.ts` (pure: respawn time, maturity, fewest-fattest pick — WRINK-2/3), `grandmapocalypse-valuation.ts` (pure: stage 1 gain, delay, chain-step dCps — WRINK-1), `wrinkler-popper.ts` (`WrinklerPopper`: WRINK-3/4 gating, plan, job, HUD text), `krumblor-strategy.ts` (pure: next Krumblor step — KRUMB-1/2/5), `krumblor.ts` (`KrumblorTrainer`: KRUMB-\* gating, state, jobs, the cursor sale/rebuy), `easter-eggs.ts` (pure-ish: egg values and order — EGG-\*), `income-tracker.ts` (smoothed clicking income for AUTO-3's `income`), `buy-value-overlay.ts` (BUY-\*) |
+| Auto play | `src/autoplay/` | `valuation-tables.ts` (AUTO_BLOCKED_\*, AUTO_GOLDEN_UPGRADES, AUTO_KITTEN_POWER, AUTO_FINGER_STEPS, AUTO_BUILDING_CAPS — AUTO-2 data), `building-valuation.ts` + `upgrade-classifier.ts` (AUTO-3 gain math per candidate type), `collector.ts` (`autoCollect`: gathers candidates + ctx, AUTO-7 safety gates), `strategy.ts` (`autoDecide`: the pure insignificant/good/postpone/save decision, AUTO-4 — flagship unit-test target), `shopping.ts` (`AutoPlayEngine`: evaluate/shopJob/statusText, AUTO-1/8/9/10/12), `auto-hammer.ts` (AUTO-11), `grimoire-unlock.ts` (`GrimoireUnlocker`: AUTO-13 gating, steps from GrimoireView), `wrinkler-strategy.ts` (pure: respawn time, maturity, fewest-fattest pick — WRINK-2/3), `grandmapocalypse-valuation.ts` (pure: stage 1 gain, delay, chain-step dCps — WRINK-1), `wrinkler-popper.ts` (`WrinklerPopper`: WRINK-3/4 gating, plan, job, HUD text), `krumblor-strategy.ts` (pure: next Krumblor step — KRUMB-1/2/5), `krumblor.ts` (`KrumblorTrainer`: KRUMB-\* gating, state, jobs, the cursor sale/rebuy), `easter-eggs.ts` (pure-ish: egg values and order — EGG-\*), `christmas.ts` (pure-ish: Christmas upgrade values — XMAS-1..3), `santa-strategy.ts` (pure: next Santa step — XMAS-4), `santa.ts` (`SantaTrainer`: XMAS-4/5 gating, jobs), `income-tracker.ts` (smoothed clicking income for AUTO-3's `income`), `buy-value-overlay.ts` (BUY-\*) |
 | Scheduler | `src/scheduler/` | `priority.ts` (`selectJobRequest`: the SCHED-1 cascade as pure data), `scheduler.ts` (`Scheduler.tick()`: wrath logging, queue build, enqueues ONE job via CursorManager), `overlay-loop.ts` (`OverlayLoop`: the requestAnimationFrame draw loop — hitboxes, buy-value overlay, paw) |
 | Rendering | `src/rendering/` | `paw-cursor.ts` (`PawCursor`: PAW-1..3, sprite rasterizing, click pulse, fallback drawn paw), `overlay-canvas.ts` (resize/DPR handling) |
 | Stats | `src/stats/` | `log.ts` (`LogStore`), `stats.ts` (`StatsRecorder`: GC-6/AUTO-10 counters + hourly buckets) |
@@ -978,6 +1065,7 @@ target)`) instead of scattering direct field writes across every task.
 | `grimoire-unlock` | spending a sugar lump on Wizard tower level 1 (AUTO-13) | `GrimoireUnlockAction` |
 | `wrinkler-pop` | poking a mature wrinkler until it bursts (WRINK-5) | `WrinklerPopAction` |
 | `krumblor` | buying the crumbly egg, clicking Krumblor's tab/popup/aura picker, selling/buying cursors for the sacrifice (KRUMB-\*) | `DragonClickAction` / `DragonStoreAction` |
+| `santa` | clicking Santa's tab, "Evolve" button and popup "x" (XMAS-4) | `DragonClickAction` (from `SantaTrainer`) |
 | `auto-shop` | visiting/buying a store item (AUTO-9) | auto-shop `CursorAction` from `AutoPlayEngine.shopJob()` |
 | `happy-dance` | post-catch celebration (DANCE-\*) | `DanceAction` |
 
@@ -1000,8 +1088,8 @@ file.**
 
 Three layers, each catching a different class of bug:
 
-1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 330 tests
-   across 36 files. Pure functions (route planner, `autoDecide`, the chart
+1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 357 tests
+   across 38 files. Pure functions (route planner, `autoDecide`, the chart
    engine, `normalizeSetting`) are tested directly with plain data; the
    cursor queue/actions have their own fake mover/timing tests. Classes
    that depend on the game are tested against `FakeGameAdapter`
@@ -1138,7 +1226,10 @@ purchase follow; a Frenzy must hold it back), Krumblor (KRUMB-\*: on
 a test save with > 100 cursors and some CpS, auto play on, "Unlock
 crumblor"; watch the egg bought, the tab clicked, 5 trainings, the cursors sold
 to 100, the sacrifice, the rebuy, the aura picked and confirmed, the popup
-closed), Grimoire unlock (AUTO-13: on a test
+closed), Christmas (XMAS-\*: on a test save with some CpS, auto play on,
+"Unlock all christmas upgrades"; watch the hat and gifts bought, Santa's tab
+clicked, "Evolve" clicked once per level with each new gift bought before
+the next one, the popup closed), Grimoire unlock (AUTO-13: on a test
 save with a Wizard tower at level 0, give lumps, open Options, switch auto
 play on, scroll the building list to the top; watch Options/Stats/Stats,
 the wheel-scroll and the "lvl" click; DBG-9/10 exercise the first two
@@ -1148,6 +1239,39 @@ mouse while the bot runs and confirm the "+N" number follows your cursor,
 not the paw's).
 
 ## 12. Changelog
+
+- **5.3.3** Fixed: the paw chased a reindeer to where it had been and
+  clicked long after it had run on. It now leads the reindeer (XMAS-6):
+  new `src/game/reindeer.ts` predicts its centre from the game's own motion
+  formula and plans the meeting point after the trip, pre-click pause and
+  press; `GoldenCookieAction` aims there, waits in the reindeer's path and
+  clicks where the paw is. `IGameAdapter` gains `getShimmerFieldWidth()`,
+  `CursorClickTiming` exposes `getPreClickDelayMs()`, and
+  `cursor-controller.ts` exports `pawTravelSpeed()`/`expectedTravelMs()`.
+  Unit tests in `tests/unit/reindeer.test.ts`.
+
+- **5.3.2** The paw now catches reindeer like golden cookies (XMAS-6):
+  `GoldenCookieModel` counts `type === 'reindeer'` shimmers as good ones
+  (`CATCHABLE_SHIMMER_TYPES`, the game's power-12 fade curve), and
+  `GoldenCookieAction` records a catch as "Reindeer" (stats, its own graph
+  colour), logs `"click reindeer"` and says so in the console. The happy
+  dance waits while a reindeer is around. DBG-19 now says the paw goes
+  after the reindeer. Unit tests in `tests/unit/reindeer.test.ts`.
+
+- **5.3.1** New debug tool "Spawn reindeer" (DBG-19); `IGameAdapter`
+  gains `spawnReindeer()`.
+
+- **5.3.0** New auto play module: Christmas (XMAS-\*). Auto play buys "A
+  festive hat", Santa's 14 gifts and Santa's dominion, each valued by its
+  own effect (`src/autoplay/christmas.ts`, `christmasUpgradeGain()`; the
+  reindeer biscuits were already bought as biscuits), and evolves Santa up
+  to Final Claus through his tab and "Evolve" button (`SantaTrainer`,
+  `src/autoplay/santa.ts`, pure logic in `santa-strategy.ts`), buying each
+  new gift before the next evolution triples its price. New mood `santa`,
+  debug tool "Unlock all christmas upgrades" (DBG-18); `IGameAdapter` gains
+  `getSantaLevel()` and `unlockChristmasUpgrades()`; `DragonClickAction`
+  takes an optional HUD mood. Unit tests in `tests/unit/christmas.test.ts`
+  and `tests/unit/priority.test.ts`.
 
 - **5.2.2** New debug tool "Unlock all halloween upgrades" (DBG-17): puts
   the 7 Halloween cookies in the store; `IGameAdapter` gains

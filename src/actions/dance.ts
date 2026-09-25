@@ -2,10 +2,11 @@ import { clamp, clampInt } from '../core/constants';
 import type { PersistedData } from '../core/persisted-data';
 import type { IGameAdapter } from '../game/game-adapter';
 import type { CursorAction, CursorJobContext } from '../cursor/types';
+import { CATCHABLE_SHIMMER_TYPES } from '../game/golden-cookie-model';
 
-/** Any golden/wrath cookie still around (fading in, waiting or wrath)? */
+/** Any golden/wrath cookie or reindeer still around (fading in, waiting or wrath)? */
 export function anyGoldenPresent(game: IGameAdapter): boolean {
-  return game.getShimmers().some((s) => s && s.type === 'golden' && !s.popped && s.l && s.l.isConnected);
+  return game.getShimmers().some((s) => s && CATCHABLE_SHIMMER_TYPES.has(s.type) && !s.popped && s.l && s.l.isConnected);
 }
 
 /** Setting 'Happy dance length' (default 2200ms, 0 = off). */

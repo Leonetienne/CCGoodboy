@@ -27,6 +27,7 @@ export const CHART_PALETTE = [
   '#f2f2f2', // white
   '#c79a6e', // tan
   '#d9b3ff', // lilac
+  '#e53935', // red (nose)
 ] as const;
 
 /** Fixed colour per known series, so an effect keeps its colour whatever else is on the
@@ -44,6 +45,7 @@ const SERIES_COLORS: Record<string, string> = {
   Sweet: CHART_PALETTE[9],
   Blab: CHART_PALETTE[10],
   'Everything Must Go': CHART_PALETTE[11],
+  Reindeer: CHART_PALETTE[12],
   'FTHOF casts': CHART_PALETTE[3],
   'Grimoire refills': CHART_PALETTE[4],
 };

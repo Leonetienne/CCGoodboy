@@ -30,6 +30,7 @@ export interface CursorMover {
  * ClickTiming satisfies this structurally; tests can pass a fake. */
 export interface CursorClickTiming {
   getClickDelayMs(): number;
+  getPreClickDelayMs(): number;
   waitUntil(ts: number, abortForGolden?: boolean, abortIf?: () => boolean): Promise<boolean>;
   waitForClickGap(abortForGolden?: boolean, abortIf?: () => boolean): Promise<boolean>;
   waitPreClick(abortForGolden?: boolean, abortIf?: () => boolean): Promise<boolean>;

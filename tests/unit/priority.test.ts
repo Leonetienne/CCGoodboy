@@ -17,6 +17,7 @@ import type { GrimoireUnlocker } from '../../src/autoplay/grimoire-unlock';
 import type { GrimoireView } from '../../src/hunting/grimoire-view';
 import type { WrinklerPopper } from '../../src/autoplay/wrinkler-popper';
 import type { KrumblorTrainer } from '../../src/autoplay/krumblor';
+import type { SantaTrainer } from '../../src/autoplay/santa';
 
 function makeDeps(overrides: Partial<PriorityDeps> = {}): PriorityDeps {
   const runtime = overrides.runtime ?? new RuntimeState();
@@ -90,6 +91,7 @@ function makeDeps(overrides: Partial<PriorityDeps> = {}): PriorityDeps {
     grimoireView: { pending: () => false } as unknown as GrimoireView,
     grimoireUnlock,
     krumblor,
+    santa: { pending: () => false } as unknown as SantaTrainer,
     autoPlay,
     wrinklerPopper,
     happyDance,
@@ -278,6 +280,25 @@ describe('selectJobRequest', () => {
       job: vi.fn().mockReturnValue({ action: { label: 'grimoire-unlock' }, priority: JOB_PRIORITY.AUTO_SHOP, key: 'grimoire-unlock:level' }),
     } as unknown as GrimoireUnlocker;
     expect(selectJobRequest(makeDeps({ grimoireUnlock, krumblor, autoPlay }))?.key).toBe('grimoire-unlock:level');
+  });
+
+  it('evolves Santa after a Krumblor step, before a wrinkler pop and auto-shop', () => {
+    const santa = {
+      pending: () => true,
+      job: vi.fn().mockReturnValue({ action: { label: 'santa' }, priority: JOB_PRIORITY.AUTO_SHOP, key: 'santa:evolve' }),
+    } as unknown as SantaTrainer;
+    const wrinklerPopper = { pending: () => true, job: vi.fn() } as unknown as WrinklerPopper;
+    const autoPlay = { shopReady: () => true, shopJob: vi.fn() } as unknown as AutoPlayEngine;
+
+    expect(selectJobRequest(makeDeps({ santa, wrinklerPopper, autoPlay }))?.key).toBe('santa:evolve');
+    expect(wrinklerPopper.job).not.toHaveBeenCalled();
+    expect(autoPlay.shopJob).not.toHaveBeenCalled();
+
+    const krumblor = {
+      pending: () => true,
+      job: vi.fn().mockReturnValue({ action: { label: 'krumblor' }, priority: JOB_PRIORITY.AUTO_SHOP, key: 'krumblor:train' }),
+    } as unknown as KrumblorTrainer;
+    expect(selectJobRequest(makeDeps({ krumblor, santa }))?.key).toBe('krumblor:train');
   });
 
   it('falls through to auto-shop when the wrinkler popper has no job to hand out', () => {

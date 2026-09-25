@@ -47,12 +47,14 @@ export class DebugTools {
       { label: 'Clear LOCK_A (bot refill lock)', run: () => this.clearLockA() },
       { label: 'Give 10 Sugar Lumps', run: () => this.giveLumps(10) },
       { label: 'Ripen growing sugar lump', run: () => this.ripenLump() },
+      { label: 'Spawn reindeer', run: () => this.spawnReindeer() },
       { label: 'Spawn fed wrinklers (sets stage 1)', run: () => this.spawnFedWrinklers() },
       { label: 'Spawn a wrinkler', run: () => this.spawnWrinkler() },
       { label: 'Pop a wrinkler', run: () => this.wrinklers.debugPopWrinkler() },
       { label: 'Unlock crumblor', run: () => this.unlockKrumblor() },
       { label: 'Unlock all easter upgrades', run: () => this.unlockEasterEggs() },
       { label: 'Unlock all halloween upgrades', run: () => this.unlockHalloweenCookies() },
+      { label: 'Unlock all christmas upgrades', run: () => this.unlockChristmasUpgrades() },
       { label: 'Show buildings view', run: () => this.buildingsNav.debugShowBuildingsView() },
       { label: 'Scroll to Wizard towers', run: () => this.buildingsNav.debugScrollToWizardTowers() },
       { label: 'Show grimoire', run: () => this.buildingsNav.debugShowGrimoire() },
@@ -71,6 +73,12 @@ export class DebugTools {
     }
 
     return `spawned: ${label}`;
+  }
+
+  /** DBG-19: one reindeer runs across the screen (any season); the paw catches it (XMAS-6). */
+  private spawnReindeer(): string {
+    this.game.spawnReindeer();
+    return 'spawned: reindeer, the paw goes after it owo';
   }
 
   private spawnCookieChain(): string {
@@ -156,6 +164,18 @@ export class DebugTools {
     }
 
     return `${n} Halloween cookies are in the store now: with auto play on, the paw buys them owo`;
+  }
+
+  /** DBG-18: puts every Christmas upgrade (the festive hat, Santa's gifts, the reindeer
+   * biscuits, Santa's dominion) in the store. */
+  private unlockChristmasUpgrades(): string {
+    const n = this.game.unlockChristmasUpgrades();
+
+    if (!n) {
+      throw new Error('every Christmas upgrade is already unlocked or bought');
+    }
+
+    return `${n} Christmas upgrades are in the store now: with auto play on, the paw buys them and evolves Santa owo`;
   }
 
   /** DBG-13: one wrinkler crawls into the first free slot. */

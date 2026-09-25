@@ -53,6 +53,8 @@ default and remembers your choice.
   the extras first and buying them back after, which is much cheaper) and puts
   on the **Dragon Cursor** aura. It never swaps out an aura you picked
   yourself. Switch it off with **Auto: train Krumblor**.
+- At Christmas it catches reindeer like golden cookies, buys the festive
+  hat, Santa's gifts and the reindeer biscuits, and evolves Santa all the way to **Final Claus**.
 
 Not sure you trust it with your cookies? Turn on **dry run** and it'll only
 write down what it *would* have bought.
@@ -116,8 +118,8 @@ The panel can be dragged by its title bar and minimised. From there:
 ### Debug tools
 
 These spawn golden cookies of any kind, hand you a quadrillion cookies, fill
-your mana, give you sugar lumps, ripen your current lump, spawn wrinklers, unlock Krumblor and
-so on. They exist so you can watch the bot react without waiting hours for the
+your mana, give you sugar lumps, ripen your current lump, spawn wrinklers, unlock Krumblor or the
+Christmas upgrades and so on. They exist so you can watch the bot react without waiting hours for the
 right cookie to show up.
 
 **They change your save.** Use them on a test save. Seriously.
