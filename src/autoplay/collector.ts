@@ -15,7 +15,10 @@ import {
   AUTO_ESCALATION_NAMES,
   AUTO_KITTEN_POWER,
   AUTO_NON_STORE_POOLS,
+  AUTO_BINGO_CENTER,
+  AUTO_PREF_BINGO,
   AUTO_PREF_GOLDEN,
+  AUTO_PREF_TYPES,
   AUTO_PREF_WIZARD,
   AUTO_RESEARCH,
   autoStripHtml,
@@ -223,7 +226,9 @@ export function autoCollect(game: IGameAdapter, data: PersistedData, runtime: Ru
       const cost = autoPrice(up);
 
       if (gain != null && gain > 0 && cost > 0) {
-        cands.push({ kind: 'upgrade', type: 'research', name: up.name, obj: up, cost, dCps: gain, pref: 0 });
+        // the Bingo center starts the research: the sooner, the sooner stage 1 (WRINK-1)
+        const pref = up.name === AUTO_BINGO_CENTER ? AUTO_PREF_BINGO : 0;
+        cands.push({ kind: 'upgrade', type: 'research', name: up.name, obj: up, cost, dCps: gain, pref });
       }
 
       continue;
@@ -251,7 +256,8 @@ export function autoCollect(game: IGameAdapter, data: PersistedData, runtime: Ru
       obj: up,
       cost,
       dCps: g.gain,
-      pref: (g as { pref?: number }).pref ?? (g.type === 'golden' ? AUTO_PREF_GOLDEN : 0),
+      // golden, click power and kitten upgrades are preferred (AUTO-4 B)
+      pref: (g as { pref?: number }).pref ?? (AUTO_PREF_TYPES.has(g.type) ? AUTO_PREF_GOLDEN : 0),
     });
   }
 

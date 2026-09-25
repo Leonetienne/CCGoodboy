@@ -6,6 +6,8 @@ import { autoBuy, type AutoPlayEngine } from '../../src/autoplay/shopping';
 import { autoResearchCandidateGain, autoResearchGain } from '../../src/autoplay/upgrade-classifier';
 import { chainStepGain, stage1Gain } from '../../src/autoplay/grandmapocalypse-valuation';
 import { WrinklerPopper } from '../../src/autoplay/wrinkler-popper';
+import { autoDecide } from '../../src/autoplay/strategy';
+import { AUTO_PREF_BINGO, AUTO_PREF_GOLDEN, AUTO_PREF_WIZARD } from '../../src/autoplay/valuation-tables';
 import { matureWrinklers, pickWrinklersToPop, wrinklerRespawnSec, type WrinklerMaturityInput } from '../../src/autoplay/wrinkler-strategy';
 import { PersistedData } from '../../src/core/persisted-data';
 import { RuntimeState } from '../../src/core/runtime-state';
@@ -208,14 +210,35 @@ describe('autoCollect: Grandmapocalypse research', () => {
 
   const chain = ['Bingo center/Research facility', 'Underworld ovens', 'One mind', 'Exotic nuts', 'Communal brainsweep', 'Elder Pact', 'Elder Pledge'];
 
-  it('offers the chain up to stage 1 by default (not preferred), and never exotic nuts/brainsweep/pact/pledge', () => {
+  it('offers the chain up to stage 1 by default (only the Bingo center preferred), and never exotic nuts/brainsweep/pact/pledge', () => {
     const game = grandmaGame();
     store(game, chain);
 
     const cands = collect(game).cands.filter((c) => c.kind === 'upgrade');
 
     expect(cands.map((c) => c.name)).toEqual(['Bingo center/Research facility', 'Underworld ovens', 'One mind']);
-    expect(cands.every((c) => !c.pref)).toBe(true);
+    expect(cands.map((c) => c.pref)).toEqual([AUTO_PREF_BINGO, 0, 0]);
+  });
+
+  it('buys the Bingo center after golden/click/kitten upgrades, before Wizard towers and everything else, however it rates', () => {
+    const b = (name: string, cost: number, dCps: number, pref = 0): PurchaseCandidate => ({ kind: 'building', type: 'building', name, obj: { name, buy: () => {} } as never, cost, dCps, pref });
+    const game = grandmaGame();
+    store(game, ['Bingo center/Research facility']);
+    const r = collect(game);
+    const bingo = r.cands.find((c) => c.name === 'Bingo center/Research facility')!;
+    // far better paybacks all around, a Wizard tower below its target too
+    const others = [b('Wizard tower', 1, 1e9, AUTO_PREF_WIZARD), b('Farm', 1, 1e12), b('Mine', 2, 1e12)];
+
+    const d = autoDecide([...others, bingo], { ...r.ctx, bank: bingo.cost * 10 });
+    expect(d.buy).toBe(bingo);
+    expect(d.why).toBe('starts the research');
+    // nothing else is held back for it
+    expect(d.buyable!.map((x) => x.c.name)).toEqual(['Bingo center/Research facility', 'Wizard tower', 'Farm', 'Mine']);
+
+    // a golden/click/kitten upgrade goes first
+    const lucky: PurchaseCandidate = { kind: 'upgrade', type: 'golden', name: 'Lucky day', obj: { name: 'Lucky day', buy: () => {} } as never, cost: 1, dCps: 1e-6, pref: AUTO_PREF_GOLDEN };
+    const e = autoDecide([...others, bingo, lucky], { ...r.ctx, bank: bingo.cost * 10 });
+    expect(e.buyable!.map((x) => x.c.name).slice(0, 3)).toEqual(['Lucky day', 'Bingo center/Research facility', 'Wizard tower']);
   });
 
   it('buys none of it with the grandmapocalypse setting off', () => {

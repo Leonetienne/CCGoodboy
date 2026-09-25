@@ -658,10 +658,19 @@ action log (UI-6); nothing here is stored.
   for, never whether an affordable purchase gets refused outright.
   (A) insignificant cost (<= `autoInsignificantSec` x CpS, default 60s —
   "worthless junk") -> buy at once, always, exempt from postponement.
-  (B) preferred candidates — golden cookie upgrades and Wizard towers
-  below `autoWizardTowerTarget` — are bought while affordable regardless
-  of payback, also exempt from postponement, and sort before ordinary
-  ones (Wizard towers first). (C) every other affordable candidate is
+  (B) preferred candidates — the Bingo center (WRINK-1), golden cookie
+  upgrades, the click power upgrades — "mouse and cursors twice as
+  efficient", the Thousand/Million/... fingers series and the Plastic/
+  Iron/... mouse series (every Click Frenzy multiplies click power ×777,
+  which the plain hammer-rate valuation doesn't see) —, the kitten
+  upgrades (`AUTO_PREF_TYPES`) and Wizard towers below
+  `autoWizardTowerTarget` — are bought
+  while affordable regardless of payback, also exempt from postponement,
+  and sort before ordinary ones (golden, click power and kitten upgrades
+  first, then the Bingo center, then Wizard towers). A preferred option
+  not affordable yet is only saved for while in reach (AUTO-5), and never
+  holds back another preferred one: a quadrillion golden upgrade doesn't
+  stop the Wizard towers. (C) every other affordable candidate is
   bought too, UNLESS an option that is not affordable yet, in reach and a
   good deal (payback incl. waiting <= 1.2× the best of ALL options, in
   reach or not — pp already charges the wait) or preferred
@@ -905,8 +914,12 @@ action log (UI-6); nothing here is stored.
   (each grandma +0.02 base CpS per grandma; starts stage 1). Nobody buys
   the Bingo center for "grandmas ×4": up to One mind a step is valued as
   part of ONE project, finishing the chain, and competes on payback like
-  anything else (not preferred): payback = (cost of every step still to
-  buy) / (stage 1 gain + the steps' own gains) + the delay until the
+  anything else (not preferred), except the Bingo center itself: it starts
+  the research, and every minute it waits pushes stage 1 back by a
+  minute, so it is preferred (AUTO-4 B, `AUTO_PREF_BINGO`: below the
+  golden, click power and kitten upgrades, above Wizard towers), "starts
+  the research" in the log; nothing else is held back for it. Payback =
+  (cost of every step still to buy) / (stage 1 gain + the steps' own gains) + the delay until the
   wrinklers pay out; the step gets `dCps = its cost / that payback`. Stage 1
   gain = CpS × ((1 − 0.05n) + popMult × 0.05n² × m/(m+1) − 1 − 0.2/3)
   (n wrinkler slots, m = maturity, WRINK-2; minus the 1 in 3 golden
@@ -2032,11 +2045,37 @@ not the paw's).
 
 ## 12. Changelog
 
+- **5.8.8** Preference order (AUTO-4 B): golden, click power and kitten
+  upgrades (and the Easter eggs and Santa's gifts that share their tier)
+  first, then the Bingo center, then Wizard towers below their target (was
+  Bingo center, Wizard towers, golden). Unit tests in
+  `tests/unit/wrinklers.test.ts` and `tests/unit/strategy.test.ts`.
+
+- **5.8.7** The fingers series, the mouse series ("Clicking gains +1% of
+  your CpS") and the kitten upgrades are preferred too, like the cursor
+  doublers and golden upgrades (AUTO-4 B, `AUTO_PREF_TYPES`), so they score
+  100 on the overlay (BUY-2). Unit test in
+  `tests/unit/heavenly-unlocks.test.ts`.
+
+- **5.8.5** The "mouse and cursors twice as efficient" upgrades are
+  preferred like golden cookie upgrades (AUTO-4 B): cheap, and they double
+  the click power every Click Frenzy multiplies ×777, which their
+  hammer-rate valuation missed, so they waited behind better-rated items.
+  Unit test in `tests/unit/heavenly-unlocks.test.ts`.
+
 - **5.8.4** The building streak (AUTO-14) buys stacks of 10 per press while
   the 10 copies together are still pocket money (<= 60s of CpS or <= 1% of
   the bank) and leave enough for the tick's pick (`autoStackSize()`,
   `autoBuyBuilding()`), so streaks after an ascension go ~10× faster.
   Unit tests in `tests/unit/buy-streak.test.ts`.
+
+- **5.8.3** Fixed: the Bingo center, costing next to nothing, waited in the
+  store behind everything better rated (its payback counts the ~8h until
+  the wrinklers pay out). It now has its own top preference tier
+  (`AUTO_PREF_BINGO`, WRINK-1/AUTO-4 B): bought first once affordable, so
+  the research starts as early as possible. The "how good is a buy"
+  overlay still scores it by payback (BUY-2). Unit test in
+  `tests/unit/wrinklers.test.ts`.
 
 - **5.8.2** Junk spree (AUTO-18): after an ascension the store fills with
   a hundred cheap items and the paw fetched them one trip at a time. Now,

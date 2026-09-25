@@ -107,11 +107,19 @@ export const AUTO_BUILDING_CAPS: Record<string, number> = { 'Wizard tower': 57 }
  * share, so such "pocket money" purchases are ordered by CpS gain instead of payback. */
 export const AUTO_TRIVIAL_BANK_SHARE = 0.01;
 
-/** Preference tiers for candidates the auto player should buy before ordinary ones.
- * Higher = more preferred. Wizard towers below their target are TOP priority (they are bought
- * for mana, not CpS payback); golden cookie upgrades are preferred too. */
-export const AUTO_PREF_GOLDEN = 1;
-export const AUTO_PREF_WIZARD = 2;
+/** Preference tiers for candidates the auto player should buy before ordinary ones (AUTO-4 B).
+ * Higher = more preferred: golden, click power and kitten upgrades (AUTO_PREF_TYPES, plus the
+ * rare Easter eggs and Santa's gifts) first, then the Bingo center (WRINK-1: it starts the
+ * research chain, and every minute it waits pushes the ~8h until the wrinklers pay out back by
+ * a minute), then Wizard towers below their target (bought for mana, not CpS payback). */
+export const AUTO_PREF_WIZARD = 1;
+export const AUTO_PREF_BINGO = 2;
+export const AUTO_PREF_GOLDEN = 3;
+/** Upgrade types preferred like golden cookie upgrades (AUTO-4 B): the click power ones
+ * (cursor doublers, the fingers series, the mouse series), which every Click Frenzy multiplies
+ * x777, and the kittens, whose milk bonus their CpS estimate undersells. */
+export const AUTO_PREF_TYPES: ReadonlySet<string> = new Set(['golden', 'cursor', 'fingers', 'click', 'kitten']);
+export const AUTO_BINGO_CENTER = 'Bingo center/Research facility';
 
 /** The "fingers" series of cursor upgrades: [name, value, kind]. 'Thousand fingers' ADDS 0.1
  * cookies per non-cursor building to the mouse and every cursor; each further one MULTIPLIES

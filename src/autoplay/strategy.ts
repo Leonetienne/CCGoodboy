@@ -1,5 +1,5 @@
 import type { AutoCollectCtx, PurchaseCandidate } from './collector';
-import { AUTO_PREF_WIZARD, AUTO_TRIVIAL_BANK_SHARE } from './valuation-tables';
+import { AUTO_PREF_BINGO, AUTO_PREF_WIZARD, AUTO_TRIVIAL_BANK_SHARE } from './valuation-tables';
 
 export interface DecisionRow {
   c: PurchaseCandidate;
@@ -41,8 +41,8 @@ export interface Decision {
  * too far off to reason about yet, not "too slow a payback" (there is no such thing here).
  * Decision, each tick:
  *   1) Insignificant cost (<= insignificantSec x CpS, "worthless junk" — always worth it) and
- *      preferred candidates (golden cookie upgrades, Wizard towers below their target) are
- *      bought outright whenever affordable, no other condition.
+ *      preferred candidates (the Bingo center, golden cookie upgrades, Wizard towers below
+ *      their target) are bought outright whenever affordable, no other condition.
  *   2) Otherwise: if nothing is not-yet-affordable and worth deliberately saving up for, buy
  *      every other affordable candidate too — highest score (lowest payback) first. "Worth
  *      saving up for" means in reach, not affordable yet, and a good deal (pp <= goodFactor x
@@ -89,7 +89,8 @@ export function autoDecide(cands: PurchaseCandidate[], ctx: AutoCollectCtx): Dec
   }
 
   const prefOf = (r: DecisionRow) => r.c.pref ?? 0;
-  const wizardPref = (r: DecisionRow) => prefOf(r) >= AUTO_PREF_WIZARD;
+  const wizardPref = (r: DecisionRow) => prefOf(r) === AUTO_PREF_WIZARD;
+  const prefWhy = (r: DecisionRow) => (prefOf(r) === AUTO_PREF_BINGO ? 'starts the research' : wizardPref(r) ? 'wizard target' : 'preferred');
 
   const inReach = rows.filter((r) => r.wait <= cfg.reachSec);
 
@@ -146,7 +147,7 @@ export function autoDecide(cands: PurchaseCandidate[], ctx: AutoCollectCtx): Dec
 
     return {
       buy: p.c,
-      why: prefOf(p) > 0 ? (wizardPref(p) ? 'wizard target' : 'preferred') : p.insignificant ? 'insignificant cost' : 'best available',
+      why: prefOf(p) > 0 ? prefWhy(p) : p.insignificant ? 'insignificant cost' : 'best available',
       row: p,
       save: save ? save.c : null,
       saveRow: save,

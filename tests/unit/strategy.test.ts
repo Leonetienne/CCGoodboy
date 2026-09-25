@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { AutoCollectCtx, PurchaseCandidate } from '../../src/autoplay/collector';
 import { autoDecide, shopPickAt, type DecisionRow } from '../../src/autoplay/strategy';
+import { AUTO_PREF_GOLDEN, AUTO_PREF_WIZARD } from '../../src/autoplay/valuation-tables';
 
 function candidate(name: string, cost: number, dCps: number, pref = 0): PurchaseCandidate {
   return { kind: 'building', type: 'building', name, obj: { name, buy: () => {} }, cost, dCps, pref };
@@ -139,7 +140,7 @@ describe('autoDecide', () => {
     // is by preference tier first, payback second, so the golden upgrade goes out first either
     // way.
     const ordinary = candidate('Fast payback building', 100, 10); // payback 10
-    const golden = candidate('Golden upgrade', 100, 1, 1); // payback 100
+    const golden = candidate('Golden upgrade', 100, 1, AUTO_PREF_GOLDEN); // payback 100
 
     const d = autoDecide([ordinary, golden], ctx({ bank: 1000, income: 10 }));
 
@@ -149,7 +150,7 @@ describe('autoDecide', () => {
 
   it('sorts preferred candidates before ordinary ones regardless of payback', () => {
     const ordinary = candidate('Fast payback building', 100, 10); // payback 10
-    const golden = candidate('Golden upgrade', 100, 1, 1); // payback 100
+    const golden = candidate('Golden upgrade', 100, 1, AUTO_PREF_GOLDEN); // payback 100
 
     const d = autoDecide([ordinary, golden], ctx({ bank: 100000, income: 10000 }));
 
@@ -158,7 +159,7 @@ describe('autoDecide', () => {
 
   it('buys an affordable wizard tower even with a nominally terrible payback', () => {
     const ordinary = candidate('Fast payback building', 100, 10); // payback 10
-    const wizard = candidate('Wizard tower', 100, 0.001, 2); // payback 100,000s
+    const wizard = candidate('Wizard tower', 100, 0.001, AUTO_PREF_WIZARD); // payback 100,000s
 
     const d = autoDecide([ordinary, wizard], ctx({ bank: 1000, income: 10 }));
 
@@ -166,8 +167,23 @@ describe('autoDecide', () => {
     expect(d.why).toBe('wizard target');
   });
 
+  it('keeps buying Wizard towers while a far-off golden upgrade waits, and only saves for it in reach', () => {
+    // a quadrillion golden upgrade, years away at 1e6/s, and a Wizard tower costing billions
+    const golden = candidate('Golden upgrade', 1e15, 1e5, AUTO_PREF_GOLDEN);
+    const wizard = candidate('Wizard tower', 2e9, 1, AUTO_PREF_WIZARD);
+
+    const far = autoDecide([golden, wizard], ctx({ cps: 1e6, income: 1e6, bank: 3e9, reserve: 0 }));
+    expect(far.buy?.name).toBe('Wizard tower');
+    expect(far.save).toBeNull();
+
+    // in reach (1e15 - 3e9 at 1e12/s = ~1000s): saved for, and the Wizard tower still goes out
+    const near = autoDecide([golden, wizard], ctx({ cps: 1e12, income: 1e12, bank: 3e9, reserve: 0 }));
+    expect(near.buy?.name).toBe('Wizard tower');
+    expect(near.save?.name).toBe('Golden upgrade');
+  });
+
   it('does not save for anything beyond the in-reach window', () => {
-    const wizard = candidate('Wizard tower', 10000, 1, 2); // wait = 100s at income 100
+    const wizard = candidate('Wizard tower', 10000, 1, AUTO_PREF_WIZARD); // wait = 100s at income 100
 
     // reachSec = 10: 100s to afford it is NOT in reach, so the bot does not queue it as a
     // save target and buys nothing.
@@ -180,7 +196,7 @@ describe('autoDecide', () => {
 
   it('saves for a preferred candidate first when nothing is affordable', () => {
     const ordinary = candidate('Big building', 10000, 100); // pp 100
-    const wizard = candidate('Wizard tower', 5000, 25, 1); // pp 200
+    const wizard = candidate('Wizard tower', 5000, 25, AUTO_PREF_WIZARD); // pp 200
 
     const d = autoDecide([ordinary, wizard], ctx({ bank: 0, income: 100, reserve: 0 }));
 
@@ -190,7 +206,7 @@ describe('autoDecide', () => {
 
   it('reports a save target alongside an unrelated buy happening the same tick', () => {
     // A cheap, affordable, preferred candidate (exempt from postponement) buys immediately...
-    const wizard = candidate('Wizard tower', 50, 0.5, 2); // affordable, preferred (top tier), payback 100
+    const wizard = candidate('Wizard tower', 50, 0.5, AUTO_PREF_WIZARD); // affordable, preferred, payback 100
     // ...while a big, not-yet-affordable, good-deal candidate (pp 99 + 10 <= 1.2 x 100) is
     // independently being saved for. It must not be crowded out of `save` just because something
     // else is bought this tick.
