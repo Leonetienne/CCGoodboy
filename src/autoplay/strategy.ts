@@ -19,6 +19,9 @@ export interface Decision {
   saveRow?: DecisionRow | null;
   note?: string;
   rows: DecisionRow[];
+  /** Everything this tick would buy (affordable, not held back for a save target), best first;
+   * `buy` is its head. Used by the buying streak (AUTO-14). */
+  buyable: DecisionRow[];
 }
 
 /** THE STRATEGY (pure function, no game access). For every option:
@@ -83,7 +86,7 @@ export function autoDecide(cands: PurchaseCandidate[], ctx: AutoCollectCtx): Dec
   const inReach = rows.filter((r) => r.wait <= cfg.reachSec);
 
   if (!inReach.length) {
-    return { buy: null, save: null, note: 'nothing in reach', rows };
+    return { buy: null, save: null, note: 'nothing in reach', rows, buyable: [] };
   }
 
   // Best pp over EVERY option, not just those in reach: pp already charges the waiting time, so
@@ -132,6 +135,7 @@ export function autoDecide(cands: PurchaseCandidate[], ctx: AutoCollectCtx): Dec
       save: save ? save.c : null,
       saveRow: save,
       rows,
+      buyable,
     };
   }
 
@@ -141,5 +145,6 @@ export function autoDecide(cands: PurchaseCandidate[], ctx: AutoCollectCtx): Dec
     saveRow: save,
     note: save ? 'saving' : 'nothing worth saving for in reach',
     rows,
+    buyable,
   };
 }

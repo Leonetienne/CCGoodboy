@@ -563,7 +563,8 @@ action log (UI-6); nothing here is stored.
 - **AUTO-7** Safety: never while ascending, a prompt is open, the store is
   in sell mode (buildings), during Click Frenzy, cookie storm/chain, while
   a golden cookie is ready or FTHOF/refill is pending, or when paused. One
-  purchase per task, >= 400ms between purchases; a failed purchase / an
+  purchase per task (for a building, a streak of up to 100 single
+  purchases, AUTO-14), >= 400ms between purchases; a failed purchase / an
   error pauses it (3s / 30s). "Auto play dry run" only logs what it WOULD
   buy.
 - **AUTO-8** Priority: below golden cookies, Click Frenzy and
@@ -608,6 +609,21 @@ action log (UI-6); nothing here is stored.
   Priority: tier 5, before shopping (a pending unlock also interrupts
   hammering/idle like a due purchase). Logged as `"auto grimoire
   unlock"`. Debug: DBG-9, DBG-10.
+- **AUTO-14** Buying streak: when the purchase is a building, the paw
+  does not walk away after it. It stays on the row and buys the same
+  building again, one ordinary purchase at a time (`buy(1)`, each with its
+  own click pulse, NFR-8), at ~10 buys per second (±30ms jitter) with the
+  press point wandering a few px around the row's centre (±8/±5px, capped
+  to a quarter of the row). Each further buy is re-planned from the live
+  game (`autoCollect()` + `autoDecide()`) and happens only while that
+  building is still something this tick would buy (affordable after the
+  reserve, not held back for a save target, not at its cap) AND buying it
+  still leaves the tick's best pick affordable, so the streak never starves
+  a better purchase (`autoStreakContinues()`, `src/autoplay/buy-streak.ts`).
+  At most 100 per visit; the usual visit before and the 400ms gap after
+  (AUTO-7) stay; golden cookies, Click Frenzy etc. interrupt it within one
+  buy. Every buy counts in `stats.autoBuys`; the streak is logged once as
+  `"auto buy"` (`"37x Cursor"`, with `count` and the total cost).
 
 ### 3.15 Background operation (browser tab not in front)
 
@@ -1019,7 +1035,7 @@ gainLumps) — still guarded, still the only path to those `Game.*` calls.
 | Routing | `src/routing/route-planner.ts` | `exactRoute` (Held-Karp DP, <= 11 cookies), `heuristicRoute` (nearest-neighbor + 2-opt/Or-opt + restarts), `planRoute` (GC-5) |
 | Idle | `src/idle/` | `idle-behavior.ts` (IdleBehavior module: `idleJob` → IdleWanderAction), `pending-work.ts` (conditions + queue state via `CursorManager.hasJobsAbove` — the shared "is anything more important pending?" predicate) |
 | Input synthesis | `src/input/` | `dispatch.ts` (dispatchMouse/dispatchMove — MOUSE-\*), `human-click.ts` (ClickTiming: delays, waitUntil, humanClick), `cursor-controller.ts` (CursorController: low-level PAW-4 arc/spline/warp travel, moveCursorTo/glideCursor — the only file that writes `runtime.cursor.x/y`), `background-clock.ts` (BackgroundClock: BG-1/BG-2 worker timer), `keep-alive.ts` (BG-3) |
-| Auto play | `src/autoplay/` | `valuation-tables.ts` (AUTO_BLOCKED_\*, AUTO_GOLDEN_UPGRADES, AUTO_KITTEN_POWER, AUTO_FINGER_STEPS, AUTO_BUILDING_CAPS — AUTO-2 data), `building-valuation.ts` + `upgrade-classifier.ts` (AUTO-3 gain math per candidate type), `collector.ts` (`autoCollect`: gathers candidates + ctx, AUTO-7 safety gates), `strategy.ts` (`autoDecide`: the pure insignificant/good/postpone/save decision, AUTO-4 — flagship unit-test target), `shopping.ts` (`AutoPlayEngine`: evaluate/shopJob/statusText, AUTO-1/8/9/10/12), `auto-hammer.ts` (AUTO-11), `grimoire-unlock.ts` (`GrimoireUnlocker`: AUTO-13 gating, steps from GrimoireView), `wrinkler-strategy.ts` (pure: respawn time, maturity, fewest-fattest pick — WRINK-2/3), `grandmapocalypse-valuation.ts` (pure: stage 1 gain, delay, chain-step dCps — WRINK-1), `wrinkler-popper.ts` (`WrinklerPopper`: WRINK-3/4 gating, plan, job, HUD text), `krumblor-strategy.ts` (pure: next Krumblor step — KRUMB-1/2/5), `krumblor.ts` (`KrumblorTrainer`: KRUMB-\* gating, state, jobs, the cursor sale/rebuy), `easter-eggs.ts` (pure-ish: egg values and order — EGG-\*), `christmas.ts` (pure-ish: Christmas upgrade values — XMAS-1..3), `santa-strategy.ts` (pure: next Santa step — XMAS-4), `santa.ts` (`SantaTrainer`: XMAS-4/5 gating, jobs), `income-tracker.ts` (smoothed clicking income for AUTO-3's `income`), `buy-value-overlay.ts` (BUY-\*) |
+| Auto play | `src/autoplay/` | `valuation-tables.ts` (AUTO_BLOCKED_\*, AUTO_GOLDEN_UPGRADES, AUTO_KITTEN_POWER, AUTO_FINGER_STEPS, AUTO_BUILDING_CAPS — AUTO-2 data), `building-valuation.ts` + `upgrade-classifier.ts` (AUTO-3 gain math per candidate type), `collector.ts` (`autoCollect`: gathers candidates + ctx, AUTO-7 safety gates), `strategy.ts` (`autoDecide`: the pure insignificant/good/postpone/save decision, AUTO-4 — flagship unit-test target), `buy-streak.ts` (pure: whether the paw buys one more of the same building in its streak, AUTO-14), `shopping.ts` (`AutoPlayEngine`: evaluate/shopJob/statusText, AUTO-1/8/9/10/12), `auto-hammer.ts` (AUTO-11), `grimoire-unlock.ts` (`GrimoireUnlocker`: AUTO-13 gating, steps from GrimoireView), `wrinkler-strategy.ts` (pure: respawn time, maturity, fewest-fattest pick — WRINK-2/3), `grandmapocalypse-valuation.ts` (pure: stage 1 gain, delay, chain-step dCps — WRINK-1), `wrinkler-popper.ts` (`WrinklerPopper`: WRINK-3/4 gating, plan, job, HUD text), `krumblor-strategy.ts` (pure: next Krumblor step — KRUMB-1/2/5), `krumblor.ts` (`KrumblorTrainer`: KRUMB-\* gating, state, jobs, the cursor sale/rebuy), `easter-eggs.ts` (pure-ish: egg values and order — EGG-\*), `christmas.ts` (pure-ish: Christmas upgrade values — XMAS-1..3), `santa-strategy.ts` (pure: next Santa step — XMAS-4), `santa.ts` (`SantaTrainer`: XMAS-4/5 gating, jobs), `income-tracker.ts` (smoothed clicking income for AUTO-3's `income`), `buy-value-overlay.ts` (BUY-\*) |
 | Scheduler | `src/scheduler/` | `priority.ts` (`selectJobRequest`: the SCHED-1 cascade as pure data), `scheduler.ts` (`Scheduler.tick()`: wrath logging, queue build, enqueues ONE job via CursorManager), `overlay-loop.ts` (`OverlayLoop`: the requestAnimationFrame draw loop — hitboxes, buy-value overlay, paw) |
 | Rendering | `src/rendering/` | `paw-cursor.ts` (`PawCursor`: PAW-1..3, sprite rasterizing, click pulse, fallback drawn paw), `overlay-canvas.ts` (resize/DPR handling) |
 | Stats | `src/stats/` | `log.ts` (`LogStore`), `stats.ts` (`StatsRecorder`: GC-6/AUTO-10 counters + hourly buckets) |
@@ -1096,8 +1112,8 @@ file.**
 
 Three layers, each catching a different class of bug:
 
-1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 359 tests
-   across 38 files. Pure functions (route planner, `autoDecide`, the chart
+1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 366 tests
+   across 39 files. Pure functions (route planner, `autoDecide`, the chart
    engine, `normalizeSetting`) are tested directly with plain data; the
    cursor queue/actions have their own fake mover/timing tests. Classes
    that depend on the game are tested against `FakeGameAdapter`
@@ -1247,6 +1263,28 @@ mouse while the bot runs and confirm the "+N" number follows your cursor,
 not the paw's).
 
 ## 12. Changelog
+
+- **5.3.7** Reworked 5.3.6's bulk buying (AUTO-14): it bought 10/100 only
+  when the same building would win every pick that many times in a row,
+  which almost never happens (the pick alternates between buildings as
+  prices rise), so it still bought e.g. 17 cursors one trip at a time on
+  a quadrillion bank. Now the paw stays on the building row and buys it
+  again and again as single purchases, ~10 per second with time and
+  position jitter, while it is still worth buying and the best pick stays
+  affordable (up to 100 per visit). `autoBulkCount()`/`bulk-buy.ts` are
+  replaced by `autoStreakContinues()` (`src/autoplay/buy-streak.ts`) and
+  `AutoPlayEngine.buyStreak()`; `autoBuy()` is single-purchase again;
+  `autoDecide()` also returns its `buyable` list. Unit tests in
+  `tests/unit/buy-streak.test.ts`.
+
+- **5.3.6** Auto play buys buildings 10 or 100 at a time when it would
+  pick the same building that many times in a row anyway (AUTO-14), so
+  e.g. 100 cursors after an ascension take one store visit instead of 100
+  trips between the big cookie and the store. New `autoBulkCount()`
+  (`src/autoplay/bulk-buy.ts`) replays `autoDecide()` with each next
+  copy's price; `autoBuy()` takes a count and returns how many it bought;
+  building candidates carry `maxCount` under a cap. Unit tests in
+  `tests/unit/bulk-buy.test.ts`.
 
 - **5.3.5** Fixed: auto play never bought the Valentine's heart biscuits.
   The game gives their power as a function (`heartPower`), which the

@@ -7,6 +7,15 @@ import type { IGameAdapter } from '../game/game-adapter';
 import { JOB_PRIORITY, type CursorAction, type CursorJobContext, type JobRequest } from '../cursor/types';
 import type { LogStore } from '../stats/log';
 import type { StatsRecorder } from '../stats/stats';
+import {
+  AUTO_STREAK_JITTER_MS,
+  AUTO_STREAK_JITTER_X,
+  AUTO_STREAK_JITTER_Y,
+  AUTO_STREAK_MAX,
+  AUTO_STREAK_RATE,
+  autoStreakContinues,
+  streakCandidate,
+} from './buy-streak';
 import { autoCollect, type AutoCollectCtx, type PurchaseCandidate } from './collector';
 import type { Decision, DecisionRow } from './strategy';
 import { autoDecide } from './strategy';
@@ -292,6 +301,60 @@ export class AutoPlayEngine {
     this.data.scheduleSave();
   }
 
+  private recordBuy(): void {
+    this.runtime.lastAutoBuyAt = Date.now();
+    this.stats.recordAutoBuy();
+  }
+
+  /** AUTO-14: after buying one `name`, keeps buying it one at a time at ~AUTO_STREAK_RATE per
+   * second (± time jitter, the press point wandering a few px on the row) while
+   * autoStreakContinues() says so, up to AUTO_STREAK_MAX in total. Every buy is re-planned
+   * from the live game and gets its own paw pulse (NFR-8). Returns how many MORE it bought
+   * and what they cost. */
+  async buyStreak(ctx: CursorJobContext, name: string, el: Element | null): Promise<{ extra: number; spent: number }> {
+    const interval = 1000 / AUTO_STREAK_RATE;
+    let extra = 0;
+    let spent = 0;
+    let due = performance.now();
+
+    while (1 + extra < AUTO_STREAK_MAX) {
+      due += interval + (Math.random() * 2 - 1) * AUTO_STREAK_JITTER_MS;
+      await ctx.clock.sleep(Math.max(0, due - performance.now()));
+
+      if (this.shoppingInterrupted() || ctx.abortRequested()) break;
+
+      const g = autoCollect(this.game, this.data, this.runtime, this.incomeTracker);
+      if ('skip' in g) break;
+
+      const c = streakCandidate(g.cands, name);
+      if (!c || !autoStreakContinues(autoDecide(g.cands, g.ctx), c, g.ctx)) break;
+
+      const r = el ? visibleRect(el) : null;
+
+      if (r) {
+        const jx = Math.min(AUTO_STREAK_JITTER_X, r.width / 4);
+        const jy = Math.min(AUTO_STREAK_JITTER_Y, r.height / 4);
+        const x = r.left + r.width / 2 + (Math.random() * 2 - 1) * jx;
+        const y = r.top + r.height / 2 + (Math.random() * 2 - 1) * jy;
+
+        await ctx.cursor.glideCursor(x, y, 18 + Math.random() * 14, () => this.shoppingInterrupted());
+      }
+
+      if (this.shoppingInterrupted() || ctx.abortRequested()) break;
+
+      // visual press, then the purchase itself
+      ctx.runtime.pulseAt = performance.now();
+
+      if (!autoBuy(this.game, c)) break;
+
+      this.recordBuy();
+      spent += c.cost;
+      extra++;
+    }
+
+    return { extra, spent };
+  }
+
   /** Shopping job: re-plan, let the paw visit the store item (if it is visible; a visual
    * press only, no click is sent to the store), re-check that nothing more important came up,
    * then buy through autoBuy(). Records stats, logs "auto buy" with the numbers behind the
@@ -339,24 +402,33 @@ export class AutoPlayEngine {
           return;
         }
 
-        if (autoBuy(engine.game, fresh.buy)) {
-          engine.runtime.lastAutoBuyAt = Date.now();
-          engine.runtime.autoNextEvalAt = 0;
+        const first = fresh.buy;
 
-          engine.stats.recordAutoBuy();
-
-          engine.log.log('auto buy', fresh.buy.name, {
-            type: fresh.buy.type,
-            cost: Math.round(fresh.buy.cost),
-            dCps: fresh.buy.dCps,
-            payback: fresh.row && fresh.row.payback,
-            impact: fresh.row && fresh.row.impact,
-            why: fresh.why,
-          });
-        } else {
+        if (!autoBuy(engine.game, first)) {
           engine.runtime.autoBlockUntil = Date.now() + 3000;
-          sayCant(`Wanted to buy ${fresh.buy.name}, but the shop said no :c`);
+          sayCant(`Wanted to buy ${first.name}, but the shop said no :c`);
+          return;
         }
+
+        engine.recordBuy();
+
+        // AUTO-14: a building is bought again and again, one purchase at a time, while it is
+        // still worth buying — the paw stays on the row and presses ~10x per second.
+        const streak = first.kind === 'building' ? await engine.buyStreak(ctx, first.name, el) : { extra: 0, spent: 0 };
+        const bought = 1 + streak.extra;
+
+        engine.runtime.lastAutoBuyAt = Date.now();
+        engine.runtime.autoNextEvalAt = 0;
+
+        engine.log.log('auto buy', bought > 1 ? `${bought}x ${first.name}` : first.name, {
+          type: first.type,
+          ...(bought > 1 ? { count: bought } : {}),
+          cost: Math.round(first.cost + streak.spent),
+          dCps: first.dCps,
+          payback: fresh.row && fresh.row.payback,
+          impact: fresh.row && fresh.row.impact,
+          why: fresh.why,
+        });
       },
     };
 
