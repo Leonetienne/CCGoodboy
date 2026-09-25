@@ -12,7 +12,7 @@ import type { FarmUnlocker } from '../autoplay/farm-unlock';
 import type { AutoPlayEngine } from '../autoplay/shopping';
 import type { WrinklerPopper } from '../autoplay/wrinkler-popper';
 import type { JobRequest } from '../cursor/types';
-import { BIG_CLICK_LEAD_MS, type ClickBigCookieTask } from '../hunting/click-big-cookie';
+import { BIG_CLICK_LEAD_MS, buffComboActive, type ClickBigCookieTask } from '../hunting/click-big-cookie';
 import type { ClickGoldenTask } from '../hunting/click-golden';
 import { fthofEnabled, refillEnabled, type FthofActions } from '../hunting/fthof';
 import type { GoldenQueueItem } from '../hunting/golden-queue';
@@ -58,6 +58,7 @@ export interface PriorityDeps {
  *   2 real Click Frenzy      -> HammerAction (only once within BIG_CLICK_LEAD_MS of due)
  *   3 FTHOF, else refill     -> FthofAction / RefillAction (only outside Click Frenzy); FTHOF
  *                               first gets the Grimoire on screen (FT-8, GrimoireView steps)
+ *     then a buff combo      -> HammerAction (CF-7: >= 2 positive buffs; nothing below runs)
  *   4 ripe sugar lump        -> LumpHarvestAction (harvest before the game auto-harvests it)
  *   5 a started buildings-view recipe / "Show grimoire" debug goal, then the auto hammer's
  *     kick-off after the Heavenly key (AUTO-19: HammerAction), then auto play: ascend
@@ -121,6 +122,13 @@ export function selectJobRequest(deps: PriorityDeps): JobRequest | null {
     ) {
       job = fthof.refillJob();
     }
+  }
+
+  // A combo of >= 2 positive buffs: hammer through it, below the Grimoire, above everything
+  // else (CF-7). Between two clicks nothing below it gets the paw.
+  if (!job && !game.clickFrenzyActive() && buffComboActive(game)) {
+    if (Date.now() < runtime.nextBigClickAt - BIG_CLICK_LEAD_MS) return null;
+    return clickBigCookie.job();
   }
 
   // A ripe sugar lump, below FTHOF/refill, above auto-shop.

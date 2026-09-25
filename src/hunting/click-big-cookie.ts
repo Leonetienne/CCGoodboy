@@ -1,10 +1,10 @@
 import type { PersistedData } from '../core/persisted-data';
 import type { IGameAdapter } from '../game/game-adapter';
 import { JOB_PRIORITY, type JobRequest } from '../cursor/types';
-import { BIG_CLICK_LEAD_MS, HammerAction } from '../actions/hammer';
+import { BIG_CLICK_LEAD_MS, buffComboActive, HammerAction } from '../actions/hammer';
 import type { LogStore } from '../stats/log';
 
-export { BIG_CLICK_LEAD_MS } from '../actions/hammer';
+export { BIG_CLICK_LEAD_MS, buffComboActive } from '../actions/hammer';
 
 /** Big-cookie hammer module: decides whether hammering is wanted (real Click Frenzy or the
  * hammer button / auto hammer) and produces the continuous HammerAction job. The action owns
@@ -21,7 +21,7 @@ export class ClickBigCookieTask {
   ) {}
 
   bigCookieWanted(): boolean {
-    return this.game.clickFrenzyActive() || this.hammerActive();
+    return this.game.clickFrenzyActive() || buffComboActive(this.game) || this.hammerActive();
   }
 
   job(): JobRequest {
@@ -29,7 +29,7 @@ export class ClickBigCookieTask {
 
     return {
       action: new HammerAction(this.data, this.game, this.log, this.hammerActive, this.hasGoodGolden, this.fthofOrRefillPending, this.autoShopReady),
-      priority: frenzy ? JOB_PRIORITY.CLICK_FRENZY : JOB_PRIORITY.HAMMER,
+      priority: frenzy ? JOB_PRIORITY.CLICK_FRENZY : buffComboActive(this.game) ? JOB_PRIORITY.BUFF_COMBO : JOB_PRIORITY.HAMMER,
       key: 'hammer',
     };
   }

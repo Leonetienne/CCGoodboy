@@ -378,4 +378,39 @@ describe('selectJobRequest', () => {
     selectJobRequest(makeDeps({ autoPlay, hammerKick: () => false, hammerActive: () => true }));
     expect(autoPlay.shopJob).toHaveBeenCalled();
   });
+  it('hammers through a combo of two positive buffs (CF-7), above a ripe lump and shopping', () => {
+    const game = new FakeGameAdapter();
+    game.rawBuffs = { a: { name: 'Frenzy', multCpS: 7, time: 3000 }, b: { name: 'Dragonflight', multClick: 1111, time: 300 } };
+    const runtime = new RuntimeState();
+    runtime.nextBigClickAt = Date.now();
+    const autoPlay = { shopReady: () => true, shopJob: vi.fn() } as unknown as AutoPlayEngine;
+    const lumpHarvest = { pending: () => true, harvestJob: vi.fn() } as unknown as LumpHarvestActions;
+
+    expect(selectJobRequest(makeDeps({ game, runtime, autoPlay, lumpHarvest, buffs: game.positiveCpsBuffs() }))?.key).toBe('hammer');
+
+    // between two clicks nothing below it gets the paw
+    runtime.nextBigClickAt = Date.now() + 100000;
+    expect(selectJobRequest(makeDeps({ game, runtime, autoPlay, lumpHarvest, buffs: game.positiveCpsBuffs() }))).toBeNull();
+    expect(autoPlay.shopJob).not.toHaveBeenCalled();
+    expect(lumpHarvest.harvestJob).not.toHaveBeenCalled();
+  });
+
+  it('a buff combo still lets the Grimoire go first (CF-7)', () => {
+    const game = new FakeGameAdapter();
+    game.grimoire = { spells: { 'hand of fate': { id: 1 } }, getSpellCost: () => 50, magic: 100 };
+    game.rawBuffs = { a: { name: 'Frenzy', multCpS: 7, time: 3000 }, b: { name: 'Building special', multCpS: 10, time: 3000 } };
+    const runtime = new RuntimeState();
+    runtime.nextBigClickAt = Date.now();
+
+    expect(selectJobRequest(makeDeps({ game, runtime, buffs: game.positiveCpsBuffs() }))?.key).toBe('fthof');
+  });
+
+  it('one positive buff is no combo (CF-7)', () => {
+    const game = new FakeGameAdapter();
+    game.rawBuffs = { a: { name: 'Frenzy', multCpS: 7, time: 3000 }, b: { name: 'Clot', multCpS: 0.5, time: 3000 } };
+    const runtime = new RuntimeState();
+    runtime.nextBigClickAt = Date.now();
+
+    expect(selectJobRequest(makeDeps({ game, runtime, data: (() => { const d = new PersistedData(); d.config.idleWander = false; return d; })() }))).toBeNull();
+  });
 });

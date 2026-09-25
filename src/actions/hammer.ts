@@ -9,6 +9,30 @@ import type { LogStore } from '../stats/log';
  * travelling never eats into the click rhythm. */
 export const BIG_CLICK_LEAD_MS = 150;
 
+/** CF-7: at least two positive buffs at once (multCpS > 1 or multClick > 1: Frenzy, Building
+ * special, Dragon Harvest, Dragonflight, ...). */
+export const BUFF_COMBO_MIN = 2;
+
+/** Is a buff combo running that is worth hammering through (CF-7)? */
+export function buffComboActive(game: IGameAdapter): boolean {
+  let n = 0;
+
+  try {
+    const buffs = game.getRawBuffs() || {};
+
+    for (const key of Object.keys(buffs)) {
+      const b = buffs[key];
+      if (!b) continue;
+
+      if (Number(b.multCpS) > 1 || Number(b.multClick) > 1) n++;
+    }
+  } catch (_e) {
+    return false;
+  }
+
+  return n >= BUFF_COMBO_MIN;
+}
+
 export interface BigCookiePoint {
   el: Element;
   x: number;
@@ -96,7 +120,8 @@ export function nextBigCookiePoint(prev: { x: number; y: number } | null, data: 
  * resynced from the real click when > 60ms late; never closer than base-jitter to the
  * previous click. Each click lands a few px from the previous one. Stops when: no longer
  * wanted, a golden cookie is ready, or (hammer mode only) FTHOF/refill/auto-shop becomes
- * pending. Only real Click Frenzy clicks are logged. */
+ * pending; during a buff combo (CF-7) only FTHOF/refill stop it. Only real Click Frenzy clicks
+ * are logged. */
 export class HammerAction implements CursorAction {
   readonly label = 'hammer big cookie';
   readonly target = null;
@@ -115,14 +140,14 @@ export class HammerAction implements CursorAction {
   ) {}
 
   private bigCookieWanted(): boolean {
-    return this.game.clickFrenzyActive() || this.hammerActive();
+    return this.game.clickFrenzyActive() || buffComboActive(this.game) || this.hammerActive();
   }
 
   private stop(ctx: CursorJobContext): boolean {
     return (
       !this.bigCookieWanted() ||
       this.hasGoodGolden() ||
-      (!this.game.clickFrenzyActive() && (this.fthofOrRefillPending() || this.autoShopReady())) ||
+      (!this.game.clickFrenzyActive() && (this.fthofOrRefillPending() || (!buffComboActive(this.game) && this.autoShopReady()))) ||
       ctx.abortRequested()
     );
   }
@@ -143,6 +168,7 @@ export class HammerAction implements CursorAction {
 
       const frenzy = this.game.clickFrenzyActive();
       runtime.currentAction = frenzy ? 'click-frenzy' : 'hammer';
+      runtime.currentTarget = !frenzy && buffComboActive(this.game) ? 'big cookie (buff combo)' : 'big cookie';
 
       const point = nextBigCookiePoint(prev, this.data);
       if (!point) return;

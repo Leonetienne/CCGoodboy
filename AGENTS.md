@@ -172,6 +172,17 @@ refactor) which `tests/visual/scenarios.mjs` scenario exercises it.
   after reload). Only the toggle is logged, not each click.
 - **CF-5** Each click lands a small random step (0..max "Click step max
   px", default 3) from the previous one, inside the cookie; 0 = stay put.
+- **CF-7** Buff combo: while at least two positive buffs run at once (a
+  buff with `multCpS > 1` or `multClick > 1`: Frenzy + Building special,
+  Frenzy + Dragonflight, ...; `buffComboActive()`, `BUFF_COMBO_MIN`) the
+  big cookie is hammered like CF-1 (same rate, jitter and step), with or
+  without auto play. Only the Grimoire (FTHOF, its FT-8 preparation, the
+  refill) outranks it; it outranks a ripe sugar lump and all of tier 5
+  (auto play, the stock market, the garden: a payout crop's harvest,
+  GARDEN-5, waits until fewer buffs are left), and between two clicks
+  nothing below it gets the paw (`JOB_PRIORITY.BUFF_COMBO`). A Click
+  Frenzy in the combo is plain CF-1. The Chasing row reads "big cookie
+  (buff combo)".
 - **CF-6** `estimateClickFrenzySec()`: rough Click Frenzy length in seconds
   (13s × Get lucky ×2 × Lasting fortune ×1.1 × Epoch Manipulator). Exposed
   on the game adapter; used by FT-2.
@@ -236,7 +247,7 @@ refactor) which `tests/visual/scenarios.mjs` scenario exercises it.
   FT-4 pattern).
 - **LUMP-4** Respects the click delay (before moving) and pre-click pause
   (FT-5 pattern).
-- **LUMP-5** Priority: below FTHOF/refill, above auto play shopping (see
+- **LUMP-5** Priority: below FTHOF/refill and a buff combo (CF-7), above auto play shopping (see
   SCHED-1). Not gated by Auto play — it runs whether or not Auto play is
   switched on, since it is not "buying" (§1).
 - **LUMP-6** Each successful harvest is recorded (`stats.lumpHarvests`,
@@ -254,7 +265,8 @@ refactor) which `tests/visual/scenarios.mjs` scenario exercises it.
      cookies
   1. good golden cookies (queue)
   2. real Click Frenzy clicking
-  3. FTHOF cast (and its FT-8 preparation steps), then lump refill
+  3. FTHOF cast (and its FT-8 preparation steps), then lump refill, then
+     hammering through a buff combo (CF-7)
   4. a ripe sugar lump (LUMP-\*)
   5. a buildings-view recipe already under way / the "Show grimoire"
      debug goal (DBG-9/11), then the auto hammer's kick-off after the
@@ -1895,7 +1907,7 @@ file.**
 
 Three layers, each catching a different class of bug:
 
-1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 581 tests
+1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 584 tests
    across 51 files. Pure functions (route planner, `autoDecide`, the chart
    engine, `normalizeSetting`) are tested directly with plain data; the
    cursor queue/actions have their own fake mover/timing tests. Classes
@@ -2086,6 +2098,12 @@ mouse while the bot runs and confirm the "+N" number follows your cursor,
 not the paw's).
 
 ## 12. Changelog
+
+- **5.8.13** The paw hammers the big cookie through every combo of at least
+  two positive buffs (CF-7: `multCpS > 1` or `multClick > 1`), not only
+  during Click Frenzy; only FTHOF and the refill go first. New
+  `buffComboActive()`, `JOB_PRIORITY.BUFF_COMBO`. Unit tests in
+  `tests/unit/priority.test.ts`.
 
 - **5.8.12** Kick-off hammering (AUTO-19): right after auto play buys
   "Heavenly key" (after an ascension) the paw hammers the big cookie for

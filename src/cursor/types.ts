@@ -14,6 +14,8 @@ export const JOB_PRIORITY = {
   CLICK_FRENZY: 1,
   FTHOF: 2,
   REFILL: 3,
+  /** Hammering through a combo of >= 2 positive buffs (CF-7): below the Grimoire. */
+  BUFF_COMBO: 3.5,
   LUMP_HARVEST: 4,
   AUTO_SHOP: 5,
   HAMMER: 6,

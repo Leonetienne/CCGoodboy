@@ -16,7 +16,7 @@ import { BuffLockTracker } from './game/buffs-lock';
 import { GameAdapter } from './game/game-adapter';
 import { GoldenCookieModel } from './game/golden-cookie-model';
 import { HurryMode } from './game/hurry-mode';
-import { ClickBigCookieTask } from './hunting/click-big-cookie';
+import { buffComboActive, ClickBigCookieTask } from './hunting/click-big-cookie';
 import { ClickGoldenTask } from './hunting/click-golden';
 import { BuildingsViewNavigator } from './hunting/buildings-view';
 import { FthofActions } from './hunting/fthof';
@@ -66,7 +66,7 @@ const goldenQueue = new GoldenQueue(runtime);
 const incomeTracker = new IncomeTracker(runtime, game);
 
 const autoHammer = new AutoHammer(runtime, data, game, log);
-const hammerActive = () => autoHammer.hammerActive();
+const hammerActive = () => autoHammer.hammerActive() || buffComboActive(game);
 
 const enqueueJob = (req: JobRequest) => cursorManager.enqueue(req.action, { priority: req.priority, key: req.key, dueAt: req.dueAt });
 const buildingsView = new BuildingsViewNavigator(runtime, game, isGoodGoldenReady);
