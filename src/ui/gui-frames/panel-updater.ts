@@ -12,6 +12,7 @@ import type { AscensionPlanner } from '../../autoplay/ascension';
 import type { AscensionRunner } from '../../autoplay/ascension-runner';
 import type { AutoPlayEngine } from '../../autoplay/shopping';
 import type { WrinklerPopper } from '../../autoplay/wrinkler-popper';
+import { signedCookies, type StockTrader } from '../../market/stock-trader';
 import type { GoldenQueue } from '../../hunting/golden-queue';
 import { escapeHtml, formatNum, moodText, targetText } from '../format';
 
@@ -32,6 +33,7 @@ export class PanelUpdater {
     private readonly wrinklerPopper: WrinklerPopper,
     private readonly ascension: AscensionPlanner,
     private readonly ascensionRunner: AscensionRunner,
+    private readonly stockTrader: StockTrader,
     private readonly clock: BackgroundClock,
     private readonly keepAlive: KeepAliveController,
   ) {}
@@ -97,16 +99,16 @@ export class PanelUpdater {
     el('ccsb-ascend-row')!.style.display = ascendText ? '' : 'none';
     if (ascendText) el('ccsb-ascend')!.textContent = ascendText;
 
+    // Only while "Play the stock market" is on (STOCK-7).
+    const stockText = this.stockTrader.statusText();
+    el('ccsb-stock-row')!.style.display = stockText ? '' : 'none';
+    if (stockText) el('ccsb-stock')!.textContent = stockText;
+
     el('ccsb-bg')!.textContent = backgroundStatusText(this.clock, this.runtime, this.data);
 
     const autoBtn = el('ccsb-auto-toggle')!;
     autoBtn.textContent = this.data.config.autoPlay === true ? 'Auto play ON ^w^' : 'Auto play :3';
     autoBtn.classList.toggle('active', this.data.config.autoPlay === true);
-
-    const ascendBtn = el('ccsb-ascend-overlay')!;
-    const ascendOverlayOn = this.data.config.showAscendOverlay !== false;
-    ascendBtn.textContent = ascendOverlayOn ? 'Ascend overlay ON ^w^' : 'Ascend overlay :3';
-    ascendBtn.classList.toggle('active', ascendOverlayOn);
 
     const hammerBtn = el('ccsb-hammer')!;
     hammerBtn.textContent = this.runtime.hammer ? 'Hammer ON ^w^' : 'Hammer cookie :3';
@@ -123,6 +125,12 @@ export class PanelUpdater {
       `<span>Grimoire refills :3</span><b>${this.data.stats.grimoireRefills}</b>`,
       `<span>Sugar lumps harvested :3</span><b>${this.data.stats.lumpHarvests || 0}</b>`,
       ...(this.data.stats.ascensions ? [`<span>Ascensions ^w^</span><b>${this.data.stats.ascensions}</b>`] : []),
+      ...(this.data.stats.stockTrades
+        ? [
+            `<span>Stock trades ^w^</span><b>${this.data.stats.stockTrades}</b>`,
+            `<span>Stock market profit :3</span><b>${escapeHtml(signedCookies(this.data.stats.stockProfit || 0))}</b>`,
+          ]
+        : []),
       ...(this.data.stats.wrinklersPopped ? [`<span>Wrinklers popped owo</span><b>${this.data.stats.wrinklersPopped}</b>`] : []),
       ...(this.data.config.autoPlay === true ? [`<span>Auto purchases ^w^</span><b>${this.data.stats.autoBuys || 0}</b>`] : []),
     ].join('');

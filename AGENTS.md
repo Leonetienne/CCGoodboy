@@ -34,23 +34,29 @@ A userscript for Cookie Clicker (`https://orteil.dashnet.org/cookieclicker/`)
 that plays the "golden cookie game" like a very polite, slightly playful
 human: it catches good golden cookies, hammers the big cookie during Click
 Frenzy, keeps a Grimoire "Force the Hand of Fate" (FTHOF) combo going, and
-shows all of that through a little paw cursor, a HUD, charts and logs. It
-also ships "debug tools" (cheats) to test the hunter on a test save.
+shows all of that through a little paw cursor, a HUD, charts and logs. With
+the ON-by-default setting "Play the stock market" it also trades on the
+Bank's stock market (STOCK-\*). It also ships "debug tools" (cheats) to
+test the hunter on a test save.
 
 Out of scope: seasons (switching them; auto play does buy the Easter egg
 upgrades a season drops, EGG-\*, and the Christmas upgrades, evolving Santa,
-XMAS-\*), garden, stock market, pantheon, challenge modes and permanent
+XMAS-\*), garden, pantheon, the stock market's offices and loans (STOCK-8), challenge modes and permanent
 upgrade slots when ascending (auto play ascends by itself unless "Auto:
 ascend" is switched off, ASC-10; without auto play the ascension plan is
 only shown), and any
 Grandmapocalypse beyond stage 1 (WRINK-1).
 Buying is only done by the optional, OFF-by-default "Auto play" mode
-(AUTO-\*) and even then only through the game's own buy functions. The bot
+(AUTO-\*) and even then only through the game's own buy functions, and by
+the stock market trader (STOCK-\*, on by default), which only uses the
+market's own buttons. The bot
 NEVER clicks anything except: good golden cookies, reindeer (XMAS-6), the big cookie, the
 FTHOF spell button, the lump-refill button, a ripe sugar lump, the
 Options/Stats menu buttons and the "View Grimoire" button needed to get the
-FTHOF spell on screen (FT-8), and — in auto play only — the Wizard tower's
-"lvl" button (AUTO-13), mature wrinklers (WRINK-5), Krumblor's tab,
+FTHOF spell on screen (FT-8), with "Play the stock market" the "View Stock
+Market" button, the market's buy/sell buttons and its "Hire" (broker)
+button (STOCK-\*), and — in auto play only — the Wizard tower's
+"lvl" button (AUTO-13), the Bank's "lvl" button (AUTO-16), mature wrinklers (WRINK-5), Krumblor's tab,
 popup and aura picker (KRUMB-3) and Santa's tab, "Evolve" button and popup
 "x" (XMAS-4), and with "Auto: ascend" the Legacy button, the "Ascend" /
 "Reincarnate" prompts, heavenly upgrade crates and the Reincarnate button
@@ -88,6 +94,9 @@ popup and aura picker (KRUMB-3) and Santa's tab, "Evolve" button and popup
 | pending level | the prestige level ascending right now would give; pending − current = the levels (and chips) gained. |
 | lucky level | a prestige level containing enough 7s ANYWHERE in its digits for a lucky heavenly upgrade: >= 1 for Lucky digit (777 chips), >= 2 for Lucky number (77,777), >= 4 for Lucky payout (77,777,777). This is the game's `showIf` (`(Game.prestige+'').split('7').length-1`), checked on the ascension screen against the new level. |
 | stagnating | a run whose marginal prestige rate (levels per hour at the current income) has fallen below its average rate since the run started: ascending now maximises levels per hour (ASC-3). |
+| stock market | the Bank's minigame (unlocked by Bank level 1): goods tied to buildings, bought and sold at prices in "$" = seconds of `Game.cookiesPsRawHighest`; one market tick per minute. |
+| resting value | the price a good drifts back to (1% of the gap per tick): `10 + 10 × id + Bank level − 1` (`M.getRestingVal`). The trader measures prices against R = resting value + 10. |
+| overhead | buying a good costs its price × (1 + 20% × 0.95^brokers); selling has none. |
 | mature | a wrinkler that has digested for >= "maturity" × the respawn time (estimated as `sucked / (CpS × cpsSucked)`). |
 
 ## 3. Functional requirements
@@ -241,10 +250,12 @@ refactor) which `tests/visual/scenarios.mjs` scenario exercises it.
   4. a ripe sugar lump (LUMP-\*)
   5. a buildings-view recipe already under way / the "Show grimoire"
      debug goal (DBG-9/11), then auto play: an ascension that is due or
-     under way (ASC-10), then the Grimoire unlock (AUTO-13),
-     then a Krumblor step (KRUMB-\*), then a Santa step (XMAS-4), then
-     popping a wrinkler for a purchase (WRINK-3), then shopping (only when a purchase is due,
-     AUTO-8)
+     under way (ASC-10), then the Grimoire unlock (AUTO-13), then the
+     stock market unlock (AUTO-16),
+     then a Krumblor step (KRUMB-\*), then a Santa step (XMAS-4), then a
+     stock market trade (STOCK-\*, its own setting, with or without auto
+     play), then popping a wrinkler for a purchase (WRINK-3), then shopping
+     (only when a purchase is due, AUTO-8)
   6. hammer mode (manual button, or the auto hammer, AUTO-11)
   7. happy dance (only right after a catch, DANCE-1)
   8. idle behavior (IDLE-\*)
@@ -330,10 +341,10 @@ See [§7 State machine](#7-state-machine) for how this maps onto code.
   saved and kept on screen). Title shows the script version.
 - **UI-2** Rows: Mood, Chasing, Shinies waiting (ready / fading in /
   wrath), Click Frenzy, Buffies, Grimoire, LOCK_A, Click cooldown,
-  Background, Wrinklers (WRINK-7), Ascension (ASC-5), Auto play,
-  statistics.
-- **UI-3** Buttons: Pause/Resume, Hammer cookie, Auto play, Ascend overlay
-  (ASC-6), Graphs, Logs, Debug tools, Settings.
+  Background, Wrinklers (WRINK-7), Ascension (ASC-5), Stock market
+  (STOCK-7), Auto play, statistics.
+- **UI-3** Buttons: Pause/Resume, Hammer cookie, Auto play, Graphs, Logs,
+  Debug tools, Settings.
 - **UI-4** Settings are STAGED: editing only marks "unsaved"; "Save
   settings" (or Enter) validates, clamps, applies and stores them at once.
 - **UI-5** Graphs: hourly golden-cookie clicks by effect and Grimoire
@@ -449,6 +460,21 @@ See [§7 State machine](#7-state-machine) for how this maps onto code.
 - **DBG-21** Show update popup: shows the UPD-2 popup at once, as if
   GitHub's latest release were version "DUMMY" (no request is made; its
   button links to a release that doesn't exist).
+- **DBG-22** Stock market: next tick now: runs the market's next tick at
+  once (`M.tick()`, the timer restarts), so STOCK-\* can be tested without
+  waiting a minute per tick. Fails in red while the market is locked.
+- **DBG-23** Stock market: crash prices: drops every active good to $3-5,
+  just turned up (the graph's previous point $0.50 lower, drift up), so the
+  trader buys at once (STOCK-3). Changes the save: use a test save. Fails
+  in red while the market is locked or no good is active yet.
+- **DBG-24** Stock market: speed x50 (on/off): the market ticks 50× faster
+  (`M.secondsPerTick` 60 → 1.2s, the game's own speed cheat), so the trader
+  (STOCK-\*) can be watched through hours of market in minutes; clicking it
+  again, or a reload (the game doesn't save the speed), sets it back to one
+  tick a minute. The HUD's "next tick in" follows it. The paw may need more
+  than one fast tick for a trip; every click is re-planned right before it
+  fires (STOCK-3), so a stale trade is simply dropped. Fails in red while
+  the market is locked.
 ### 3.12 Console voice
 
 The bot talks in the browser console, in the same cute style as the UI
@@ -464,7 +490,8 @@ action log (UI-6); nothing here is stored.
   says `"Caught a reindeer!! Ho ho ho, gewd boy :3"` (XMAS-6); an
   automatic ascension says `"Ascending!! See you on the other side, cookies
   ^w^"` and, after reincarnating, `"Back in the mortal world, time to bake
-  again :3"` (ASC-10).
+  again :3"` (ASC-10); a stock sold for a profit says `"Sold CRL for a
+  profit, stonks ^w^"` (STOCK-6).
 - **CON-2** "Wanted to ..., but ..." lines (`console.log`) whenever the bot
   wants to do something and can't. Conditions re-checked every scheduler
   tick go through `sayCantWhile(wish, reasonCode, msg)`, which says each
@@ -479,11 +506,15 @@ action log (UI-6); nothing here is stored.
     can't pay for FTHOF (FT-3), LOCK_A already used, refill on cooldown, no
     sugar lumps ("sugar popsies").
   - Grimoire unlock wanted (AUTO-13): sugar lumps not unlocked, no lumps.
+  - Stock market unlock wanted (AUTO-16): sugar lumps not unlocked, no
+    lumps. Trading wanted ("Play the stock market" on): no Bank, market
+    still locked (Bank level 0).
 
   One-off events use `sayCant(msg)`: a golden cookie click that didn't pop
   it (not for storm drops) or a reindeer that ran away, a FTHOF/refill/lump click that did nothing,
   FT-8 preparation falling back to a direct cast, the Grimoire unlock,
-  wrinkler popping, Krumblor training, Santa's evolution or an ascension
+  wrinkler popping, a stock market click that did nothing or a view step
+  that failed (STOCK-5), Krumblor training, Santa's evolution or an ascension
   pausing (with the reason), a heavenly upgrade the ascension skips, a purchase the shop refused,
   a failed debug tool or "Show grimoire".
 - **CON-3** Errors (`sayOops`, `console.error` with the error object): a
@@ -612,7 +643,13 @@ action log (UI-6); nothing here is stored.
   the section's visible strip (`storeApproachPoint()`,
   `src/game/store-dom.ts`; `enterStoreElement()`,
   `src/actions/store-visit.ts`). The same applies to Krumblor's egg
-  (KRUMB-3). HUD row "Auto play" shows the plan
+  (KRUMB-3). The purchase is decided again once the paw is there (things
+  change on the way: hammering stops, the bank moves) and BEFORE the press:
+  the paw buys what it stands on when it is still the tick's pick, or still
+  one of this tick's purchases and buying it first leaves enough for the
+  pick (`shopPickAt()`, `src/autoplay/strategy.ts`); otherwise it neither
+  presses nor buys and logs `"changed its mind at X"`. The pulse and the
+  purchase happen at the same moment. HUD row "Auto play" shows the plan
   ("saving for X (+N% CpS, ~3m 20s)").
 - **AUTO-10** Every purchase is logged (`"auto buy"` with cost, `dCps`,
   payback, impact, reason) and counted (`stats.autoBuys`, shown in the
@@ -687,6 +724,21 @@ action log (UI-6); nothing here is stored.
   costly milestone changes nothing; never past a building cap (Wizard
   tower target). The HUD plan reads "buying Cursor (to 100 for an
   achievement)" and the `"auto buy"` log carries `milestone`.
+
+- **AUTO-16** Stock market unlock: with auto play AND "Play the stock
+  market" (STOCK-1) on, as soon as >= 1 Bank is owned, its level is still
+  0, sugar lumps are unlocked and >= 1 lump is in stock, the paw spends one
+  lump on Bank level 1 (which unlocks the stock market), unless "Spend sugar
+  lumps" is off (FT-9). Exactly AUTO-13's recipe and guards, run by the
+  Bank's `MinigameView` (goal "level", `src/hunting/minigame-view.ts`, the
+  same planner the Grimoire uses): Options/Stats/Stats if a menu covers the
+  buildings, wheel-scroll to `#productLevel5`, click it
+  (`MinigameUnlockAction`, the lump confirmation suppressed); the same
+  AUTO-7 gates, pauses (10s / 3s) and dry run ("would unlock"). Without
+  "Play the stock market" a market nobody plays isn't worth a lump, so the
+  Bank stays level 0. Priority: tier 5, right after the Grimoire unlock.
+  Logged as `"auto bank unlock"`. `BankUnlocker`,
+  `src/autoplay/bank-unlock.ts`.
 
 ### 3.15 Background operation (browser tab not in front)
 
@@ -1024,9 +1076,9 @@ ascend", on by default) the bot also ascends by itself (ASC-10). Pure logic in `
   (5) only for ASCEND NOW / WAIT: "Buy in heaven: N upgrades (X chips)" and,
   for the next wish this ascension does NOT wait for, "Later: X (cost
   chips)" plus "N chips left over after buying = P% of it";
-  (6) the ASC-11 "Bot:" line.
-- **ASC-6** Overlay (with "Pretty overlays" and the "Ascend overlay" HUD
-  button on, `showAscendOverlay`, default on): a box around the Legacy
+  (6) the ASC-11 "Paw:" line.
+- **ASC-6** Overlay (with "Pretty overlays" and the setting "Show
+  ascension overlay" on, `showAscendOverlay`, default on): a box around the Legacy
   button (`#legacyButton`), gold and solid for ASCEND NOW, dashed otherwise
   (amber WAIT, baby blue NOT YET while prestige still comes in fast,
   lavender the other NOT YETs), with a card under it. Collapsed by default
@@ -1051,18 +1103,18 @@ ascend", on by default) the bot also ascends by itself (ASC-10). Pure logic in `
   button (`#ascendButton`) gets a box, the chips to spend and the list.
   Its card (`heavenScreenLines()`) says "BUY THE PINK ONES, in order (1, 2,
   3...)", "N upgrades for X of your Y chips", "then click Reincarnate" (or
-  "NOTHING TO BUY: click Reincarnate"), the "Later:" lines and the Bot line.
-- **ASC-11** Bot line (`AscensionRunner.botLine()`), always the last line
+  "NOTHING TO BUY: click Reincarnate"), the "Later:" lines and the Paw line.
+- **ASC-11** Paw line (`AscensionRunner.botLine()`), always the last line
   of the HUD row and the cards, so nothing has to be guessed from a missing
-  line: "Bot: auto play is off, so it won't ascend by itself", "Bot: "Auto:
-  ascend" is off, so it won't ascend by itself", "Bot: dry run, it only
-  writes "would ascend" in the log", "Bot: will ascend by itself once it
-  pays off" (NOT YET), "Bot: will ascend by itself at level L" (WAIT), "Bot:
-  popping the wrinklers first, then ascending", "Bot: ascending now", or
-  "Bot: will ascend once <reason>" (the buffs are over, golden cookies and
+  line: "Paw: auto play is off, so it won't ascend by itself", "Paw: "Auto:
+  ascend" is off, so it won't ascend by itself", "Paw: dry run, it only
+  writes "would ascend" in the log", "Paw: will ascend by itself once it
+  pays off" (NOT YET), "Paw: will ascend by itself at level L" (WAIT), "Paw:
+  popping the wrinklers first, then ascending", "Paw: ascending now", or
+  "Paw: will ascend once <reason>" (the buffs are over, golden cookies and
   frenzies are done, the open prompt is closed, its pause after a hiccup is
-  over, the next lucky level ...); on the ascension screen "Bot: buying the
-  pink ones, then reincarnating" for its own ascension, else "Bot: you
+  over, the next lucky level ...); on the ascension screen "Paw: buying the
+  pink ones, then reincarnating" for its own ascension, else "Paw: you
   ascended yourself, so the buying is up to you".
 - **ASC-10** Auto ascension: with auto play and "Auto: ascend"
   (`config.autoAscend`, DEFAULT ON; auto play itself is off by default), the bot
@@ -1112,7 +1164,7 @@ ascend", on by default) the bot also ascends by itself (ASC-10). Pure logic in `
   only starts when that is at least 30s + 5s per attached wrinkler
   (`LUCKY_MARGIN_SEC`, `LUCKY_MARGIN_PER_POP_SEC`), and only confirms its
   own "Ascend" prompt with >= 2s left; else it lets that lucky level go
-  (ASC-11: "Bot: will ascend once the next lucky level ...") and the plan moves
+  (ASC-11: "Paw: will ascend once the next lucky level ...") and the plan moves
   on to the next one. Without a lucky upgrade on the list the 7s are
   ignored.
 
@@ -1141,6 +1193,93 @@ ascend", on by default) the bot also ascends by itself (ASC-10). Pure logic in `
   in flight never shows one. `src/lifecycle/update-check.ts`
   (`UpdateChecker`, pure `parseVersion()`/`isNewerVersion()`), styles in
   `src/ui/styles.ts`. Unit tests in `tests/unit/update-check.test.ts`.
+
+### 3.23 Stock market (the Bank's minigame)
+
+The trader plays the Bank's stock market like a patient human: it buys a
+good when it is cheap and has just turned up, rides the rise, and sells when
+it starts to fall again. Every trade is a real click on the market's own
+buttons (NFR-8 a), one `MarketClickAction` job per click. Pure logic in
+`src/market/market-strategy.ts`, the module in `src/market/stock-trader.ts`,
+the DOM in `src/game/market-dom.ts`; the game's `minigameMarket.js` (2.058)
+was read for every rule below.
+
+- **STOCK-1** Setting "Play the stock market" (`stockMarket`, a general
+  setting, DEFAULT ON; switch it off to keep the cookies out of stocks).
+  Not tied to auto play; auto
+  play only adds the unlock (AUTO-16). Without a Bank, or with Bank level 0,
+  the trader only says so (CON-2) and waits.
+- **STOCK-2** Strategy, tuned on a faithful port of the game's `M.tick()`
+  simulated over hundreds of thousands of ticks (Bank levels 1 and 10,
+  overhead 20% and 3%). The simulation showed every good wandering far from
+  its resting value (Cereals, resting at $10, spends a quarter of the time
+  below $7 and a quarter above $50), a soft floor (below $5 the price is
+  pulled back up) and trends that end at the top. Measured against R =
+  resting value + 10: BUY at or below 0.3 R (`MARKET_BUY_SHARE`) once the
+  price is higher than one tick ago (`MARKET_UPTICK`, it turned: never
+  into a still-falling price); SELL, all of it, once the price has been at
+  or above 0.7 R (`MARKET_SELL_SHARE`) since the buy and has fallen 5% from
+  that peak (`MARKET_TRAILING_STOP`), and never at or below what a unit
+  cost (the game's "last bought at" × today's overhead). In the simulation
+  this earned the most per cookie tied up: ~1-1.6× the invested cookies back
+  per hour held, ~2.6 round trips per good per day. The peak since the buy
+  is watched every scheduler tick (`runtime.marketPeaks`, also while
+  trading waits); a good first seen held (after a reload) takes it from the
+  graph since the price was last at or below the purchase price
+  (`marketPeakFromHistory()`).
+- **STOCK-3** Order within a tick (`planMarketMove()`, re-planned from the
+  live market for every click, so a preempted click is simply planned
+  again): (1) sells first ("All" button); (2) a broker when it pays (STOCK-4)
+  and something is to be bought; (3) buys, the best upside (0.7 R / price)
+  first: "Max" when the budget fills the warehouse (the game's Max then
+  buys exactly the free space), else the biggest of 100/10/1 that fits, one
+  click per job, at least 10 units (or the whole free space) per click.
+  The game's rule that a good can't be bought and sold in the same tick is
+  respected (`me.last`). Only active goods (their building owned this
+  ascension) are traded.
+- **STOCK-4** Budget and brokers: stocks may hold at most "Stocks: invest at
+  most (share of bank)" (`stockMaxShare`, default 0.5) of bank + stocks
+  (valued at today's prices), and never more than the bank
+  (`marketBudget()`). A broker (20 minutes of the highest raw CpS, max
+  `M.getMaxBrokers()`) is hired (the "Hire" button) when the overhead it
+  saves on 3 refills of every active warehouse at the buy price pays for it
+  (`marketBrokerWorth()`, `MARKET_BROKER_ROUNDS`) and the budget allows.
+- **STOCK-5** Safety: the AUTO-7 gates (golden cookie ready, Click Frenzy,
+  storm/chain, FTHOF/refill pending, paused; also a prompt open, ascending).
+  Getting the market in front of the paw is the Bank's `MinigameView` (goal
+  "open", like FT-8): Options/Stats/Stats if a menu covers the buildings,
+  "View Stock Market" (`#productMinigameButton5`) if it is closed, wheel-
+  scroll `#centerArea` to the button. A click that changed nothing pauses
+  trading 3s, a failed view step 10s (`runtime.marketBlockUntil`).
+  Priority: tier 5 after the Krumblor/Santa steps, before wrinkler pops and
+  shopping; a due trade interrupts hammering and idle play (AUTO-8).
+- **STOCK-6** Every trade is logged (`"stock buy"` with units, price and
+  cost; `"stock sell"` with units, price, cookies and the profit in cookies;
+  `"stock broker"`) and counted (`stats.stockTrades`, "Stock trades" in the
+  HUD statistics once > 0). What the paw makes or loses is tracked in
+  cookies with the game's own formulas (a buy costs price × overhead ×
+  highest raw CpS, a sale pays price × highest raw CpS): each buy adds to
+  that good's cost basis (`stats.stockBasis`: units and cookies paid,
+  persisted), each sale books its proceeds against the average cost of the
+  units sold into `stats.stockProfit` (a loss counts too), shown as "Stock
+  market profit" in the HUD statistics (`StatsRecorder.recordStockBuy()` /
+  `recordStockSell()`). Units the paw didn't buy (bought by hand) have no
+  known cost and are left out of it; units that leave without the paw
+  selling them (sold by hand, an ascension resetting the market) are
+  dropped from the basis unbooked (`reconcileStockBasis()`). Brokers are
+  not counted: they're paid once and lower every later cost. A sale with a
+  profit says so in the console (CON-1).
+- **STOCK-7** HUD row "Stock market" (only while STOCK-1 is on): what is
+  held and its worth in cookies, what the paw made (STOCK-6) and, while it
+  holds its own units, the unrealized gain or loss on them at today's price,
+  the brokers, and
+  the next trade or the time to the next market tick; "locked (Bank level
+  0)" before the unlock.
+- **STOCK-8** Not played: offices (they cost cursors, which Krumblor and the
+  achievements want) and loans (a CpS gamble followed by a penalty). The
+  ascension throws the market away (`M.reset()`: stocks, brokers, offices),
+  like the bank itself, so nothing is sold for it; `runtime.marketPeaks`
+  is reset with the run. Debug: DBG-22, DBG-23.
 
 ## 4. Non-functional requirements
 
@@ -1221,9 +1360,11 @@ saved (see `normalizeSetting()` in
 | `ascendShopWaitSec` | Ascend: wait for heavenly upgrades up to (s) (ASC-9) | 21600 | 0-2592000 |
 | `ascendShopWaitShare` | Ascend: wait for heavenly upgrades at most (x levels gained) (ASC-9) | 0.1 | 0-1 |
 | `ascendLuckyWaitSec` | Ascend: wait for a lucky level up to (s) (ASC-9) | 86400 | 0-2592000 |
-| `showAscendOverlay` | (Ascend overlay button, stored; ASC-6) | true | – |
+| `showAscendOverlay` | Show ascension overlay [checkbox] (ASC-6) | true | – |
 | `grimoireFthof` | Grimoire: cast Force the Hand of Fate [checkbox] (FT-9) | true | – |
-| `spendLumps` | Spend sugar lumps [checkbox] (FT-9: refills, AUTO-13 unlock) | true | – |
+| `spendLumps` | Spend sugar lumps [checkbox] (FT-9: refills, AUTO-13/AUTO-16 unlocks) | true | – |
+| `stockMarket` | Play the stock market [checkbox] (STOCK-1) | true | – |
+| `stockMaxShare` | Stocks: invest at most (share of bank) (STOCK-4) | 0.5 | 0-1 |
 | `autoPlay` | (Auto play button, stored) | false | – |
 | `autoDryRun` | Auto play dry run (log only) [checkbox] | false | – |
 | `autoInsignificantSec` | Auto: insignificant cost (s of CpS) | 60 | 0-3600 |
@@ -1242,7 +1383,8 @@ saved (see `normalizeSetting()` in
 | `autoKrumblor` | Auto: train Krumblor (Dragon Cursor) [checkbox] | true | – |
 | `autoAscend` | Auto: ascend (and buy heavenly upgrades) [checkbox] (ASC-10) | true | – |
 
-(all "Auto" settings are only shown while Auto play is on)
+(all "Auto" settings are only shown while Auto play is on; the stock market
+settings are general settings)
 
 Notes: the key `goldenMinIntervalMs` keeps its old name so stored settings
 survive; it now means the click delay for ALL non-frenzy clicks. Under
@@ -1295,14 +1437,15 @@ gainLumps) — still guarded, still the only path to those `Game.*` calls.
 | Area | Path | Contents |
 |---|---|---|
 | Core state | `src/core/` | `constants.ts` (VERSION, clamp helpers), `console-voice.ts` (CON-\*), `persisted-data.ts`, `runtime-state.ts`, `state-machine.ts` |
-| Game facade | `src/game/` | `game-adapter.ts` (IGameAdapter + GameAdapter), `types.ts` (GameShimmer/RawBuff/CpsBuff/GrimoireMinigame/GameBuilding/GameUpgrade), `golden-cookie-model.ts` (fade curve, shimmer classification, GC-2/GC-3), `hurry-mode.ts` (HURRY-\*), `buffs-lock.ts` (LOCK_A, FT-6), `grimoire.ts` (FTHOF spell/cost lookup), `grimoire-dom.ts` (real Grimoire controls — FT-7), `lump-dom.ts` (`#lumps` control/centre — LUMP-\*), `wrinkler-dom.ts` (`#backgroundLeftCanvas`, a wrinkler's body point — WRINK-5), `dragon-dom.ts` (the special tabs on the left canvas, `#specialPopup`, the aura picker, Santa's "Evolve" button — KRUMB-3/XMAS-4), `buildings-view-dom.ts` (`#centerArea`, menu buttons, building rows/level buttons, the Options/Stats/Stats recipe, `centeredScrollTop` — AUTO-13), `reindeer.ts` (a reindeer's predicted path and the paw's meeting point — XMAS-6), `ascension-dom.ts` (the Legacy button, the Ascend/Reincarnate prompts, heavenly crates, the Reincarnate button, how far to drag the tree — ASC-10), `store-dom.ts` (the collapsible upgrade store sections, opened while the paw is there — AUTO-9), `dom-geometry.ts` (visibleRect/looseRect/clippedByAncestor — shared by every overlay box, GC-2/BUY-3) |
+| Game facade | `src/game/` | `game-adapter.ts` (IGameAdapter + GameAdapter), `types.ts` (GameShimmer/RawBuff/CpsBuff/GrimoireMinigame/GameBuilding/GameUpgrade), `golden-cookie-model.ts` (fade curve, shimmer classification, GC-2/GC-3), `hurry-mode.ts` (HURRY-\*), `buffs-lock.ts` (LOCK_A, FT-6), `grimoire.ts` (FTHOF spell/cost lookup), `grimoire-dom.ts` (real Grimoire controls — FT-7), `market-dom.ts` (the stock market's trade and "Hire" buttons — STOCK-\*), `lump-dom.ts` (`#lumps` control/centre — LUMP-\*), `wrinkler-dom.ts` (`#backgroundLeftCanvas`, a wrinkler's body point — WRINK-5), `dragon-dom.ts` (the special tabs on the left canvas, `#specialPopup`, the aura picker, Santa's "Evolve" button — KRUMB-3/XMAS-4), `buildings-view-dom.ts` (`#centerArea`, menu buttons, building rows/level buttons, the Options/Stats/Stats recipe, `centeredScrollTop` — AUTO-13), `reindeer.ts` (a reindeer's predicted path and the paw's meeting point — XMAS-6), `ascension-dom.ts` (the Legacy button, the Ascend/Reincarnate prompts, heavenly crates, the Reincarnate button, how far to drag the tree — ASC-10), `store-dom.ts` (the collapsible upgrade store sections, opened while the paw is there — AUTO-9), `dom-geometry.ts` (visibleRect/looseRect/clippedByAncestor — shared by every overlay box, GC-2/BUY-3) |
 | Cursor (queue) | `src/cursor/` | `types.ts` (`JOB_PRIORITY`, `CursorAction`, `CursorJob`, `CursorJobContext`, `CursorMover`, `CursorClickTiming`, `JobRequest`), `cursor-manager.ts` (owns the priority queue + all cursor motion: click gap → travel → pre-click pause → `cursor_at_position`, dedup by key, preemption, single cursor writer) |
-| Actions | `src/actions/` | `click-element.ts` (ClickElementAction/MoveAction/VisualPressAction), `golden-cookie.ts` (GoldenCookieAction, `effectPrettyName`), `hammer.ts` (HammerAction + big-cookie point helpers, CF-\*), `fthof.ts` (FthofAction/RefillAction), `lump-harvest.ts` (LumpHarvestAction, LUMP-\*), `buildings-view.ts` (MenuButtonAction, ScrollIntoViewAction, MinigameButtonAction — FT-8/AUTO-13/DBG-9..11), `grimoire-unlock.ts` (GrimoireUnlockAction, AUTO-13), `wrinkler-pop.ts` (WrinklerPopAction, WRINK-5), `krumblor.ts` (DragonClickAction/DragonStoreAction, KRUMB-3; Santa's and the ascension's clicks reuse DragonClickAction, XMAS-4/ASC-10), `ascension.ts` (WaitWhileAction, DragTreeAction — ASC-10), `store-visit.ts` (`enterStoreElement`: the paw opening an upgrade's store section and moving onto the crate, AUTO-9), `dance.ts` (DanceAction + `danceEligible`/`anyGoldenPresent`/`getDanceMs`), `ponder.ts` (PonderAction), `idle.ts` (IdleWanderAction + `IDLE_SPOTS`/`pickIdleSpot`) |
-| Hunting (modules) | `src/hunting/` | `click-golden.ts` (golden hunter: `jobFor` → GoldenCookieAction), `click-big-cookie.ts` (hammer module: `job` → HammerAction), `golden-queue.ts` (route caching, wraps route-planner), `fthof.ts` (FthofActions: `fthofOrRefillPending` + `castJob`/`refillJob`), `lump-harvest.ts` (LumpHarvestActions: `pending` + `harvestJob`), `happy-dance.ts` (HappyDance: `job` → DanceAction), `buildings-view.ts` (BuildingsViewNavigator: Options/Stats/Stats recipe + scroll-into-view steps, `PrepStep`), `grimoire-view.ts` (GrimoireView: step planner to an unlocked/open, on-screen Grimoire — FT-8/AUTO-13 — plus the DBG-9..11 tools and their scheduler tier), `hitbox-overlay.ts` (GC-2) |
+| Actions | `src/actions/` | `click-element.ts` (ClickElementAction/MoveAction/VisualPressAction), `golden-cookie.ts` (GoldenCookieAction, `effectPrettyName`), `hammer.ts` (HammerAction + big-cookie point helpers, CF-\*), `fthof.ts` (FthofAction/RefillAction), `lump-harvest.ts` (LumpHarvestAction, LUMP-\*), `buildings-view.ts` (MenuButtonAction, ScrollIntoViewAction, MinigameButtonAction — FT-8/AUTO-13/DBG-9..11), `minigame-unlock.ts` (MinigameUnlockAction: a building's "lvl" click that unlocks its minigame), `grimoire-unlock.ts` (GrimoireUnlockAction, AUTO-13), `market.ts` (MarketClickAction: one click on a stock market button, STOCK-\*), `wrinkler-pop.ts` (WrinklerPopAction, WRINK-5), `krumblor.ts` (DragonClickAction/DragonStoreAction, KRUMB-3; Santa's and the ascension's clicks reuse DragonClickAction, XMAS-4/ASC-10), `ascension.ts` (WaitWhileAction, DragTreeAction — ASC-10), `store-visit.ts` (`enterStoreElement`: the paw opening an upgrade's store section and moving onto the crate, AUTO-9), `dance.ts` (DanceAction + `danceEligible`/`anyGoldenPresent`/`getDanceMs`), `ponder.ts` (PonderAction), `idle.ts` (IdleWanderAction + `IDLE_SPOTS`/`pickIdleSpot`) |
+| Hunting (modules) | `src/hunting/` | `click-golden.ts` (golden hunter: `jobFor` → GoldenCookieAction), `click-big-cookie.ts` (hammer module: `job` → HammerAction), `golden-queue.ts` (route caching, wraps route-planner), `fthof.ts` (FthofActions: `fthofOrRefillPending` + `castJob`/`refillJob`), `lump-harvest.ts` (LumpHarvestActions: `pending` + `harvestJob`), `happy-dance.ts` (HappyDance: `job` → DanceAction), `buildings-view.ts` (BuildingsViewNavigator: Options/Stats/Stats recipe + scroll-into-view steps, `PrepStep`), `minigame-view.ts` (MinigameView: step planner to a building's unlocked/open, on-screen minigame — shared by the Grimoire and the stock market), `grimoire-view.ts` (GrimoireView: the Wizard tower's MinigameView for FT-8/AUTO-13, plus the DBG-9..11 tools and their scheduler tier), `hitbox-overlay.ts` (GC-2) |
 | Routing | `src/routing/route-planner.ts` | `exactRoute` (Held-Karp DP, <= 11 cookies), `heuristicRoute` (nearest-neighbor + 2-opt/Or-opt + restarts), `planRoute` (GC-5) |
 | Idle | `src/idle/` | `idle-behavior.ts` (IdleBehavior module: `idleJob` → IdleWanderAction), `pending-work.ts` (conditions + queue state via `CursorManager.hasJobsAbove` — the shared "is anything more important pending?" predicate) |
 | Input synthesis | `src/input/` | `dispatch.ts` (dispatchMouse/dispatchMove — MOUSE-\*), `human-click.ts` (ClickTiming: delays, waitUntil, humanClick), `cursor-controller.ts` (CursorController: low-level PAW-4 arc/spline/warp travel, moveCursorTo/glideCursor — the only file that writes `runtime.cursor.x/y`), `background-clock.ts` (BackgroundClock: BG-1/BG-2 worker timer), `keep-alive.ts` (BG-3) |
-| Auto play | `src/autoplay/` | `valuation-tables.ts` (AUTO_BLOCKED_\*, AUTO_GOLDEN_UPGRADES, AUTO_KITTEN_POWER, AUTO_FINGER_STEPS, AUTO_BUILDING_CAPS — AUTO-2 data), `building-valuation.ts` + `upgrade-classifier.ts` (AUTO-3 gain math per candidate type), `collector.ts` (`autoCollect`: gathers candidates + ctx, AUTO-7 safety gates), `strategy.ts` (`autoDecide`: the pure insignificant/good/postpone/save decision, AUTO-4 — flagship unit-test target), `buy-streak.ts` (pure: whether the paw buys one more of the same building in its streak, AUTO-14), `achievement-milestones.ts` (pure: a building's value on its way to a count achievement, AUTO-15), `shopping.ts` (`AutoPlayEngine`: evaluate/shopJob/statusText, AUTO-1/8/9/10/12), `auto-hammer.ts` (AUTO-11), `grimoire-unlock.ts` (`GrimoireUnlocker`: AUTO-13 gating, steps from GrimoireView), `wrinkler-strategy.ts` (pure: respawn time, maturity, fewest-fattest pick — WRINK-2/3), `grandmapocalypse-valuation.ts` (pure: stage 1 gain, delay, chain-step dCps — WRINK-1), `wrinkler-popper.ts` (`WrinklerPopper`: WRINK-3/4 gating, plan, job, HUD text), `krumblor-strategy.ts` (pure: next Krumblor step — KRUMB-1/2/5), `krumblor.ts` (`KrumblorTrainer`: KRUMB-\* gating, state, jobs, the cursor sale/rebuy), `easter-eggs.ts` (pure-ish: egg values and order — EGG-\*), `christmas.ts` (pure-ish: Christmas upgrade values — XMAS-1..3), `santa-strategy.ts` (pure: next Santa step — XMAS-4), `santa.ts` (`SantaTrainer`: XMAS-4/5 gating, jobs), `ascension-strategy.ts` (pure: pending level, stagnation, boost gate, verdict — ASC-1..4/8), `heavenly-shopping.ts` (pure: the heavenly priority list, lucky 7s, the shopping list and the level it needs — ASC-9), `ascension-steps.ts` (pure: the next step of an automatic ascension — ASC-10), `ascension-runner.ts` (`AscensionRunner`: ASC-10 gating, steps, jobs, the per-run reset), `ascension.ts` (`AscensionPlanner`: measured income, cached plan, HUD text — ASC-2/5), `ascension-overlay.ts` (Legacy button and heavenly tree boxes — ASC-6/7), `income-tracker.ts` (smoothed clicking income for AUTO-3's `income`), `buy-value-overlay.ts` (BUY-\*) |
+| Auto play | `src/autoplay/` | `valuation-tables.ts` (AUTO_BLOCKED_\*, AUTO_GOLDEN_UPGRADES, AUTO_KITTEN_POWER, AUTO_FINGER_STEPS, AUTO_BUILDING_CAPS — AUTO-2 data), `building-valuation.ts` + `upgrade-classifier.ts` (AUTO-3 gain math per candidate type), `collector.ts` (`autoCollect`: gathers candidates + ctx, AUTO-7 safety gates), `strategy.ts` (`autoDecide`: the pure insignificant/good/postpone/save decision, AUTO-4 — flagship unit-test target), `buy-streak.ts` (pure: whether the paw buys one more of the same building in its streak, AUTO-14), `achievement-milestones.ts` (pure: a building's value on its way to a count achievement, AUTO-15), `shopping.ts` (`AutoPlayEngine`: evaluate/shopJob/statusText, AUTO-1/8/9/10/12), `auto-hammer.ts` (AUTO-11), `grimoire-unlock.ts` (`GrimoireUnlocker`: AUTO-13 gating, steps from GrimoireView), `bank-unlock.ts` (`BankUnlocker`: AUTO-16 gating, steps from the Bank's MinigameView), `wrinkler-strategy.ts` (pure: respawn time, maturity, fewest-fattest pick — WRINK-2/3), `grandmapocalypse-valuation.ts` (pure: stage 1 gain, delay, chain-step dCps — WRINK-1), `wrinkler-popper.ts` (`WrinklerPopper`: WRINK-3/4 gating, plan, job, HUD text), `krumblor-strategy.ts` (pure: next Krumblor step — KRUMB-1/2/5), `krumblor.ts` (`KrumblorTrainer`: KRUMB-\* gating, state, jobs, the cursor sale/rebuy), `easter-eggs.ts` (pure-ish: egg values and order — EGG-\*), `christmas.ts` (pure-ish: Christmas upgrade values — XMAS-1..3), `santa-strategy.ts` (pure: next Santa step — XMAS-4), `santa.ts` (`SantaTrainer`: XMAS-4/5 gating, jobs), `ascension-strategy.ts` (pure: pending level, stagnation, boost gate, verdict — ASC-1..4/8), `heavenly-shopping.ts` (pure: the heavenly priority list, lucky 7s, the shopping list and the level it needs — ASC-9), `ascension-steps.ts` (pure: the next step of an automatic ascension — ASC-10), `ascension-runner.ts` (`AscensionRunner`: ASC-10 gating, steps, jobs, the per-run reset), `ascension.ts` (`AscensionPlanner`: measured income, cached plan, HUD text — ASC-2/5), `ascension-overlay.ts` (Legacy button and heavenly tree boxes — ASC-6/7), `income-tracker.ts` (smoothed clicking income for AUTO-3's `income`), `buy-value-overlay.ts` (BUY-\*) |
+| Stock market | `src/market/` | `market-strategy.ts` (pure: thresholds, trailing stop, budget, brokers, the next trade — STOCK-2..4), `stock-trader.ts` (`StockTrader`: STOCK-\* gating, peaks, jobs, HUD text; the Bank's `MinigameView`) |
 | Scheduler | `src/scheduler/` | `priority.ts` (`selectJobRequest`: the SCHED-1 cascade as pure data), `scheduler.ts` (`Scheduler.tick()`: wrath logging, queue build, enqueues ONE job via CursorManager), `overlay-loop.ts` (`OverlayLoop`: the requestAnimationFrame draw loop — hitboxes, buy-value overlay, ascension overlay, paw) |
 | Rendering | `src/rendering/` | `paw-cursor.ts` (`PawCursor`: PAW-1..3, sprite rasterizing, click pulse, fallback drawn paw), `overlay-canvas.ts` (resize/DPR handling) |
 | Stats | `src/stats/` | `log.ts` (`LogStore`), `stats.ts` (`StatsRecorder`: GC-6/AUTO-10 counters + hourly buckets) |
@@ -1352,8 +1495,10 @@ target)`) instead of scattering direct field writes across every task.
 | `fthof` | casting Force the Hand of Fate (FT-1) | `FthofAction` |
 | `grimoire-refill` | spending a sugar lump on mana (FT-3) | `RefillAction` |
 | `lump-harvest` | harvesting a ripe sugar lump (LUMP-1) | `LumpHarvestAction` |
-| `buildings-view` | clicking Options/Stats back to the buildings, scrolling `#centerArea`, or clicking "View Grimoire" (FT-8, AUTO-13, DBG-9..11) | `MenuButtonAction` / `ScrollIntoViewAction` / `MinigameButtonAction` |
+| `buildings-view` | clicking Options/Stats back to the buildings, scrolling `#centerArea`, or clicking "View Grimoire" / "View Stock Market" (FT-8, AUTO-13, AUTO-16, STOCK-5, DBG-9..11) | `MenuButtonAction` / `ScrollIntoViewAction` / `MinigameButtonAction` |
 | `grimoire-unlock` | spending a sugar lump on Wizard tower level 1 (AUTO-13) | `GrimoireUnlockAction` |
+| `bank-unlock` | spending a sugar lump on Bank level 1 (AUTO-16) | `MinigameUnlockAction` (from `BankUnlocker`) |
+| `stock-market` | clicking a stock market buy/sell button or "Hire" (STOCK-\*) | `MarketClickAction` |
 | `wrinkler-pop` | poking a mature wrinkler until it bursts (WRINK-5) | `WrinklerPopAction` |
 | `krumblor` | buying the crumbly egg, clicking Krumblor's tab/popup/aura picker, selling/buying cursors for the sacrifice (KRUMB-\*) | `DragonClickAction` / `DragonStoreAction` |
 | `santa` | clicking Santa's tab, "Evolve" button and popup "x" (XMAS-4) | `DragonClickAction` (from `SantaTrainer`) |
@@ -1380,8 +1525,8 @@ file.**
 
 Three layers, each catching a different class of bug:
 
-1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 461 tests
-   across 46 files. Pure functions (route planner, `autoDecide`, the chart
+1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 491 tests
+   across 47 files. Pure functions (route planner, `autoDecide`, the chart
    engine, `normalizeSetting`) are tested directly with plain data; the
    cursor queue/actions have their own fake mover/timing tests. Classes
    that depend on the game are tested against `FakeGameAdapter`
@@ -1476,7 +1621,12 @@ an assertion — hence the visual suite instead.
   `#ascendButton` DOM, the prompts' `#promptContent{id}`/`#promptOption{n}`
   ids, `Game.AscendTimer`/`AscendOffXT`/`AscendOffYT`/`AscendZoomT`, and that
   `Game.Reset()` drops wrinklers without paying them out (ASC-\*; read from
-  `main.js` 2.058). If one is missing, the
+  `main.js` 2.058), the stock market's `M.goodsById` (`val`/`vals`/`stock`/
+  `prev`/`last`/`active`), `M.getGoodMaxStock`/`getRestingVal`/
+  `getMaxBrokers`/`getBrokerPrice`, `M.ticks`/`tickT`/`secondsPerTick`,
+  `M.tick()` and the `#bankGood-{id}_{n}`/`#bankBrokersBuy` buttons
+  (STOCK-\*; read from `minigameMarket.js` 2.058). The trade strategy was
+  tuned in simulation, not on the live game: expect real results to vary. If one is missing, the
   affected feature degrades quietly (see NFR-4) and the Debug tools report
   an error in red.
 - In a hidden tab the bot itself keeps working (worker timers, BG-1/BG-2).
@@ -1532,7 +1682,13 @@ to 100, the sacrifice, the rebuy, the aura picked and confirmed, the popup
 closed), Christmas (XMAS-\*: on a test save with some CpS, auto play on,
 "Unlock all christmas upgrades"; watch the hat and gifts bought, Santa's tab
 clicked, "Evolve" clicked once per level with each new gift bought before
-the next one, the popup closed), Grimoire unlock (AUTO-13: on a test
+the next one, the popup closed), stock market (STOCK-\*/AUTO-16: on a
+test save with a Bank at level 0, some CpS and a sugar lump, switch on
+"Play the stock market" and auto play; watch the Bank's "lvl" click and
+"View Stock Market", then "Stock market: crash prices": the paw clicks
+Max on the goods; tick with "Stock market: next tick now" until prices
+rise and fall again and watch it click "All", never below the purchase
+price), Grimoire unlock (AUTO-13: on a test
 save with a Wizard tower at level 0, give lumps, open Options, switch auto
 play on, scroll the building list to the top; watch Options/Stats/Stats,
 the wheel-scroll and the "lvl" click; DBG-9/10 exercise the first two
@@ -1550,6 +1706,61 @@ mouse while the bot runs and confirm the "+N" number follows your cursor,
 not the paw's).
 
 ## 12. Changelog
+
+- **5.6.5** New debug tool "Stock market: speed x50 (on/off)" (DBG-24): the
+  market ticks every 1.2s instead of every minute, to test the trader
+  (STOCK-\*) without waiting hours. `IGameAdapter` gains `getMarketSpeed()`
+  and `setMarketSpeed()`. Unit tests in `tests/unit/game-adapter.test.ts`.
+
+- **5.6.4** The ascension's status line says "Paw:" instead of "Bot:" (the
+  HUD row, the Legacy card and the ascension screen card; ASC-11).
+
+- **5.6.3** The paw's stock market result is tracked (STOCK-6): every buy
+  adds to a persisted cost basis per good (`stats.stockBasis`), every sale
+  books its proceeds against the average cost into `stats.stockProfit`
+  (losses too), with the game's own price formulas. New HUD statistic
+  "Stock market profit"; the "Stock market" row shows "paw made +X cookies"
+  and the unrealized gain or loss of what it holds, instead of the game's own
+  $ profit (which also counts trades by hand). `StatsRecorder` gains
+  `recordStockBuy()`/`recordStockSell()`/`reconcileStockBasis()`. Unit tests
+  in `tests/unit/stock-market.test.ts`.
+
+- **5.6.2** Fixed: the paw sometimes pressed an upgrade or building in the
+  store and nothing was bought. The shopping job pressed first and re-planned
+  after; when the plan's first pick had changed on the way (hammering stops
+  while the paw walks, so near-equal options swap places), it left
+  silently, and the next job walked to the other item. It now decides
+  before the press, still buys the item it stands on when that is one of
+  this tick's purchases and leaves enough for the pick (`shopPickAt()`,
+  `Decision.buyable`), presses only together with the purchase, and logs
+  `"changed its mind at X"` otherwise (AUTO-9). Unit tests in
+  `tests/unit/strategy.test.ts`.
+
+- **5.6.1** "Play the stock market" (`stockMarket`) is on by default
+  (STOCK-1): the paw trades without being asked (within the 50% budget,
+  STOCK-4), and with auto play the Bank gets unlocked with a sugar lump
+  (AUTO-16).
+
+- **5.6.0** New module: the stock market (STOCK-\*). With the new setting
+  "Play the stock market" (`stockMarket`, off) the paw trades on the Bank's
+  minigame: it buys a good at or below 0.3 × (resting value + 10) once the
+  price turned up, sells it once it has been at 0.7 × that and fell 5% from
+  its peak (never at a loss), hires brokers when they pay, and keeps stocks
+  within "Stocks: invest at most (share of bank)" (`stockMaxShare`, 0.5);
+  thresholds tuned on a simulation of the game's own market tick. Every
+  trade is a real click on the market's buttons (`MarketClickAction`). With
+  auto play it also unlocks the market with a sugar lump (Bank level 1,
+  AUTO-16, `BankUnlocker`). The Grimoire's step planner became the shared
+  `MinigameView` (`src/hunting/minigame-view.ts`), its level click the
+  shared `MinigameUnlockAction`. New HUD row "Stock market", stat "Stock
+  trades", moods `stock-market` and `bank-unlock`, debug tools "Stock
+  market: next tick now" (DBG-22) and "crash prices" (DBG-23);
+  `IGameAdapter` gains `getMarketSnapshot()`, `marketTickNow()` and
+  `crashMarket()`. Unit tests in `tests/unit/stock-market.test.ts`.
+
+- **5.5.11** The ascension overlay switch moved from the HUD's button row
+  into the settings, as the checkbox "Show ascension overlay"
+  (`showAscendOverlay`, staged like every setting, UI-4; ASC-6).
 
 - **5.5.10** New debug tool "Show update popup" (DBG-21): shows the
   update popup (UPD-2) with the version "DUMMY", without asking GitHub.

@@ -17,7 +17,9 @@ import type { GrimoireUnlocker } from '../../src/autoplay/grimoire-unlock';
 import type { GrimoireView } from '../../src/hunting/grimoire-view';
 import type { AutoPlayEngine } from '../../src/autoplay/shopping';
 import type { WrinklerPopper } from '../../src/autoplay/wrinkler-popper';
+import type { BankUnlocker } from '../../src/autoplay/bank-unlock';
 import type { KrumblorTrainer } from '../../src/autoplay/krumblor';
+import type { StockTrader } from '../../src/market/stock-trader';
 import type { SantaTrainer } from '../../src/autoplay/santa';
 import { JOB_PRIORITY, type CursorAction, type CursorJob, type EnqueueOpts } from '../../src/cursor/types';
 import { Scheduler, type SchedulerDeps } from '../../src/scheduler/scheduler';
@@ -65,6 +67,8 @@ function makeScheduler(game: FakeGameAdapter, overrides: Partial<SchedulerDeps> 
     } as unknown as LumpHarvestActions,
     grimoireView: { pending: () => false } as unknown as GrimoireView,
     grimoireUnlock: { pending: () => false } as unknown as GrimoireUnlocker,
+    bankUnlock: { pending: () => false } as unknown as BankUnlocker,
+    stockTrader: { pending: () => false } as unknown as StockTrader,
     krumblor: { pending: () => false } as unknown as KrumblorTrainer,
     santa: { pending: () => false } as unknown as SantaTrainer,
     ascension: { pending: () => false } as unknown as AscensionRunner,

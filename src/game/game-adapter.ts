@@ -1,7 +1,10 @@
-import type { CpsBuff, GameBuilding, GameShimmer, GameUpgrade, GameWrinkler, GrimoireMinigame, HeavenlyUpgradeInfo, RawBuff } from './types';
+import type { CpsBuff, GameBuilding, GameShimmer, GameUpgrade, GameWrinkler, GrimoireMinigame, HeavenlyUpgradeInfo, MarketGood, MarketSnapshot, RawBuff } from './types';
 
 /** Every access to the live Cookie Clicker `Game` object goes through this interface. It is
  * the one mockable seam between our logic and the page's own global. */
+/** The stock market's normal tick length (minigameMarket.js: M.secondsPerTick). */
+const MARKET_SECONDS_PER_TICK = 60;
+
 export interface IGameAdapter {
   isPresent(): boolean;
   isReady(): boolean;
@@ -109,6 +112,10 @@ export interface IGameAdapter {
    * the window width. */
   getShimmerFieldWidth(): number;
 
+  // ---- stock market (STOCK-*) ----
+  /** The Bank's stock market, read-only, or null while it isn't loaded (Bank level 0). */
+  getMarketSnapshot(): MarketSnapshot | null;
+
   // ---- debug-tools-only raw operations (see ui/debug/debug-tools.ts) ----
   spawnGoldenShimmer(opts: { wrath?: boolean }): Record<string, unknown>;
   spawnCookieChain(): Record<string, unknown>;
@@ -136,6 +143,17 @@ export interface IGameAdapter {
   /** Unlocks every Valentine's heart biscuit (Game.heartDrops) that is not yet unlocked or
    * bought, so it sits in the store; returns how many were unlocked. */
   unlockValentinesCookies(): number;
+  /** Runs the stock market's next tick right now (M.tick()); throws without a market. */
+  marketTickNow(): void;
+  /** Drops every active good to a low price that is ticking up again, so the trader buys;
+   * returns how many goods it changed. Throws without a market. */
+  crashMarket(): number;
+  /** How many times faster than normal the stock market ticks (1 = one tick a minute). */
+  getMarketSpeed(): number;
+  /** Makes the stock market tick `factor` times faster (M.secondsPerTick = 60 / factor, the
+   * game's own speed cheat; not saved by the game, so a reload is back to 1). Throws without a
+   * market. */
+  setMarketSpeed(factor: number): void;
 }
 
 export class GameAdapter implements IGameAdapter {
@@ -933,5 +951,94 @@ export class GameAdapter implements IGameAdapter {
     Game.recalculateGains = 1;
 
     return added;
+  }
+
+  getMarketSnapshot(): MarketSnapshot | null {
+    try {
+      const M = this.market();
+      const Game = window.Game;
+      if (!M || !Game || !Array.isArray(M.goodsById)) return null;
+
+      const goods: MarketGood[] = M.goodsById.map((g: Record<string, unknown>, i: number) => {
+        const vals = Array.isArray(g.vals) ? (g.vals as unknown[]).map((v) => Number(v) || 0) : [];
+        return {
+          id: Number(g.id ?? i),
+          symbol: String(g.symbol ?? i),
+          active: !!g.active,
+          val: Number(g.val) || 0,
+          vals,
+          stock: Number(g.stock) || 0,
+          maxStock: Number(M.getGoodMaxStock(g)) || 0,
+          restingVal: Number(M.getRestingVal(Number(g.id ?? i))) || 0,
+          lastBuyVal: Number(g.prev) || 0,
+          last: Number(g.last) || 0,
+        };
+      });
+
+      const fps = Number(Game.fps) || 30;
+      const secondsPerTick = Number(M.secondsPerTick) || 60;
+      const brokers = Number(M.brokers) || 0;
+
+      return {
+        goods,
+        ticks: Number(M.ticks) || 0,
+        nextTickSec: Math.max(0, secondsPerTick - (Number(M.tickT) || 0) / fps),
+        brokers,
+        maxBrokers: Number(M.getMaxBrokers()) || 0,
+        brokerPrice: Number(M.getBrokerPrice()) || 0,
+        overhead: 1 + 0.01 * (20 * Math.pow(0.95, brokers)),
+        cookiesPerDollar: Number(Game.cookiesPsRawHighest) || 0,
+        profit: Number(M.profit) || 0,
+      };
+    } catch (_e) {
+      return null;
+    }
+  }
+
+  marketTickNow(): void {
+    const M = this.market();
+    if (!M || typeof M.tick !== 'function') throw new Error('the stock market is not unlocked (Bank level 0)');
+    M.tick();
+    M.tickT = 0;
+  }
+
+  crashMarket(): number {
+    const M = this.market();
+    if (!M || !Array.isArray(M.goodsById)) throw new Error('the stock market is not unlocked (Bank level 0)');
+
+    let n = 0;
+    for (const g of M.goodsById) {
+      if (!g.active) continue;
+      // a bottom that just turned: the tick before was lower, and the drift points up
+      g.val = 3 + Math.random() * 2;
+      g.d = 0.3;
+      if (Array.isArray(g.vals)) g.vals.splice(0, 2, g.val, g.val - 0.5);
+      n++;
+    }
+    M.toRedraw = 2;
+
+    return n;
+  }
+
+  getMarketSpeed(): number {
+    const M = this.market();
+    const spt = M ? Number(M.secondsPerTick) : NaN;
+    return spt > 0 ? MARKET_SECONDS_PER_TICK / spt : 1;
+  }
+
+  setMarketSpeed(factor: number): void {
+    const M = this.market();
+    if (!M) throw new Error('the stock market is not unlocked (Bank level 0)');
+
+    M.secondsPerTick = MARKET_SECONDS_PER_TICK / Math.max(1, factor);
+    M.tickT = Math.min(Number(M.tickT) || 0, (Number(window.Game.fps) || 30) * M.secondsPerTick);
+    M.toRedraw = 2;
+  }
+
+  /** The Bank's minigame object, only once it has loaded (level >= 1). */
+  private market(): any {
+    const Game = window.Game;
+    const bank = Game && Game.Objects && Game.Objects['Bank'];
+    return bank && bank.minigameLoaded && bank.minigame ? bank.minigame : null;
   }
 }

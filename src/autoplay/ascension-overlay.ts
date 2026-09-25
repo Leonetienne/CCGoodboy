@@ -23,7 +23,7 @@ const GHOST_COLOR = 'rgba(255,110,110,.8)';
 const OWNED_COLOR = 'rgba(196,170,255,.5)';
 const PLANNED_COLOR = 'rgba(255,143,207,.98)';
 
-/** The Legacy card (ASC-6): the same lines as the HUD row (planLines, ASC-5), then the Bot
+/** The Legacy card (ASC-6): the same lines as the HUD row (planLines, ASC-5), then the Paw
  * line (ASC-11). */
 export function legacyLabelLines(p: AscensionPlan, botLine = ''): string[] {
   return botLine ? [...planLines(p), botLine] : planLines(p);

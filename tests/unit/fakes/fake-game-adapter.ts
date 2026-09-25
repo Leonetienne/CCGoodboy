@@ -1,5 +1,5 @@
 import type { IGameAdapter } from '../../../src/game/game-adapter';
-import type { CpsBuff, GameBuilding, GameShimmer, GameUpgrade, GameWrinkler, GrimoireMinigame, HeavenlyUpgradeInfo, RawBuff } from '../../../src/game/types';
+import type { CpsBuff, GameBuilding, GameShimmer, GameUpgrade, GameWrinkler, GrimoireMinigame, HeavenlyUpgradeInfo, MarketSnapshot, RawBuff } from '../../../src/game/types';
 
 /** A hand-written stand-in for GameAdapter, settable per test. Everything defaults to the
  * "Game not ready" shape so a test only needs to override what it cares about. */
@@ -58,6 +58,9 @@ export class FakeGameAdapter implements IGameAdapter {
   santaLevel = 0;
   reindeerSpawned = 0;
   shimmerFieldWidth = 1000;
+  market: MarketSnapshot | null = null;
+  marketTicks = 0;
+  marketSpeed = 1;
 
   isPresent(): boolean {
     return this.present;
@@ -399,5 +402,28 @@ export class FakeGameAdapter implements IGameAdapter {
   unlockKrumblor(): boolean {
     this.krumblorUnlocked = true;
     return true;
+  }
+
+  getMarketSnapshot(): MarketSnapshot | null {
+    return this.market;
+  }
+
+  marketTickNow(): void {
+    if (!this.market) throw new Error('the stock market is not unlocked (Bank level 0)');
+    this.marketTicks++;
+  }
+
+  getMarketSpeed(): number {
+    return this.market ? this.marketSpeed : 1;
+  }
+
+  setMarketSpeed(factor: number): void {
+    if (!this.market) throw new Error('the stock market is not unlocked (Bank level 0)');
+    this.marketSpeed = Math.max(1, factor);
+  }
+
+  crashMarket(): number {
+    if (!this.market) throw new Error('the stock market is not unlocked (Bank level 0)');
+    return this.market.goods.filter((g) => g.active).length;
   }
 }

@@ -20,7 +20,7 @@ import {
 } from './buy-streak';
 import { autoCollect, type AutoCollectCtx, type PurchaseCandidate } from './collector';
 import type { Decision, DecisionRow } from './strategy';
-import { autoDecide } from './strategy';
+import { autoDecide, shopPickAt } from './strategy';
 import type { IncomeTracker } from './income-tracker';
 import { AUTO_CONFIRM_BYPASS, AUTO_ESCALATION_NAMES } from './valuation-tables';
 
@@ -31,6 +31,8 @@ export interface AutoPlan {
   note: string;
   why?: string;
   row?: DecisionRow;
+  /** Everything this tick would buy, best first (Decision.buyable). */
+  buyable?: DecisionRow[];
 }
 
 /** Colour for the "how good is a buy" box: red (0, worst on offer) through amber (0.5) to
@@ -201,6 +203,7 @@ export class AutoPlayEngine {
           } else {
             plan.buy = d.buy;
             plan.row = d.row;
+            plan.buyable = d.buyable;
             plan.note = `buying ${d.buy.name} (${d.buy.milestone != null ? `to ${d.buy.milestone} for an achievement` : d.why})`;
           }
         } else if (d.save && d.saveRow) {
@@ -396,21 +399,26 @@ export class AutoPlayEngine {
             await ctx.clock.sleep(90);
           }
 
-          // visual press only
-          ctx.runtime.pulseAt = performance.now();
+          if (engine.shoppingInterrupted()) return;
 
-          await ctx.clock.sleep(70);
+          // things may have changed while the paw was on its way: decide BEFORE the press, so
+          // the paw never presses without a purchase (AUTO-9, NFR-8)
+          const fresh = engine.evaluate(true);
+          const pick = shopPickAt(fresh, c.name, engine.game.getCookies());
 
           if (engine.shoppingInterrupted()) return;
 
-          // things may have changed while the paw was on its way
-          const fresh = engine.evaluate(true);
-
-          if (engine.shoppingInterrupted() || !fresh.buy || fresh.buy.name !== c.name) {
+          if (!pick) {
+            engine.log.log('auto play', `changed its mind at ${c.name}`, {
+              now: fresh.buy ? fresh.buy.name : fresh.note,
+            });
             return;
           }
 
-          const first = fresh.buy;
+          const first = pick.c;
+
+          // visual press, and the purchase at that very moment
+          ctx.runtime.pulseAt = performance.now();
 
           if (!autoBuy(engine.game, first)) {
             engine.runtime.autoBlockUntil = Date.now() + 3000;
@@ -419,6 +427,7 @@ export class AutoPlayEngine {
           }
 
           engine.recordBuy();
+          await ctx.clock.sleep(70);
 
           // AUTO-14: a building is bought again and again, one purchase at a time, while it is
           // still worth buying — the paw stays on the row and presses ~10x per second.
@@ -434,9 +443,9 @@ export class AutoPlayEngine {
             ...(first.milestone != null ? { milestone: first.milestone } : {}),
             cost: Math.round(first.cost + streak.spent),
             dCps: first.dCps,
-            payback: fresh.row && fresh.row.payback,
-            impact: fresh.row && fresh.row.impact,
-            why: fresh.why,
+            payback: pick.row && pick.row.payback,
+            impact: pick.row && pick.row.impact,
+            why: pick.why,
           });
         } finally {
           closeStoreSection(section);

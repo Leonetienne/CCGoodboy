@@ -58,9 +58,11 @@ export class SettingsPanel {
     this.data.config.visuals = (document.getElementById('ccsb-visuals') as HTMLInputElement).checked;
     this.data.config.idleWander = (document.getElementById('ccsb-idle-wander') as HTMLInputElement).checked;
     this.data.config.showBuyValue = (document.getElementById('ccsb-buyvalue') as HTMLInputElement).checked;
+    this.data.config.showAscendOverlay = (document.getElementById('ccsb-ascend-overlay') as HTMLInputElement).checked;
     this.data.config.keepAlive = (document.getElementById('ccsb-keepalive') as HTMLInputElement).checked;
     this.data.config.grimoireFthof = (document.getElementById('ccsb-grimoire-fthof') as HTMLInputElement).checked;
     this.data.config.spendLumps = (document.getElementById('ccsb-spend-lumps') as HTMLInputElement).checked;
+    this.data.config.stockMarket = (document.getElementById('ccsb-stock-market') as HTMLInputElement).checked;
 
     this.keepAlive.init();
 

@@ -69,6 +69,8 @@ export function moodText(action: string): string {
     krumblor: 'training Krumblor ^w^',
     santa: 'evolving Santa ho ho ^w^',
     ascend: 'ascending to cookie heaven ^w^',
+    'stock-market': 'playing the stock market, stonks ^w^',
+    'bank-unlock': 'unlocking the stock market ^w^',
   };
 
   return map[action] || action;

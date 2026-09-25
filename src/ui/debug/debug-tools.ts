@@ -7,6 +7,9 @@ import type { IGameAdapter } from '../../game/game-adapter';
 import type { LogStore } from '../../stats/log';
 import { escapeHtml, formatNum } from '../format';
 
+/** How much faster "Stock market: speed x50" makes the market tick (DBG-24). */
+export const MARKET_DEBUG_SPEED = 50;
+
 export interface DebugTool {
   label: string;
   run: () => string;
@@ -61,8 +64,33 @@ export class DebugTools {
       { label: 'Show buildings view', run: () => this.buildingsNav.debugShowBuildingsView() },
       { label: 'Scroll to Wizard towers', run: () => this.buildingsNav.debugScrollToWizardTowers() },
       { label: 'Show grimoire', run: () => this.buildingsNav.debugShowGrimoire() },
+      { label: 'Stock market: next tick now', run: () => this.marketTickNow() },
+      { label: 'Stock market: crash prices', run: () => this.crashMarket() },
+      { label: 'Stock market: speed x50 (on/off)', run: () => this.toggleMarketSpeed() },
       { label: 'Show update popup', run: () => this.showUpdatePopup() },
     ];
+  }
+
+  private marketTickNow(): string {
+    this.game.marketTickNow();
+    return 'the stock market ticked';
+  }
+
+  /** DBG-24: the market ticks 50x faster (every 1.2s) until clicked again or reloaded. */
+  toggleMarketSpeed(): string {
+    if (this.game.getMarketSpeed() > 1) {
+      this.game.setMarketSpeed(1);
+      return 'stock market back to normal: a tick every minute';
+    }
+
+    this.game.setMarketSpeed(MARKET_DEBUG_SPEED);
+    return `stock market ${MARKET_DEBUG_SPEED}x fast: a tick every ${(60 / MARKET_DEBUG_SPEED).toFixed(1)}s (click again or reload to stop)`;
+  }
+
+  private crashMarket(): string {
+    const n = this.game.crashMarket();
+    if (!n) throw new Error('no goods on the market yet (buy the buildings they belong to)');
+    return `crashed ${n} goods to $3-5, turning up`;
   }
 
   private spawnGolden(label: string, spec: { wrath?: boolean; force?: string; sizeMult?: number }): string {

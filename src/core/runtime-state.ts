@@ -80,6 +80,11 @@ export class RuntimeState {
   buildingsViewSteps: Array<'prefsButton' | 'statsButton'> = [];
   buildingsViewStartedAt = 0;
   grimoireUnlockBlockUntil = 0;
+  bankUnlockBlockUntil = 0;
+  /** Stock market (STOCK-*): each held good's highest price since it was bought (for the
+   * trailing stop), and a pause after a failed click. */
+  marketPeaks = new Map<number, number>();
+  marketBlockUntil = 0;
   /** FT-8 preparation failed: cast FTHOF directly until then. */
   fthofPrepBlockUntil = 0;
   /** "Show grimoire" debug goal is active until then (0 = off). */
@@ -165,6 +170,7 @@ export class RuntimeState {
     this.buyValueAt = 0;
     this.buildingsViewSteps = [];
     this.wrinklerPlan = null;
+    this.marketPeaks.clear();
     this.wrinklerNextEvalAt = 0;
     this.krumblorRebuy = 0;
     this.krumblorMenuOurs = false;

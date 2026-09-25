@@ -1,3 +1,4 @@
+import type { StockTrader } from '../market/stock-trader';
 import { sayYay } from '../core/console-voice';
 import { VERSION } from '../core/constants';
 import type { PersistedData } from '../core/persisted-data';
@@ -58,6 +59,7 @@ export interface BootstrapDeps {
   incomeTracker: IncomeTracker;
   ascension: AscensionPlanner;
   ascensionRunner: AscensionRunner;
+  stockTrader: StockTrader;
 }
 
 /** The user mouse events that trigger syncGameMouseFromUser(). */
@@ -137,7 +139,7 @@ export class Bootstrap {
       return;
     }
 
-    const { runtime, data, game, log, clock, keepAlive, scheduler, goldenCookieModel, goldenQueue, clickTiming, hurryMode, autoPlay, wrinklerPopper, grimoireView, incomeTracker, ascension, ascensionRunner } =
+    const { runtime, data, game, log, clock, keepAlive, scheduler, goldenCookieModel, goldenQueue, clickTiming, hurryMode, autoPlay, wrinklerPopper, grimoireView, incomeTracker, ascension, ascensionRunner, stockTrader } =
       this.deps;
 
     window.__CCSmartGoldenComboBot = {
@@ -176,6 +178,7 @@ export class Bootstrap {
       incomeTracker,
       ascension,
       ascensionRunner,
+      stockTrader,
       updateChecker: this.updateChecker,
     });
 

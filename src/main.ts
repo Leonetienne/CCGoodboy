@@ -1,6 +1,7 @@
 import { AscensionPlanner } from './autoplay/ascension';
 import { AscensionRunner } from './autoplay/ascension-runner';
 import { AutoHammer } from './autoplay/auto-hammer';
+import { BankUnlocker } from './autoplay/bank-unlock';
 import { GrimoireUnlocker } from './autoplay/grimoire-unlock';
 import { IncomeTracker } from './autoplay/income-tracker';
 import { KrumblorTrainer } from './autoplay/krumblor';
@@ -23,6 +24,7 @@ import { GoldenQueue } from './hunting/golden-queue';
 import { danceEligible, HappyDance } from './hunting/happy-dance';
 import { LumpHarvestActions } from './hunting/lump-harvest';
 import { IdleBehavior } from './idle/idle-behavior';
+import { StockTrader } from './market/stock-trader';
 import { PendingWork } from './idle/pending-work';
 import { BackgroundClock } from './input/background-clock';
 import { CursorController } from './input/cursor-controller';
@@ -87,17 +89,29 @@ const autoPlay = new AutoPlayEngine(
   fthofOrRefillPending,
 );
 const grimoireUnlock = new GrimoireUnlocker(runtime, data, game, log, grimoireView, () => autoPlay.shoppingInterrupted());
+// The stock market (STOCK-*): its own setting, not tied to auto play; unlocked by auto play
+// (AUTO-16) through the same Bank MinigameView.
+const stockTrader = StockTrader.create(runtime, data, game, log, stats, buildingsView, () => autoPlay.shoppingInterrupted());
+const bankUnlock = new BankUnlocker(runtime, data, game, log, stockTrader.view, () => autoPlay.shoppingInterrupted());
 const krumblor = new KrumblorTrainer(runtime, data, game, log, () => autoPlay.shoppingInterrupted());
 const santa = new SantaTrainer(runtime, data, game, log, () => autoPlay.shoppingInterrupted());
 const ascension = new AscensionPlanner(data, game);
 const wrinklerPopper = new WrinklerPopper(runtime, data, game, log, stats, autoPlay);
 const ascensionRunner = new AscensionRunner(runtime, data, game, log, stats, ascension, () => autoPlay.shoppingInterrupted());
 // Anything at the auto-shop tier that wants to run right now (the buildings-view recipe or a
-// debug goal, an ascension, the Grimoire unlock, a Krumblor or Santa step, a wrinkler pop, a due purchase): it
-// interrupts hammering and idle play at once (AUTO-8).
+// debug goal, an ascension, the Grimoire or stock market unlock, a Krumblor or Santa step, a
+// stock trade, a wrinkler pop, a due purchase): it interrupts hammering and idle play at once
+// (AUTO-8).
 const autoShopReady = () =>
   grimoireView.pending() ||
-  ascensionRunner.pending() || grimoireUnlock.pending() || krumblor.pending() || santa.pending() || wrinklerPopper.pending() || autoPlay.shopReady();
+  ascensionRunner.pending() ||
+  grimoireUnlock.pending() ||
+  bankUnlock.pending() ||
+  krumblor.pending() ||
+  santa.pending() ||
+  stockTrader.pending() ||
+  wrinklerPopper.pending() ||
+  autoPlay.shopReady();
 
 const pendingWork = new PendingWork(game, isGoodGoldenReady, hammerActive, fthofOrRefillPending, lumpHarvestPending, autoShopReady, cursorManager);
 
@@ -137,8 +151,10 @@ const scheduler = new Scheduler(runtime, game, log, buffLock, goldenCookieModel,
   grimoireView,
   ascension: ascensionRunner,
   grimoireUnlock,
+  bankUnlock,
   krumblor,
   santa,
+  stockTrader,
   autoPlay,
   wrinklerPopper,
   happyDance,
@@ -164,6 +180,7 @@ const bootstrap = new Bootstrap({
   incomeTracker,
   ascension,
   ascensionRunner,
+  stockTrader,
 });
 
 waitForGame(bootstrap);

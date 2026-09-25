@@ -331,7 +331,7 @@ describe('AscensionPlanner', () => {
     game.runStartDate = Date.now() - 24 * 3600 * 1000;
     data.config.ascendMinBoost = 1;
     expect(planner.statusText()).toMatch(/^ASCEND NOW; .*; Prestige: 1,000 -> 1,100; CpS bonus after ascending: x1\.09; Heavenly chips to spend: 100; Buy in heaven: nothing$/);
-    expect(planner.statusText('Bot: ascending now')).toMatch(/; Bot: ascending now$/);
+    expect(planner.statusText('Paw: ascending now')).toMatch(/; Paw: ascending now$/);
   });
 
   it('has no plan while ascending, but tells the chips on the ascension screen', () => {
@@ -369,7 +369,7 @@ describe('ascension overlay (ASC-6/7)', () => {
     expect(lines[5]).toBe('Buy in heaven: 1 upgrade (777 chips)');
     // collapsed: just the level after ascending and the answer
     expect(compactLine(p)).toBe('Lv 1,100 \u00b7 WAIT');
-    expect(legacyLabelLines(p, 'Bot: will ascend by itself at level 1,107').at(-1)).toBe('Bot: will ascend by itself at level 1,107');
+    expect(legacyLabelLines(p, 'Paw: will ascend by itself at level 1,107').at(-1)).toBe('Paw: will ascend by itself at level 1,107');
   });
 
   it('leaves the heaven lines out while ascending is not on the table', () => {

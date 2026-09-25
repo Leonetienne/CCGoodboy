@@ -104,3 +104,44 @@ export interface HeavenlyUpgradeInfo {
   parents: string[];
   canBePurchased: boolean;
 }
+
+/** One good of the Bank's stock market minigame (STOCK-*), shaped by the game adapter from
+ * `M.goodsById`. Prices are in "$", i.e. seconds of the highest raw CpS this ascension. */
+export interface MarketGood {
+  id: number;
+  symbol: string;
+  /** Shown (the building it is tied to was ever owned this ascension, `me.active`). */
+  active: boolean;
+  /** Current price (`me.val`). */
+  val: number;
+  /** Price history, newest first, up to 65 ticks (`me.vals`, what the graph shows). */
+  vals: number[];
+  stock: number;
+  /** Warehouse space (`M.getGoodMaxStock(me)`). */
+  maxStock: number;
+  /** The price the good drifts back to (`M.getRestingVal(id)`: 10 + 10 id + Bank level - 1). */
+  restingVal: number;
+  /** Price per unit at the last purchase, without the overhead (`me.prev`, 0 if never bought). */
+  lastBuyVal: number;
+  /** 0: no trade this tick, 1: bought this tick (can't sell), 2: sold this tick (can't buy). */
+  last: number;
+}
+
+/** The whole stock market as the trader sees it (STOCK-*). */
+export interface MarketSnapshot {
+  goods: MarketGood[];
+  /** Market ticks since load (`M.ticks`): one per minute. */
+  ticks: number;
+  /** Seconds until the next tick. */
+  nextTickSec: number;
+  brokers: number;
+  maxBrokers: number;
+  /** A broker's price in cookies (20 minutes of the highest raw CpS). */
+  brokerPrice: number;
+  /** Buying costs price x this (1 + 20% x 0.95^brokers). */
+  overhead: number;
+  /** Cookies per $ (`Game.cookiesPsRawHighest`). */
+  cookiesPerDollar: number;
+  /** Profits so far in $ (`M.profit`, the game's own "Profits" line). */
+  profit: number;
+}

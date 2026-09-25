@@ -127,7 +127,7 @@ describe('AscensionRunner (ASC-10)', () => {
     // 30s + 2 pops x 5s = 40s needed
     current = plan('ascend', 1, 39);
     expect(runner.step()).toBeNull();
-    expect(runner.botLine()).toMatch(/^Bot: will ascend once the next lucky level/);
+    expect(runner.botLine()).toMatch(/^Paw: will ascend once the next lucky level/);
     current = plan('ascend', 1, 41);
     expect(runner.step()).toEqual({ kind: 'pop-wrinkler', id: 1 });
     // without lucky wishes the 7s don't matter
@@ -191,20 +191,20 @@ describe('AscensionRunner (ASC-10)', () => {
 
   it('always says what the bot does about ascending (ASC-11)', () => {
     data.config.autoPlay = false;
-    expect(runner.botLine()).toBe("Bot: auto play is off, so it won't ascend by itself");
+    expect(runner.botLine()).toBe("Paw: auto play is off, so it won't ascend by itself");
     data.config.autoPlay = true;
     data.config.autoAscend = false;
-    expect(runner.botLine()).toBe('Bot: "Auto: ascend" is off, so it won\'t ascend by itself');
+    expect(runner.botLine()).toBe('Paw: "Auto: ascend" is off, so it won\'t ascend by itself');
     data.config.autoAscend = true;
-    expect(runner.botLine()).toBe('Bot: ascending now');
+    expect(runner.botLine()).toBe('Paw: ascending now');
     game.rawBuffs = { Frenzy: { name: 'Frenzy', multCpS: 7, time: 3000 } };
-    expect(runner.botLine()).toBe('Bot: will ascend once the buffs are over');
+    expect(runner.botLine()).toBe('Paw: will ascend once the buffs are over');
     data.config.autoDryRun = true;
-    expect(runner.botLine()).toBe('Bot: dry run, it only writes "would ascend" in the log');
+    expect(runner.botLine()).toBe('Paw: dry run, it only writes "would ascend" in the log');
     current = plan('growing');
-    expect(runner.botLine()).toBe('Bot: dry run, it only writes "would ascend" in the log');
+    expect(runner.botLine()).toBe('Paw: dry run, it only writes "would ascend" in the log');
     data.config.autoDryRun = false;
-    expect(runner.botLine()).toBe('Bot: will ascend by itself once it pays off');
+    expect(runner.botLine()).toBe('Paw: will ascend by itself once it pays off');
   });
 
   describe('on the ascension screen', () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { AutoCollectCtx, PurchaseCandidate } from '../../src/autoplay/collector';
-import { autoDecide } from '../../src/autoplay/strategy';
+import { autoDecide, shopPickAt, type DecisionRow } from '../../src/autoplay/strategy';
 
 function candidate(name: string, cost: number, dCps: number, pref = 0): PurchaseCandidate {
   return { kind: 'building', type: 'building', name, obj: { name, buy: () => {} }, cost, dCps, pref };
@@ -252,5 +252,26 @@ describe('autoDecide', () => {
     const d = autoDecide([oneMind, great], ctx({ cps, income: cps, bank: 9e15, reserve: 0 }));
 
     expect(d.buy?.name).toBe('Great upgrade');
+  });
+});
+
+describe('shopPickAt (AUTO-9: no press without a purchase)', () => {
+  const cand = (name: string, cost: number) => ({ name, cost }) as unknown as PurchaseCandidate;
+  const row = (c: PurchaseCandidate) => ({ c }) as DecisionRow;
+  const a = cand('A', 100);
+  const b = cand('B', 50);
+
+  it('buys the item the paw is at when it is still the pick', () => {
+    expect(shopPickAt({ buy: a, buyable: [row(a), row(b)] }, 'A', 1000)!.c).toBe(a);
+  });
+
+  it('still buys it when it is one of this tick\'s purchases and leaves enough for the pick', () => {
+    expect(shopPickAt({ buy: a, buyable: [row(a), row(b)] }, 'B', 150)!.c).toBe(b);
+    expect(shopPickAt({ buy: a, buyable: [row(a), row(b)] }, 'B', 149)).toBeNull();
+  });
+
+  it('refuses when the plan changed its mind (held back, or nothing to buy)', () => {
+    expect(shopPickAt({ buy: a, buyable: [row(a)] }, 'B', 1e9)).toBeNull();
+    expect(shopPickAt({ buy: null }, 'A', 1e9)).toBeNull();
   });
 });

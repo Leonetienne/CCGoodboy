@@ -1,16 +1,21 @@
 import { sayCant } from '../core/console-voice';
 import type { RuntimeState } from '../core/runtime-state';
 import { JOB_PRIORITY, type JobRequest } from '../cursor/types';
-import { MinigameButtonAction } from '../actions/buildings-view';
 import { GrimoireUnlockAction } from '../actions/grimoire-unlock';
-import { getBuildingLevelButton, getBuildingRow, getMinigameButton, laidOut } from '../game/buildings-view-dom';
+import { getBuildingRow, laidOut } from '../game/buildings-view-dom';
 import type { IGameAdapter } from '../game/game-adapter';
 import { getGrimoireControl } from '../game/grimoire-dom';
 import type { GameBuilding } from '../game/types';
 import type { LogStore } from '../stats/log';
 import type { BuildingsViewNavigator, PrepStep } from './buildings-view';
+import { MinigameView, type MinigameInfo } from './minigame-view';
 
-const WIZARD_TOWER = 'Wizard tower';
+const GRIMOIRE_INFO: MinigameInfo = {
+  building: 'Wizard tower',
+  buildingPlural: 'Wizard towers',
+  minigame: 'Grimoire',
+  unlockAction: (id, stillWanted, readLevel, onResult) => new GrimoireUnlockAction(id, stillWanted, readLevel, onResult),
+};
 
 /** How long the "Show grimoire" debug goal keeps trying before giving up. */
 const SHOW_GRIMOIRE_GOAL_MS = 30000;
@@ -31,8 +36,8 @@ export interface GrimoireStepParams {
   onLevelResult?: (leveled: boolean, level: number) => void;
 }
 
-/** Plans the way to a usable Grimoire, one step per scheduler tick, re-derived from the live
- * page so a preempted step is simply picked up again:
+/** Plans the way to a usable Grimoire (a MinigameView for the Wizard tower), one step per
+ * scheduler tick, re-derived from the live page so a preempted step is simply picked up again:
  *   1. a menu covers the buildings         -> Options, Stats, Stats (BuildingsViewNavigator)
  *   2. no Wizard tower                     -> blocked
  *   3. Wizard tower level 0                -> scroll to + click its "lvl" button (if allowed and
@@ -42,104 +47,36 @@ export interface GrimoireStepParams {
  * Used by FTHOF (FT-8), the Grimoire unlock (AUTO-13) and the "Show grimoire" debug tool
  * (DBG-11), which also runs through pending()/job() here. */
 export class GrimoireView {
+  private readonly view: MinigameView;
+
   constructor(
     private readonly runtime: RuntimeState,
     private readonly game: IGameAdapter,
     private readonly log: LogStore,
     private readonly nav: BuildingsViewNavigator,
     private readonly enqueue: (req: JobRequest) => void,
-  ) {}
+  ) {
+    this.view = new MinigameView(game, nav, GRIMOIRE_INFO);
+  }
 
   wizardTower(): GameBuilding | null {
-    return this.game.getBuildingByName(WIZARD_TOWER);
+    return this.view.building();
   }
 
   wizardLevel(): number {
-    const wt = this.wizardTower();
-    return wt ? Number(wt.level) || 0 : 0;
+    return this.view.level();
   }
 
   /** Is the Grimoire minigame shown (its "View Grimoire" toggle is on)? */
   isOpen(): boolean {
-    const wt = this.wizardTower();
-    return !!(wt && wt.onMinigame);
+    return this.view.isOpen();
   }
 
   nextStep(p: GrimoireStepParams): PrepStep {
-    const menu = this.nav.menuStep(p.priority);
-    if (menu) return menu;
-
-    const wt = this.wizardTower();
-    if (!wt || wt.id == null || !((Number(wt.amount) || 0) >= 1)) {
-      return { kind: 'blocked', why: 'no Wizard tower bought' };
-    }
-
-    const id = Number(wt.id);
-    const row = () => getBuildingRow(id);
-    const common = { priority: p.priority, abortIf: p.abortIf, onFail: p.onFail, fallback: row };
-
-    if (this.wizardLevel() === 0) {
-      if (!p.allowLevelUp) return { kind: 'blocked', why: 'Grimoire not unlocked (Wizard tower level 0)' };
-      if (!this.game.lumpsUnlocked() || this.game.getLumps() < 1) {
-        return { kind: 'blocked', why: 'no sugar lump to unlock the Grimoire with' };
-      }
-
-      const view = this.nav.bringIntoView({
-        ...common,
-        element: () => getBuildingLevelButton(id),
-        key: `${p.keyPrefix}:scroll-level`,
-        label: 'scroll to Wizard tower level',
-        hudTarget: 'the Wizard tower level button',
-      });
-      if (view.kind !== 'ready') return view;
-
-      return {
-        kind: 'job',
-        job: {
-          action: new GrimoireUnlockAction(
-            id,
-            () => !p.abortIf() && this.wizardLevel() === 0 && this.game.getLumps() >= 1,
-            () => this.wizardLevel(),
-            (leveled, level) => (p.onLevelResult ? p.onLevelResult(leveled, level) : undefined),
-          ),
-          priority: p.priority,
-          key: `${p.keyPrefix}:level`,
-        },
-      };
-    }
-
-    if (p.goal === 'level') return { kind: 'ready' };
-
-    if (!this.isOpen()) {
-      const view = this.nav.bringIntoView({
-        ...common,
-        element: () => getMinigameButton(id),
-        key: `${p.keyPrefix}:scroll-towers`,
-        label: 'scroll to Wizard towers',
-        hudTarget: 'the Wizard towers',
-      });
-      if (view.kind !== 'ready') return view;
-
-      return {
-        kind: 'job',
-        job: {
-          action: new MinigameButtonAction(id, 'Grimoire', () => this.isOpen(), p.abortIf),
-          priority: p.priority,
-          key: `${p.keyPrefix}:open`,
-        },
-      };
-    }
-
-    // open, but the minigame may still be loading its spells
-    const spell = () => getGrimoireControl('fthof', this.game.getGrimoire());
-    if (!laidOut(spell())) return { kind: 'wait' };
-
-    return this.nav.bringIntoView({
-      ...common,
-      element: spell,
-      key: `${p.keyPrefix}:scroll-grimoire`,
-      label: 'scroll to the Grimoire',
-      hudTarget: 'the Grimoire',
+    return this.view.nextStep({
+      ...p,
+      focus: () => getGrimoireControl('fthof', this.game.getGrimoire()),
+      focusLabel: { label: 'scroll to the Grimoire', hudTarget: 'the Grimoire', key: 'scroll-grimoire' },
     });
   }
 

@@ -8,6 +8,7 @@ import type { AscensionPlanner } from '../autoplay/ascension';
 import type { AscensionRunner } from '../autoplay/ascension-runner';
 import type { IncomeTracker } from '../autoplay/income-tracker';
 import type { IGameAdapter } from '../game/game-adapter';
+import type { StockTrader } from '../market/stock-trader';
 import type { GoldenCookieModel } from '../game/golden-cookie-model';
 import type { HurryMode } from '../game/hurry-mode';
 import type { GoldenQueue } from '../hunting/golden-queue';
@@ -43,6 +44,7 @@ export interface UiRootDeps {
   incomeTracker: IncomeTracker;
   ascension: AscensionPlanner;
   ascensionRunner: AscensionRunner;
+  stockTrader: StockTrader;
   updateChecker: UpdateChecker;
 }
 
@@ -87,7 +89,7 @@ export class UiRoot {
     this.debugPanel = new DebugPanel(this.debugTools);
     document.body.appendChild(this.debugPanel.element);
 
-    this.panelUpdater = new PanelUpdater(this.panel, runtime, data, game, goldenCookieModel, goldenQueue, clickTiming, hurryMode, autoPlay, wrinklerPopper, ascension, ascensionRunner, clock, keepAlive);
+    this.panelUpdater = new PanelUpdater(this.panel, runtime, data, game, goldenCookieModel, goldenQueue, clickTiming, hurryMode, autoPlay, wrinklerPopper, ascension, ascensionRunner, deps.stockTrader, clock, keepAlive);
 
     this.settingsPanel = new SettingsPanel(this.panel, data, runtime, keepAlive, () => {
       applyFrameOpacity(data.config.frameOpacity);
@@ -134,10 +136,12 @@ export class UiRoot {
     bindCheckbox('ccsb-keepalive', data.config.keepAlive !== false);
     bindCheckbox('ccsb-grimoire-fthof', data.config.grimoireFthof !== false);
     bindCheckbox('ccsb-spend-lumps', data.config.spendLumps !== false);
+    bindCheckbox('ccsb-stock-market', data.config.stockMarket !== false);
     bindCheckbox('ccsb-auto-hammer', data.config.autoHammer !== false);
     bindCheckbox('ccsb-auto-grandmapocalypse', data.config.autoGrandmapocalypse !== false);
     bindCheckbox('ccsb-auto-pop-wrinklers', data.config.autoPopWrinklers !== false);
     bindCheckbox('ccsb-auto-krumblor', data.config.autoKrumblor !== false);
+    bindCheckbox('ccsb-ascend-overlay', data.config.showAscendOverlay !== false);
     bindCheckbox('ccsb-auto-ascend', data.config.autoAscend !== false);
 
     autoPlay.applyVisibility();
@@ -146,12 +150,6 @@ export class UiRoot {
 
     document.getElementById('ccsb-auto-toggle')!.addEventListener('click', () => {
       autoPlay.setAutoPlay(data.config.autoPlay !== true);
-      this.panelUpdater.update();
-    });
-
-    document.getElementById('ccsb-ascend-overlay')!.addEventListener('click', () => {
-      data.config.showAscendOverlay = data.config.showAscendOverlay === false;
-      data.scheduleSave();
       this.panelUpdater.update();
     });
 

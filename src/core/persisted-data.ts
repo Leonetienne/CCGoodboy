@@ -23,6 +23,8 @@ export interface Config {
   keepAlive: boolean;
   grimoireFthof: boolean;
   spendLumps: boolean;
+  stockMarket: boolean;
+  stockMaxShare: number;
   ascendLuckyWaitSec: number;
   ascendMinBoost: number;
   ascendShopWaitSec: number;
@@ -56,6 +58,18 @@ export interface Stats {
   autoBuys: number;
   wrinklersPopped: number;
   ascensions: number;
+  stockTrades: number;
+  /** Cookies the paw made (+) or lost (-) on the stock market: every sale against what the
+   * bot paid for the units sold (STOCK-6). */
+  stockProfit: number;
+  /** Per good id: units the bot bought and still holds, and what it paid for them (cookies,
+   * overhead included). */
+  stockBasis: Record<string, StockBasis>;
+}
+
+export interface StockBasis {
+  units: number;
+  cookies: number;
 }
 
 export interface HourlyBucket {
@@ -115,6 +129,8 @@ export const DEFAULTS: PersistedState = {
     keepAlive: true,
     grimoireFthof: true,
     spendLumps: true,
+    stockMarket: true,
+    stockMaxShare: 0.5,
     ascendLuckyWaitSec: 86400,
     ascendMinBoost: 2,
     ascendShopWaitSec: 21600,
@@ -147,6 +163,9 @@ export const DEFAULTS: PersistedState = {
     autoBuys: 0,
     wrinklersPopped: 0,
     ascensions: 0,
+    stockTrades: 0,
+    stockProfit: 0,
+    stockBasis: {},
   },
   hourly: {},
   logs: [],

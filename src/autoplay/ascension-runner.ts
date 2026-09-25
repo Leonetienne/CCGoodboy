@@ -164,25 +164,25 @@ export class AscensionRunner {
     const c = this.data.config;
 
     if (this.game.onAscendScreen() || this.game.isAscendIntro()) {
-      if (this.runtime.ascendOurs) return 'Bot: buying the pink ones, then reincarnating';
-      return "Bot: you ascended yourself, so the buying is up to you";
+      if (this.runtime.ascendOurs) return 'Paw: buying the pink ones, then reincarnating';
+      return "Paw: you ascended yourself, so the buying is up to you";
     }
 
     const p = this.planner.plan();
     if (!p) return '';
 
-    if (c.autoPlay !== true) return "Bot: auto play is off, so it won't ascend by itself";
-    if (c.autoAscend === false) return 'Bot: "Auto: ascend" is off, so it won\'t ascend by itself';
-    if (c.autoDryRun === true) return 'Bot: dry run, it only writes "would ascend" in the log';
+    if (c.autoPlay !== true) return "Paw: auto play is off, so it won't ascend by itself";
+    if (c.autoAscend === false) return 'Paw: "Auto: ascend" is off, so it won\'t ascend by itself';
+    if (c.autoDryRun === true) return 'Paw: dry run, it only writes "would ascend" in the log';
 
-    if (p.verdict === 'waiting') return `Bot: will ascend by itself at level ${formatNum(p.shop.level)}`;
-    if (p.verdict !== 'ascend') return 'Bot: will ascend by itself once it pays off';
+    if (p.verdict === 'waiting') return `Paw: will ascend by itself at level ${formatNum(p.shop.level)}`;
+    if (p.verdict !== 'ascend') return 'Paw: will ascend by itself once it pays off';
 
     const s = this.step();
-    if (s && s.kind === 'pop-wrinkler') return 'Bot: popping the wrinklers first, then ascending';
-    if (s) return 'Bot: ascending now';
+    if (s && s.kind === 'pop-wrinkler') return 'Paw: popping the wrinklers first, then ascending';
+    if (s) return 'Paw: ascending now';
 
-    return `Bot: will ascend once ${this.holdReason()}`;
+    return `Paw: will ascend once ${this.holdReason()}`;
   }
 
   /** Why an ascension that is due isn't happening yet. */

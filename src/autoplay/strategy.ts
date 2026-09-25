@@ -22,6 +22,9 @@ export interface Decision {
   saveRow?: DecisionRow | null;
   note?: string;
   rows: DecisionRow[];
+  /** Everything this tick would buy (affordable and not held back), best first; `buy` is its
+   * head. */
+  buyable?: DecisionRow[];
 }
 
 /** THE STRATEGY (pure function, no game access). For every option:
@@ -148,6 +151,7 @@ export function autoDecide(cands: PurchaseCandidate[], ctx: AutoCollectCtx): Dec
       save: save ? save.c : null,
       saveRow: save,
       rows,
+      buyable,
     };
   }
 
@@ -158,4 +162,19 @@ export function autoDecide(cands: PurchaseCandidate[], ctx: AutoCollectCtx): Dec
     note: save ? 'saving' : 'nothing worth saving for in reach',
     rows,
   };
+}
+
+/** AUTO-9: the paw has walked to `name` in the store and the plan was just made again (things
+ * change on the way: hammering stopped, the bank moved). Buy what it stands on when that is
+ * still the tick's pick, or still one of this tick's purchases (affordable, not held back) and
+ * buying it first leaves enough for the pick. Null = the plan changed its mind: no purchase,
+ * so no click pulse either. */
+export function shopPickAt(d: Pick<Decision, 'buy' | 'row' | 'why' | 'buyable'>, name: string, bank: number): { c: PurchaseCandidate; row?: DecisionRow; why?: string } | null {
+  if (d.buy && d.buy.name === name) return { c: d.buy, row: d.row, why: d.why };
+
+  const r = (d.buyable || []).find((x) => x.c.name === name);
+  if (!r) return null;
+  if (d.buy && bank - r.c.cost < d.buy.cost) return null;
+
+  return { c: r.c, row: r, why: 'still worth buying' };
 }

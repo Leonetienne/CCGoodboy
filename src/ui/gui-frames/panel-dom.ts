@@ -55,6 +55,10 @@ function panelBodyHtml(version: string): string {
         <span class="ccsb-label">Ascension</span>
         <span class="ccsb-value" id="ccsb-ascend">—</span>
     </div>
+    <div class="ccsb-row" id="ccsb-stock-row">
+        <span class="ccsb-label">Stock market</span>
+        <span class="ccsb-value" id="ccsb-stock">off</span>
+    </div>
     <div class="ccsb-row" id="ccsb-auto-row">
         <span class="ccsb-label">Auto play</span>
         <span class="ccsb-value" id="ccsb-auto">off</span>
@@ -68,7 +72,6 @@ function panelBodyHtml(version: string): string {
         <button class="ccsb-btn" id="ccsb-pause">Pause :3</button>
         <button class="ccsb-btn" id="ccsb-hammer" title="Click the big cookie non-stop (like Click Frenzy). Lowest priority, above idling.">Hammer cookie :3</button>
         <button class="ccsb-btn" id="ccsb-auto-toggle" title="Full auto play: also buys buildings and upgrades (off by default).">Auto play :3</button>
-        <button class="ccsb-btn" id="ccsb-ascend-overlay" title="Show the ascension plan on the Legacy button and the heavenly upgrades' boxes on the ascension screen">Ascend overlay :3</button>
         <button class="ccsb-btn" id="ccsb-toggle-graphs">Graphs ^w^</button>
         <button class="ccsb-btn" id="ccsb-toggle-logs">Logs owo</button>
         <button class="ccsb-btn" id="ccsb-toggle-debug">Debug tools :3</button>
@@ -144,6 +147,10 @@ function panelBodyHtml(version: string): string {
             <span>Ascend: wait for a lucky level up to (s)</span>
             <input data-setting="ascendLuckyWaitSec" type="number" min="0" max="2592000" step="3600">
         </div>
+        <div class="ccsb-setting" title="Stocks may hold at most this share of your bank + stocks (valued at today's prices): 0.5 = half">
+            <span>Stocks: invest at most (share of bank)</span>
+            <input data-setting="stockMaxShare" type="number" min="0" max="1" step="0.05">
+        </div>
         <div class="ccsb-setting ccsb-setting-range">
             <span>Frame opacity (0.1-1)</span>
             <input data-setting="frameOpacity" type="range" min="0.1" max="1" step="0.05">
@@ -170,6 +177,11 @@ function panelBodyHtml(version: string): string {
             Show "how good is a buy" overlay :3
         </label>
 
+        <label style="display:flex;gap:6px;align-items:center;margin-top:5px" title="Shows the ascension plan on the Legacy button and boxes the heavenly upgrades on the ascension screen">
+            <input id="ccsb-ascend-overlay" type="checkbox">
+            Show ascension overlay ^w^
+        </label>
+
         <label style="display:flex;gap:6px;align-items:center;margin-top:5px" title="A practically silent AudioContext: the browser then does not throttle this tab in the background (needs one click on the page)">
             <input id="ccsb-keepalive" type="checkbox">
             Background keep-alive (silent audio) :3
@@ -183,6 +195,11 @@ function panelBodyHtml(version: string): string {
         <label style="display:flex;gap:6px;align-items:center;margin-top:5px" title="Lets the bot spend sugar lumps: refilling Grimoire mana during a buff combo, and (in auto play) levelling a Wizard tower to unlock the Grimoire">
             <input id="ccsb-spend-lumps" type="checkbox">
             Spend sugar lumps :3
+        </label>
+
+        <label style="display:flex;gap:6px;align-items:center;margin-top:5px" title="The paw trades on the Bank's stock market: buys goods that are cheap and turning up, sells them once they have risen and start to fall again (never at a loss), and hires stockbrokers when they pay off. With auto play it also unlocks the market (Bank level 1, one sugar lump).">
+            <input id="ccsb-stock-market" type="checkbox">
+            Play the stock market ^w^
         </label>
 
         <div id="ccsb-auto-settings">

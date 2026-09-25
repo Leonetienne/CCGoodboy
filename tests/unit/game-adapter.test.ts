@@ -105,4 +105,27 @@ describe('GameAdapter', () => {
       expect(() => game.ripenLump()).toThrow();
     });
   });
+
+  describe('stock market speed (DBG-24)', () => {
+    it('sets the game\'s own tick length and reads it back as a factor', () => {
+      const M = { secondsPerTick: 60, tickT: 1500, toRedraw: 0 };
+      (window as any).Game = { fps: 30, Objects: { Bank: { minigameLoaded: true, minigame: M } } };
+
+      expect(game.getMarketSpeed()).toBe(1);
+
+      game.setMarketSpeed(50);
+      expect(M.secondsPerTick).toBeCloseTo(1.2);
+      expect(M.tickT).toBe(36); // never further than one (new) tick from the next one
+      expect(game.getMarketSpeed()).toBeCloseTo(50);
+
+      game.setMarketSpeed(1);
+      expect(M.secondsPerTick).toBe(60);
+    });
+
+    it('throws while the market is locked', () => {
+      (window as any).Game = { fps: 30, Objects: { Bank: { minigameLoaded: false } } };
+      expect(() => game.setMarketSpeed(50)).toThrow(/not unlocked/);
+      expect(game.getMarketSpeed()).toBe(1);
+    });
+  });
 });
