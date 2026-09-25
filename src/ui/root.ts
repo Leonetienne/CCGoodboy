@@ -17,6 +17,7 @@ import type { KeepAliveController } from '../input/keep-alive';
 import { resizeOverlayCanvas } from '../rendering/overlay-canvas';
 import type { LogStore } from '../stats/log';
 import { DebugPanel, DebugTools } from './debug/debug-tools';
+import type { UpdateChecker } from '../lifecycle/update-check';
 import { createPanelElement } from './gui-frames/panel-dom';
 import { applyFramePosition, applyPanelPosition, setupFrameDrag, setupPanelDrag } from './gui-frames/panel-drag';
 import { PanelUpdater } from './gui-frames/panel-updater';
@@ -42,6 +43,7 @@ export interface UiRootDeps {
   incomeTracker: IncomeTracker;
   ascension: AscensionPlanner;
   ascensionRunner: AscensionRunner;
+  updateChecker: UpdateChecker;
 }
 
 /** Builds the whole interface once at start: overlay canvas, HUD panel, graphs/logs/debug
@@ -81,7 +83,7 @@ export class UiRoot {
     this.logsPanel = new LogsPanel(data);
     document.body.appendChild(this.logsPanel.element);
 
-    this.debugTools = new DebugTools(runtime, game, grimoireView, wrinklerPopper);
+    this.debugTools = new DebugTools(runtime, game, grimoireView, wrinklerPopper, deps.updateChecker);
     this.debugPanel = new DebugPanel(this.debugTools);
     document.body.appendChild(this.debugPanel.element);
 

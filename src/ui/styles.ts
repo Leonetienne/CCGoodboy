@@ -366,6 +366,125 @@ const CSS = `
     height:100vh;
 }
 
+/* UPD-2: the "wanna update?" popup and its shiny rainbow button */
+#ccsb-update {
+    position:fixed;
+    z-index:2147483647;
+    left:50%;
+    top:18%;
+    transform:translateX(-50%);
+    width:min(380px,calc(100vw - 32px));
+    padding:16px 18px 14px;
+    text-align:center;
+    font-family:"Quicksand","Nunito","Varela Round","Segoe UI Rounded","Segoe UI","Comic Sans MS",ui-rounded,system-ui,sans-serif;
+    color:#ffeaf6;
+    background:linear-gradient(160deg, rgba(50,27,68,.98), rgba(30,20,54,.98));
+    border:2px solid #ff9ed2;
+    border-radius:20px;
+    box-shadow:0 12px 50px rgba(255,120,190,.45), inset 0 0 0 1px rgba(150,215,255,.35);
+    animation:ccsb-update-pop .45s cubic-bezier(.2,1.6,.4,1) both;
+}
+
+#ccsb-update * {
+    box-sizing:border-box;
+}
+
+.ccsb-update-title {
+    font-size:16px;
+    font-weight:800;
+    color:#fff;
+    text-shadow:0 1px 10px rgba(255,105,180,.8);
+}
+
+.ccsb-update-text {
+    margin:6px 0 14px;
+    font-size:12px;
+    color:#ffb3dc;
+}
+
+.ccsb-update-buttons {
+    display:flex;
+    gap:10px;
+    align-items:center;
+    justify-content:center;
+    flex-wrap:wrap;
+}
+
+#ccsb-update .ccsb-btn {
+    font:inherit;
+    font-size:11px;
+    opacity:.75;
+}
+
+#ccsb-update-go {
+    position:relative;
+    display:inline-block;
+    overflow:hidden;
+    padding:9px 20px;
+    border-radius:999px;
+    font-size:14px;
+    font-weight:800;
+    color:#fff;
+    text-decoration:none;
+    text-shadow:0 1px 3px rgba(60,0,60,.6);
+    background:linear-gradient(90deg,#ff6fb5,#ffb86b,#fff275,#7dffb0,#72d6ff,#b48cff,#ff6fb5);
+    background-size:300% 100%;
+    border:2px solid #fff;
+    animation:ccsb-rainbow 3s linear infinite, ccsb-glow 1.6s ease-in-out infinite, ccsb-wiggle 2.4s ease-in-out infinite;
+}
+
+#ccsb-update-go span {
+    position:relative;
+    z-index:1;
+}
+
+#ccsb-update-go::after {
+    content:"";
+    position:absolute;
+    top:-50%;
+    left:-60%;
+    width:40%;
+    height:200%;
+    background:linear-gradient(90deg, transparent, rgba(255,255,255,.85), transparent);
+    transform:rotate(20deg);
+    animation:ccsb-shine 2.2s ease-in-out infinite;
+}
+
+#ccsb-update-go:hover {
+    animation-duration:1.2s, .8s, .9s;
+}
+
+@keyframes ccsb-update-pop {
+    from { opacity:0; transform:translateX(-50%) scale(.6); }
+    to { opacity:1; transform:translateX(-50%) scale(1); }
+}
+
+@keyframes ccsb-rainbow {
+    from { background-position:0% 50%; }
+    to { background-position:300% 50%; }
+}
+
+@keyframes ccsb-glow {
+    0%, 100% { box-shadow:0 0 10px rgba(255,143,207,.7), 0 0 22px rgba(150,215,255,.4); }
+    50% { box-shadow:0 0 18px rgba(255,242,117,.9), 0 0 38px rgba(255,111,181,.7); }
+}
+
+@keyframes ccsb-shine {
+    0% { left:-60%; }
+    60%, 100% { left:130%; }
+}
+
+@keyframes ccsb-wiggle {
+    0%, 80%, 100% { transform:rotate(0) scale(1); }
+    85% { transform:rotate(-3deg) scale(1.06); }
+    90% { transform:rotate(3deg) scale(1.06); }
+    95% { transform:rotate(-2deg) scale(1.03); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #ccsb-update, #ccsb-update-go, #ccsb-update-go::after { animation:none; }
+}
+
 /* AUTO-9: a store section the paw is at, opened like the game's own :hover */
 .storeSection.ccsb-store-open { height:auto !important; }
 .storeSection.ccsb-store-open:before { display:block; }

@@ -21,6 +21,7 @@ import type { Scheduler } from '../scheduler/scheduler';
 import { OverlayLoop } from '../scheduler/overlay-loop';
 import type { LogStore } from '../stats/log';
 import { UiRoot } from '../ui/root';
+import { UpdateChecker } from './update-check';
 
 export interface PublicApi {
   version: string;
@@ -74,6 +75,7 @@ export class Bootstrap {
   private uiRoot: UiRoot | null = null;
   private overlayLoop: OverlayLoop | null = null;
   private pawCursor: PawCursor | null = null;
+  private updateChecker: UpdateChecker | null = null;
 
   constructor(private readonly deps: BootstrapDeps) {}
 
@@ -155,6 +157,8 @@ export class Bootstrap {
       destroy: () => this.destroy(),
     };
 
+    this.updateChecker = new UpdateChecker(log);
+
     this.uiRoot = new UiRoot({
       runtime,
       data,
@@ -172,6 +176,7 @@ export class Bootstrap {
       incomeTracker,
       ascension,
       ascensionRunner,
+      updateChecker: this.updateChecker,
     });
 
     this.pawCursor = new PawCursor(runtime);
@@ -213,6 +218,9 @@ export class Bootstrap {
     log.log('bot started', `v${VERSION}`);
 
     sayYay('Hiii, missed you!! Ready to catch cookies for you :3');
+
+    // UPD-1: one look at GitHub per boot for a newer release.
+    void this.updateChecker.check();
   }
 
   /** Stops everything and removes all elements/listeners (exposed on the API; useful for hot
@@ -242,6 +250,7 @@ export class Bootstrap {
     this.deps.data.saveNow();
 
     this.uiRoot?.destroy();
+    this.updateChecker?.destroy();
 
     window.removeEventListener('beforeunload', this.saveNow);
 

@@ -446,6 +446,9 @@ See [§7 State machine](#7-state-machine) for how this maps onto code.
   unlocked nor bought, so all of them sit in the store. They are ordinary
   cookie upgrades, so auto play buys them as biscuits (AUTO-2/AUTO-3). Fails
   in red when every one is already unlocked or bought.
+- **DBG-21** Show update popup: shows the UPD-2 popup at once, as if
+  GitHub's latest release were version "DUMMY" (no request is made; its
+  button links to a release that doesn't exist).
 ### 3.12 Console voice
 
 The bot talks in the browser console, in the same cute style as the UI
@@ -1113,6 +1116,32 @@ ascend", on by default) the bot also ascends by itself (ASC-10). Pure logic in `
   on to the next one. Without a lucky upgrade on the list the 7s are
   ignored.
 
+### 3.22 Update check
+
+- **UPD-1** Once per start-up (`Bootstrap.start()`), the bot asks GitHub
+  for the latest release: `GET
+  https://api.github.com/repos/Leonetienne/CCGoodboy/releases/latest`,
+  `tag_name` (the same release `github.com/.../releases/latest`
+  redirects to; that page sends no CORS headers, so a `@grant none`
+  script can't follow the redirect itself). A tag that isn't a plain
+  `MAJOR.MINOR.PATCH` (optionally `v`-prefixed) is ignored. A failed
+  check only says so in the console (`sayCant`) and changes nothing.
+- **UPD-2** Only when that tag is strictly higher than `VERSION`, a popup
+  says "There's an update for your gewd boy :3" / "Wanna update now?"
+  with both versions, a shiny animated rainbow button ("Yes pls, update
+  me! ^w^": moving gradient, glow, a light sweep, a little wiggle; still
+  under `prefers-reduced-motion`) and a quiet "Later :c". The button is a
+  plain link to
+  `https://github.com/Leonetienne/CCGoodboy/releases/download/{tag}/cc-good-boy.user.js`
+  opened in a new tab, so Tampermonkey offers the update itself; both
+  buttons close the popup. Not remembered: a still-newer release asks
+  again at the next start.
+- **UPD-3** Logged as `"update available"` (and `"update opened"` when
+  the button is clicked); `destroy()` removes the popup and a check still
+  in flight never shows one. `src/lifecycle/update-check.ts`
+  (`UpdateChecker`, pure `parseVersion()`/`isNewerVersion()`), styles in
+  `src/ui/styles.ts`. Unit tests in `tests/unit/update-check.test.ts`.
+
 ## 4. Non-functional requirements
 
 - **NFR-1** Versioning: MAJOR.MINOR.PATCH, shown in the panel. Bump with
@@ -1128,7 +1157,8 @@ ascend", on by default) the bot also ascends by itself (ASC-10). Pure logic in `
   just the ones that ship. The one exception: pure documentation changes
   (AGENTS.md, README.md, anything under `docs/`) never bump the version and
   get no changelog entry.
-- **NFR-2** No dependencies at runtime, no network, no external assets.
+- **NFR-2** No dependencies at runtime, no external assets, and no network
+  except the one update check per start-up (UPD-1).
   Runs in page context (`@grant none`) at `document-idle`; a second
   instance refuses to start.
 - **NFR-3** Performance: route planning <= ~2ms for 40 cookies and
@@ -1277,7 +1307,7 @@ gainLumps) — still guarded, still the only path to those `Game.*` calls.
 | Rendering | `src/rendering/` | `paw-cursor.ts` (`PawCursor`: PAW-1..3, sprite rasterizing, click pulse, fallback drawn paw), `overlay-canvas.ts` (resize/DPR handling) |
 | Stats | `src/stats/` | `log.ts` (`LogStore`), `stats.ts` (`StatsRecorder`: GC-6/AUTO-10 counters + hourly buckets) |
 | UI | `src/ui/` | `root.ts` (`UiRoot`: composes every panel, wires ~25 event listeners — was `createUi()`), `styles.ts` (UI-7 theme), `format.ts` (escapeHtml/formatNum/moodText/targetText), `gui-frames/` (panel DOM template, drag-to-move, the 200ms `PanelUpdater`), `settings/` (`normalize-setting.ts` clamps, `settings-panel.ts` UI-4 staged save), `stats-window/` (`chart-engine.ts` canvas chart drawing, `graphs-panel.ts` UI-5, `logs-panel.ts` UI-6 filter/export), `debug/debug-tools.ts` (DBG-\*) |
-| Lifecycle | `src/lifecycle/bootstrap.ts` | `Bootstrap` (start/destroy, API-1, MOUSE-1 real-mouse sync, `waitForGame` polling) |
+| Lifecycle | `src/lifecycle/` | `bootstrap.ts` (`Bootstrap`: start/destroy, API-1, MOUSE-1 real-mouse sync, `waitForGame` polling), `update-check.ts` (`UpdateChecker`: UPD-\*) |
 | Assets | `src/assets/*.svg` | The two paw sprites (PAW-2), imported as raw text via an esbuild `.svg` loader |
 
 ### 6.5 Job model (modules → actions → jobs → queue)
@@ -1350,8 +1380,8 @@ file.**
 
 Three layers, each catching a different class of bug:
 
-1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 452 tests
-   across 45 files. Pure functions (route planner, `autoDecide`, the chart
+1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 461 tests
+   across 46 files. Pure functions (route planner, `autoDecide`, the chart
    engine, `normalizeSetting`) are tested directly with plain data; the
    cursor queue/actions have their own fake mover/timing tests. Classes
    that depend on the game are tested against `FakeGameAdapter`
@@ -1520,6 +1550,17 @@ mouse while the bot runs and confirm the "+N" number follows your cursor,
 not the paw's).
 
 ## 12. Changelog
+
+- **5.5.10** New debug tool "Show update popup" (DBG-21): shows the
+  update popup (UPD-2) with the version "DUMMY", without asking GitHub.
+
+- **5.5.9** Update check (UPD-\*): at start-up the bot asks GitHub's API
+  for the latest release and, if it is newer, pops up "There's an update
+  for your gewd boy :3 Wanna update now?" with a shiny rainbow button that
+  links straight to that release's `cc-good-boy.user.js`, so Tampermonkey
+  offers the update. NFR-2 now allows this one request. New
+  `src/lifecycle/update-check.ts`; unit tests in
+  `tests/unit/update-check.test.ts`.
 
 - **5.5.8** Undid 5.5.7's lift of the game's tooltips above the overlay
   (it wasn't enough). Instead the Legacy box and card are not drawn while

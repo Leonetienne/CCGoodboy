@@ -1,6 +1,7 @@
 import { sayCant } from '../../core/console-voice';
 import type { GrimoireView } from '../../hunting/grimoire-view';
 import type { WrinklerPopper } from '../../autoplay/wrinkler-popper';
+import type { UpdateChecker } from '../../lifecycle/update-check';
 import type { RuntimeState } from '../../core/runtime-state';
 import type { IGameAdapter } from '../../game/game-adapter';
 import type { LogStore } from '../../stats/log';
@@ -22,6 +23,7 @@ export class DebugTools {
     private readonly game: IGameAdapter,
     private readonly buildingsNav: Pick<GrimoireView, 'debugShowBuildingsView' | 'debugScrollToWizardTowers' | 'debugShowGrimoire'>,
     private readonly wrinklers: Pick<WrinklerPopper, 'debugPopWrinkler'>,
+    private readonly updates: Pick<UpdateChecker, 'show'>,
   ) {
     this.tools = [
       { label: 'Spawn random Golden Cookie', run: () => this.spawnGolden('random golden cookie', {}) },
@@ -59,6 +61,7 @@ export class DebugTools {
       { label: 'Show buildings view', run: () => this.buildingsNav.debugShowBuildingsView() },
       { label: 'Scroll to Wizard towers', run: () => this.buildingsNav.debugScrollToWizardTowers() },
       { label: 'Show grimoire', run: () => this.buildingsNav.debugShowGrimoire() },
+      { label: 'Show update popup', run: () => this.showUpdatePopup() },
     ];
   }
 
@@ -189,6 +192,12 @@ export class DebugTools {
     }
 
     return `${n} heart biscuits are in the store now: with auto play on, the paw buys them owo`;
+  }
+
+  /** DBG-21: the UPD-2 popup, as if GitHub had a release "DUMMY" (its link goes nowhere). */
+  private showUpdatePopup(): string {
+    this.updates.show('DUMMY');
+    return 'update popup is up (version DUMMY) owo';
   }
 
   /** DBG-13: one wrinkler crawls into the first free slot. */
