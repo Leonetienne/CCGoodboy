@@ -4,8 +4,9 @@ import type { PersistedData } from '../core/persisted-data';
 import type { RuntimeState } from '../core/runtime-state';
 import { enterStoreElement, storeScrollJob } from '../actions/store-visit';
 import { visibleRect } from '../game/dom-geometry';
-import { closeStoreSection, storeApproachPoint } from '../game/store-dom';
+import { closeStoreSection, storeApproachPoint, storeSectionOf } from '../game/store-dom';
 import type { IGameAdapter } from '../game/game-adapter';
+import type { GameBuilding } from '../game/types';
 import { JOB_PRIORITY, type CursorAction, type CursorJobContext, type JobRequest } from '../cursor/types';
 import type { LogStore } from '../stats/log';
 import type { StatsRecorder } from '../stats/stats';
@@ -14,11 +15,13 @@ import {
   AUTO_STREAK_JITTER_X,
   AUTO_STREAK_JITTER_Y,
   AUTO_STREAK_MAX,
+  AUTO_SPREE_MAX,
+  AUTO_STACK,
   AUTO_STREAK_RATE,
-  autoStreakContinues,
-  streakCandidate,
+  autoSpreeNext,
+  autoStackSize,
 } from './buy-streak';
-import { autoCollect, type AutoCollectCtx, type PurchaseCandidate } from './collector';
+import { autoCollect, buildingSumPrice, type AutoCollectCtx, type PurchaseCandidate } from './collector';
 import type { Decision, DecisionRow } from './strategy';
 import { autoDecide, shopPickAt } from './strategy';
 import type { IncomeTracker } from './income-tracker';
@@ -33,6 +36,16 @@ export interface AutoPlan {
   row?: DecisionRow;
   /** Everything this tick would buy, best first (Decision.buyable). */
   buyable?: DecisionRow[];
+}
+
+/** One purchase of a shopping visit (`n` copies of a building stack), for the log. */
+interface SpreeBuy {
+  c: PurchaseCandidate;
+  n?: number;
+  /** What it cost (default c.cost). */
+  cost?: number;
+  row?: DecisionRow;
+  why?: string;
 }
 
 /** Colour for the "how good is a buy" box: red (0, worst on offer) through amber (0.5) to
@@ -77,20 +90,27 @@ export function autoStoreElement(game: IGameAdapter, c: PurchaseCandidate): Elem
   return i >= 0 ? document.getElementById(`upgrade${i}`) : null;
 }
 
+/** Buys `n` copies of a building through the game's own API (`buy(n)`, not the store, so its
+ * buy/sell and bulk modes can never cause a mistake); `n` > 1 only for a streak's stack
+ * (AUTO-14), which must be affordable as a whole (`stackCost`). Returns how many it bought. */
+export function autoBuyBuilding(game: IGameAdapter, c: PurchaseCandidate, n = 1, stackCost = c.cost): number {
+  const me = c.obj as { amount?: number; buy: (n: number) => void };
+
+  if (game.getBuyMode() === -1 || !(game.getCookies() >= stackCost)) {
+    return 0;
+  }
+
+  const before = Number(me.amount) || 0;
+  me.buy(n);
+
+  return Math.max(0, (Number(me.amount) || 0) - before);
+}
+
 /** Makes the purchase through the game's own API (NOT by clicking the store, so the store's
  * buy/sell and bulk modes can never cause a mistake). Buildings are bought one at a time. */
 export function autoBuy(game: IGameAdapter, c: PurchaseCandidate): boolean {
   if (c.kind === 'building') {
-    const me = c.obj as { amount?: number; buy: (n: number) => void };
-
-    if (game.getBuyMode() === -1 || !(game.getCookies() >= c.cost)) {
-      return false;
-    }
-
-    const before = Number(me.amount) || 0;
-    me.buy(1);
-
-    return (Number(me.amount) || 0) > before;
+    return autoBuyBuilding(game, c) > 0;
   }
 
   const up = c.obj as { bought?: boolean | number; buy: (bypass?: number) => void };
@@ -314,18 +334,29 @@ export class AutoPlayEngine {
     this.stats.recordAutoBuy();
   }
 
-  /** AUTO-14: after buying one `name`, keeps buying it one at a time at ~AUTO_STREAK_RATE per
-   * second (± time jitter, the press point wandering a few px on the row) while
-   * autoStreakContinues() says so, up to AUTO_STREAK_MAX in total. Every buy is re-planned
-   * from the live game and gets its own paw pulse (NFR-8). Returns how many MORE it bought
-   * and what they cost. */
-  async buyStreak(ctx: CursorJobContext, name: string, el: Element | null): Promise<{ extra: number; spent: number }> {
+  /** AUTO-14/AUTO-18: after the visit's first purchase, keeps buying at ~AUTO_STREAK_RATE per
+   * second (± time jitter) whatever autoSpreeNext() picks from a fresh plan: the same building
+   * again (the press point wandering a few px on its row), or the next insignificant purchase,
+   * which the paw hops over to (opening its store section, AUTO-9). Up to AUTO_STREAK_MAX of
+   * one building in a row and AUTO_SPREE_MAX in total. Every buy gets its own paw pulse
+   * (NFR-8). Returns what it bought, in order, and the store section open at the end (for the
+   * caller to close). */
+  async buySpree(
+    ctx: CursorJobContext,
+    first: PurchaseCandidate,
+    el: Element | null,
+    section: HTMLElement | null,
+  ): Promise<{ bought: SpreeBuy[]; section: HTMLElement | null }> {
     const interval = 1000 / AUTO_STREAK_RATE;
-    let extra = 0;
-    let spent = 0;
+    const bought: SpreeBuy[] = [];
+    let last = first;
+    let run = 1;
     let due = performance.now();
+    const reachable = (c: PurchaseCandidate) => !!storeApproachPoint(autoStoreElement(this.game, c));
 
-    while (1 + extra < AUTO_STREAK_MAX) {
+    let total = 1;
+
+    while (total < AUTO_SPREE_MAX) {
       due += interval + (Math.random() * 2 - 1) * AUTO_STREAK_JITTER_MS;
       await ctx.clock.sleep(Math.max(0, due - performance.now()));
 
@@ -334,18 +365,48 @@ export class AutoPlayEngine {
       const g = autoCollect(this.game, this.data, this.runtime, this.incomeTracker);
       if ('skip' in g) break;
 
-      const c = streakCandidate(g.cands, name);
-      if (!c || !autoStreakContinues(autoDecide(g.cands, g.ctx), c)) break;
+      const d = autoDecide(g.cands, g.ctx);
+      const c = autoSpreeNext(d, last, this.game.getCookies(), reachable);
+      if (!c) break;
 
-      const r = el ? visibleRect(el) : null;
+      const same = c.kind === 'building' && last.kind === 'building' && c.name === last.name;
+      if (same && run >= AUTO_STREAK_MAX) break;
 
-      if (r) {
-        const jx = Math.min(AUTO_STREAK_JITTER_X, r.width / 4);
-        const jy = Math.min(AUTO_STREAK_JITTER_Y, r.height / 4);
-        const x = r.left + r.width / 2 + (Math.random() * 2 - 1) * jx;
-        const y = r.top + r.height / 2 + (Math.random() * 2 - 1) * jy;
+      // a whole stack per press while it is pocket money (AUTO-14)
+      const stackCost = c.kind === 'building' ? buildingSumPrice(c.obj as GameBuilding, AUTO_STACK) : 0;
+      const n = Math.min(autoStackSize(d, c, stackCost, g.ctx), same ? AUTO_STREAK_MAX - run : AUTO_STREAK_MAX);
 
-        await ctx.cursor.glideCursor(x, y, 18 + Math.random() * 14, () => this.shoppingInterrupted());
+      if (same) {
+        const r = el ? visibleRect(el) : null;
+
+        if (r) {
+          const jx = Math.min(AUTO_STREAK_JITTER_X, r.width / 4);
+          const jy = Math.min(AUTO_STREAK_JITTER_Y, r.height / 4);
+          const x = r.left + r.width / 2 + (Math.random() * 2 - 1) * jx;
+          const y = r.top + r.height / 2 + (Math.random() * 2 - 1) * jy;
+
+          await ctx.cursor.glideCursor(x, y, 18 + Math.random() * 14, () => this.shoppingInterrupted());
+        }
+      } else {
+        // hop to the next item: open its store section (closing the last one), move onto it
+        el = autoStoreElement(this.game, c);
+        const next = storeSectionOf(el);
+
+        if (next !== section) {
+          closeStoreSection(section);
+          section = next ? await enterStoreElement(ctx, el) : null;
+        }
+
+        // the store may have been rebuilt meanwhile (a purchase reshuffles the crates)
+        el = autoStoreElement(this.game, c);
+        const r = visibleRect(el);
+        if (!r) break;
+
+        const { x, y } = ctx.runtime.cursor;
+
+        if (!(x >= r.left && x <= r.right && y >= r.top && y <= r.bottom)) {
+          await ctx.cursor.moveCursorTo(r.left + r.width / 2, r.top + r.height / 2, true);
+        }
       }
 
       if (this.shoppingInterrupted() || ctx.abortRequested()) break;
@@ -353,14 +414,52 @@ export class AutoPlayEngine {
       // visual press, then the purchase itself
       ctx.runtime.pulseAt = performance.now();
 
-      if (!autoBuy(this.game, c)) break;
+      const got = c.kind === 'building' ? autoBuyBuilding(this.game, c, n, n > 1 ? stackCost : c.cost) : autoBuy(this.game, c) ? 1 : 0;
+      if (!got) break;
 
-      this.recordBuy();
-      spent += c.cost;
-      extra++;
+      for (let i = 0; i < got; i++) this.recordBuy();
+
+      const row = (d.buyable || []).find((x) => x.c === c);
+      // a stack the bank only partly paid for is priced roughly (log only)
+      const cost = n > 1 && got === n ? stackCost : c.cost * got;
+      bought.push({ c, n: got, cost, why: same ? d.why : row && row.insignificant ? 'insignificant cost' : d.why });
+      run = same ? run + got : got;
+      total += got;
+      last = c;
     }
 
-    return { extra, spent };
+    return { bought, section };
+  }
+
+  /** Logs a visit's purchases as `"auto buy"`, one entry per run of the same item
+   * ("37x Cursor", AUTO-10/AUTO-14). */
+  private logBuys(buys: SpreeBuy[]): void {
+    for (let i = 0; i < buys.length; ) {
+      const b = buys[i]!;
+      let j = i + 1;
+      let cost = b.cost ?? b.c.cost;
+      let n = b.n ?? 1;
+
+      while (j < buys.length && buys[j]!.c.name === b.c.name && buys[j]!.c.kind === b.c.kind) {
+        cost += buys[j]!.cost ?? buys[j]!.c.cost;
+        n += buys[j]!.n ?? 1;
+        j++;
+      }
+
+
+      this.log.log('auto buy', n > 1 ? `${n}x ${b.c.name}` : b.c.name, {
+        type: b.c.type,
+        ...(n > 1 ? { count: n } : {}),
+        ...(b.c.milestone != null ? { milestone: b.c.milestone } : {}),
+        cost: Math.round(cost),
+        dCps: b.c.dCps,
+        payback: b.row && b.row.payback,
+        impact: b.row && b.row.impact,
+        why: b.why,
+      });
+
+      i = j;
+    }
   }
 
   /** Shopping job: re-plan, let the paw visit the store item (if it is visible; a visual
@@ -401,7 +500,7 @@ export class AutoPlayEngine {
       async cursor_at_position(ctx: CursorJobContext): Promise<void> {
         // AUTO-9: open the crate's store section like a hover would, and close it on leaving
         const el = autoStoreElement(engine.game, c);
-        const section = await enterStoreElement(ctx, el);
+        let section = await enterStoreElement(ctx, el);
 
         try {
           if (pt) {
@@ -438,24 +537,15 @@ export class AutoPlayEngine {
           engine.recordBuy();
           await ctx.clock.sleep(70);
 
-          // AUTO-14: a building is bought again and again, one purchase at a time, while it is
-          // still worth buying — the paw stays on the row and presses ~10x per second.
-          const streak = first.kind === 'building' ? await engine.buyStreak(ctx, first.name, el) : { extra: 0, spent: 0 };
-          const bought = 1 + streak.extra;
+          // AUTO-14/AUTO-18: the paw doesn't walk away: the same building again while it is
+          // still the pick, then every insignificant purchase in turn, ~10 presses per second.
+          const spree = await engine.buySpree(ctx, first, el, section);
+          section = spree.section;
 
           engine.runtime.lastAutoBuyAt = Date.now();
           engine.runtime.autoNextEvalAt = 0;
 
-          engine.log.log('auto buy', bought > 1 ? `${bought}x ${first.name}` : first.name, {
-            type: first.type,
-            ...(bought > 1 ? { count: bought } : {}),
-            ...(first.milestone != null ? { milestone: first.milestone } : {}),
-            cost: Math.round(first.cost + streak.spent),
-            dCps: first.dCps,
-            payback: pick.row && pick.row.payback,
-            impact: pick.row && pick.row.impact,
-            why: pick.why,
-          });
+          engine.logBuys([{ c: first, row: pick.row, why: pick.why }, ...spree.bought]);
         } finally {
           closeStoreSection(section);
         }

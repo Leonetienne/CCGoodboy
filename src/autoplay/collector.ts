@@ -63,7 +63,7 @@ export type CollectResult = { skip: string } | { cands: PurchaseCandidate[]; ctx
 
 /** What buying `n` more of a building costs now: the game's getSumPrice(), else the 15% price
  * step from its current price. */
-function buildingSumPrice(me: GameBuilding, n: number): number {
+export function buildingSumPrice(me: GameBuilding, n: number): number {
   const p = me.getSumPrice ? Number(me.getSumPrice(n)) : NaN;
   if (Number.isFinite(p) && p > 0) return p;
 

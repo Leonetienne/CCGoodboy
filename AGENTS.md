@@ -695,7 +695,7 @@ action log (UI-6); nothing here is stored.
   in sell mode (buildings), during Click Frenzy, cookie storm/chain, while
   a golden cookie is ready or FTHOF/refill is pending, or when paused. One
   purchase per task (for a building, a streak of up to 100 single
-  purchases, AUTO-14), >= 400ms between purchases; a failed purchase / an
+  purchases, AUTO-14; then the junk spree, AUTO-18), >= 400ms between purchases; a failed purchase / an
   error pauses it (3s / 30s). "Auto play dry run" only logs what it WOULD
   buy.
   `shoppingAllowed()` checks the prompt itself, so shopping never starts a
@@ -772,7 +772,10 @@ action log (UI-6); nothing here is stored.
   building again, one ordinary purchase at a time (`buy(1)`, each with its
   own click pulse, NFR-8), at ~10 buys per second (±30ms jitter) with the
   press point wandering a few px around the row's centre (±8/±5px, capped
-  to a quarter of the row). Each further buy is re-planned from the live
+  to a quarter of the row). While 10 copies together are still pocket money
+  (their sum price <= `autoInsignificantSec` × CpS or <= 1% of the spendable
+  bank) and leave enough for the tick's pick, one press buys a stack of 10
+  (`buy(10)`, `AUTO_STACK`, `autoStackSize()`); never for Wizard towers. Each further buy is re-planned from the live
   game (`autoCollect()` + `autoDecide()`) and happens only while that
   building is still the very purchase this tick would make
   (`autoStreakContinues()`, `src/autoplay/buy-streak.ts`), so the streak
@@ -782,7 +785,23 @@ action log (UI-6); nothing here is stored.
   At most 100 per visit; the usual visit before and the 400ms gap after
   (AUTO-7) stay; golden cookies, Click Frenzy etc. interrupt it within one
   buy. Every buy counts in `stats.autoBuys`; the streak is logged once as
-  `"auto buy"` (`"37x Cursor"`, with `count` and the total cost).
+  `"auto buy"` (`"37x Cursor"`, with `count` and the total cost). When the
+  streak ends the visit goes on with AUTO-18.
+
+- **AUTO-18** Junk spree: after a shopping visit's purchase (and its
+  streak), the paw doesn't walk away either while cheap junk is left. It
+  hops straight to the next of this tick's purchases (AUTO-4's buy order,
+  never one held back) that is insignificant (<= `autoInsignificantSec` ×
+  CpS, default 60s) and on screen in the store, opens its section (AUTO-9),
+  pulses and buys it, at the streak's ~10 per second, re-planned from the
+  live game before every buy (`autoSpreeNext()`,
+  `src/autoplay/buy-streak.ts`; `AutoPlayEngine.buySpree()`). A junk item
+  is skipped when buying it would leave too little for the tick's pick
+  (AUTO-9's rule); a building junk item streaks like AUTO-14. At most 300
+  purchases per visit (`AUTO_SPREE_MAX`); anything more important
+  interrupts it within one buy. So the flood of cheap items after an
+  ascension goes out in one spree instead of one trip each. The visit is
+  logged as one `"auto buy"` entry per run of the same item.
 
 - **AUTO-15** Achievement top-offs: every building has count
   achievements (own 1, 50, 100, 150, ... of it; the unwon ones come from
@@ -2012,6 +2031,20 @@ mouse while the bot runs and confirm the "+N" number follows your cursor,
 not the paw's).
 
 ## 12. Changelog
+
+- **5.8.4** The building streak (AUTO-14) buys stacks of 10 per press while
+  the 10 copies together are still pocket money (<= 60s of CpS or <= 1% of
+  the bank) and leave enough for the tick's pick (`autoStackSize()`,
+  `autoBuyBuilding()`), so streaks after an ascension go ~10× faster.
+  Unit tests in `tests/unit/buy-streak.test.ts`.
+
+- **5.8.2** Junk spree (AUTO-18): after an ascension the store fills with
+  a hundred cheap items and the paw fetched them one trip at a time. Now,
+  after a purchase, it hops straight from item to item and buys every
+  eligible one costing <= 60s of CpS (`autoInsignificantSec`) at ~10 per
+  second, a pulse per buy. `AutoPlayEngine.buyStreak()` became
+  `buySpree()`, `autoStreakContinues()`/`streakCandidate()` became
+  `autoSpreeNext()`. Unit tests in `tests/unit/buy-streak.test.ts`.
 
 - **5.8.1** Garden profit (GARDEN-10): the garden's CpS bonus over time,
   its harvest payouts and minus the seeds the paw planted, in cookies

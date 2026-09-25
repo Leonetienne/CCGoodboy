@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { autoStreakContinues, streakCandidate } from '../../src/autoplay/buy-streak';
+import { AUTO_STACK, autoSpreeNext, autoStackSize } from '../../src/autoplay/buy-streak';
 import type { AutoCollectCtx, PurchaseCandidate } from '../../src/autoplay/collector';
 import { autoDecide } from '../../src/autoplay/strategy';
+import { AUTO_PREF_WIZARD } from '../../src/autoplay/valuation-tables';
 
 function building(name: string, cost: number, dCps: number, pref = 0): PurchaseCandidate {
   return { kind: 'building', type: 'building', name, obj: { name, buy: () => {} }, cost, dCps, pref };
@@ -24,51 +25,106 @@ function ctx(overrides: Partial<AutoCollectCtx> = {}): AutoCollectCtx {
   };
 }
 
-/** Replays the streak on `name` the way AutoPlayEngine.buyStreak() does (15% price step per
- * buy, bank shrinking), returning how many it bought in a row including the first. */
-function streakLength(cands: PurchaseCandidate[], name: string, x: AutoCollectCtx, max = 100): number {
-  let bank = x.bank;
-  let n = 0;
-  const list = cands.map((c) => ({ ...c }));
+function upgrade(name: string, cost: number, dCps: number): PurchaseCandidate {
+  return { kind: 'upgrade', type: 'cookie', name, obj: { name, buy: () => {} } as never, cost, dCps };
+}
 
-  while (n < max) {
-    const c = streakCandidate(list, name)!;
-    if (!autoStreakContinues(autoDecide(list, { ...x, bank }), c)) break;
-    bank -= c.cost;
-    c.cost *= 1.15;
-    n++;
+const anywhere = () => true;
+
+/** Replays a visit the way AutoPlayEngine.buySpree() does (15% price step per building buy,
+ * an upgrade leaves the store, bank shrinking), starting with the tick's pick. Returns the
+ * names bought in order. */
+function spree(cands: PurchaseCandidate[], x: AutoCollectCtx, reachable: (c: PurchaseCandidate) => boolean = anywhere, max = 100): string[] {
+  let bank = x.bank;
+  const list = cands.map((c) => ({ ...c }));
+  const out: string[] = [];
+  let last = autoDecide(list, x).buy;
+
+  while (last && out.length < max) {
+    bank -= last.cost;
+    out.push(last.name);
+    if (last.kind === 'building') last.cost *= 1.15;
+    else list.splice(list.indexOf(last), 1);
+    last = autoSpreeNext(autoDecide(list, { ...x, bank }), last, bank, reachable);
   }
 
-  return n;
+  return out;
 }
 
 describe('buying streak (AUTO-14)', () => {
   it('continues only while the building is the pick this tick', () => {
     const cursor = building('Cursor', 15, 1);
     const farm = building('Farm', 1100, 8);
-    expect(autoStreakContinues(autoDecide([cursor, farm], ctx()), cursor)).toBe(true);
-    expect(autoStreakContinues(autoDecide([cursor, farm], ctx({ bank: 1e15 })), cursor)).toBe(false);
+    // tight bank, nothing insignificant (cps 0.1 -> 6 cookies): Cursor stays the pick
+    expect(autoSpreeNext(autoDecide([cursor, farm], ctx({ cps: 0.1 })), cursor, 1000, anywhere)).toBe(cursor);
+    // pocket money: the Farm is the pick now, and it isn't junk (cps 0.1): the visit ends
+    expect(autoSpreeNext(autoDecide([cursor, farm], ctx({ cps: 0.1, bank: 1e15 })), cursor, 1e15, anywhere)).toBeNull();
   });
 
   it('streaks 100 cursors on a flush bank once nothing bigger is left', () => {
-    expect(streakLength([building('Cursor', 15, 0.1)], 'Cursor', ctx({ bank: 1e15 }))).toBe(100);
-  });
-
-  it('does not streak past a better purchase on a tight bank', () => {
-    // payback: Cursor 150s rising 15% per copy vs Farm 137.5s -> Farm first
-    const cands = [building('Cursor', 15, 0.1), building('Farm', 1100, 8)];
-    expect(streakLength(cands, 'Cursor', ctx({ bank: 2000 }))).toBe(0);
+    expect(spree([building('Cursor', 15, 0.1)], ctx({ bank: 1e15 }))).toHaveLength(100);
   });
 
   it('stops when it is not affordable any more', () => {
-    expect(streakLength([building('Cursor', 400, 1)], 'Cursor', ctx({ bank: 1000 }))).toBe(2);
+    expect(spree([building('Cursor', 400, 1)], ctx({ bank: 1000 }))).toHaveLength(2);
+  });
+});
+
+describe('stacks of 10 (AUTO-14)', () => {
+  it('buys 10 at a press while the stack is pocket money', () => {
+    const cursor = building('Cursor', 15, 0.1);
+    const x = ctx({ bank: 1e15 });
+    expect(autoStackSize(autoDecide([cursor], x), cursor, 300, x)).toBe(AUTO_STACK);
   });
 
-  it('finds the building among the candidates, not an upgrade of the same name', () => {
-    const up: PurchaseCandidate = { kind: 'upgrade', type: 'cookie', name: 'Cursor', obj: { name: 'Cursor' } as never, cost: 1, dCps: 1 };
-    const b = building('Cursor', 15, 1);
-    expect(streakCandidate([up, b], 'Cursor')).toBe(b);
-    expect(streakCandidate([up], 'Cursor')).toBeNull();
+  it('buys one at a time once the stack is a real share of the bank, or would eat the pick', () => {
+    const cursor = building('Cursor', 15, 0.1);
+    const farm = building('Farm', 1100, 8);
+    // stack 5000 > 600 (60s of 10 CpS) and > 1% of 1e5
+    const x = ctx({ bank: 1e5 });
+    expect(autoStackSize(autoDecide([cursor], x), cursor, 5000, x)).toBe(1);
+    // stack 500 is junk, but only 1400 in the bank and the Farm (1100) is the pick
+    const y = ctx({ bank: 1400 });
+    const d = autoDecide([cursor, farm], y);
+    expect(d.buy).toBe(farm);
+    expect(autoStackSize(d, cursor, 500, y)).toBe(1);
+  });
+
+  it('never stacks Wizard towers or upgrades', () => {
+    const x = ctx({ bank: 1e15 });
+    const wiz = building('Wizard tower', 15, 1, AUTO_PREF_WIZARD);
+    expect(autoStackSize(autoDecide([wiz], x), wiz, 300, x)).toBe(1);
+    const up = upgrade('A', 15, 1);
+    expect(autoStackSize(autoDecide([up], x), up, 300, x)).toBe(1);
+  });
+});
+
+describe('junk spree (AUTO-18)', () => {
+  it('buys every insignificant upgrade in one visit', () => {
+    // cps 10 -> insignificant up to 600
+    const ups = [upgrade('A', 50, 1), upgrade('B', 100, 1), upgrade('C', 200, 1)];
+    expect(spree(ups, ctx({ bank: 1e6 })).sort()).toEqual(['A', 'B', 'C']);
+  });
+
+  it('does not hop to something that is not insignificant', () => {
+    const ups = [upgrade('Junk', 50, 1), upgrade('Big', 5000, 100)];
+    // Big is the pick (payback 50s), then Junk; Big itself is only the first buy
+    expect(spree(ups, ctx({ bank: 1e6 }))).toEqual(['Big', 'Junk']);
+    // Junk first (it is the pick on a tight bank), Big isn't junk: the visit ends
+    expect(spree([upgrade('Junk', 50, 10), upgrade('Big', 5000, 100)], ctx({ bank: 6000 }))).toEqual(['Junk']);
+  });
+
+  it('skips junk the paw cannot reach and junk that would leave too little for the pick', () => {
+    const d = autoDecide([upgrade('Far', 50, 1), upgrade('Near', 60, 1), upgrade('Pick', 900, 100)], ctx({ bank: 940 }));
+    expect(d.buy?.name).toBe('Pick');
+    const last = upgrade('Other', 1, 1);
+    // Pick (not junk, left to the next visit) needs 900 of 940: neither 50 nor 60 fits beside it
+    expect(autoSpreeNext(d, last, 940, anywhere)).toBeNull();
+    expect(autoSpreeNext(d, last, 1000, anywhere)?.name).toBe('Far');
+    const far = (c: PurchaseCandidate) => c.name !== 'Far';
+    const d2 = autoDecide([upgrade('Far', 50, 1), upgrade('Near', 60, 1)], ctx({ bank: 1000 }));
+    expect(autoSpreeNext(d2, last, 1000, far)?.name).toBe('Near');
+    expect(autoSpreeNext(d2, last, 1000, () => false)).toBeNull();
   });
 });
 
