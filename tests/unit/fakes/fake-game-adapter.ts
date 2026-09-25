@@ -38,6 +38,7 @@ export class FakeGameAdapter implements IGameAdapter {
   milkProgress: number | null = null;
   achievementsOwned = 0;
   prestige = 0;
+  runStartDate = Date.now();
   elderWrath = 0;
   wrinklers: GameWrinkler[] = [];
   wrinklersMax = 10;
@@ -50,6 +51,7 @@ export class FakeGameAdapter implements IGameAdapter {
   specialTabs: string[] = [];
   specialTab = '';
   krumblorUnlocked = false;
+  easterEggsUnlocked = 0;
 
   isPresent(): boolean {
     return this.present;
@@ -226,6 +228,10 @@ export class FakeGameAdapter implements IGameAdapter {
     return this.prestige;
   }
 
+  getRunStartDate(): number {
+    return this.runStartDate;
+  }
+
   getElderWrath(): number {
     return this.elderWrath;
   }
@@ -303,6 +309,10 @@ export class FakeGameAdapter implements IGameAdapter {
 
   getSpecialTab(): string {
     return this.specialTab;
+  }
+
+  unlockEasterEggs(): number {
+    return this.easterEggsUnlocked;
   }
 
   unlockKrumblor(): boolean {

@@ -8,7 +8,8 @@ original (still kept, frozen, at `legacy/cc-bot.original.js`, section 6
 
 Whenever behavior changes: update the matching requirement ID below, bump
 `VERSION` in `src/core/constants.ts` **and** `version` in `package.json`
-(keep them identical — see NFR-1), and add a changelog entry.
+(keep them identical — see NFR-1), and add a changelog entry. Pure
+documentation changes do not bump the version (NFR-1).
 
 Commit messages: a single lowercase `type: summary` subject line (`fix:`,
 `feat:`, `tweak:`, `docs:`), like the existing history. NEVER add a
@@ -31,8 +32,9 @@ Frenzy, keeps a Grimoire "Force the Hand of Fate" (FTHOF) combo going, and
 shows all of that through a little paw cursor, a HUD, charts and logs. It
 also ships "debug tools" (cheats) to test the hunter on a test save.
 
-Out of scope: seasons, garden, stock market, pantheon, ascending, and any
-Grandmapocalypse beyond stage 1 (WRINK-1).
+Out of scope: seasons (switching them; auto play does buy the Easter egg
+upgrades a season drops, EGG-\*), garden, stock market, pantheon, ascending,
+and any Grandmapocalypse beyond stage 1 (WRINK-1).
 Buying is only done by the optional, OFF-by-default "Auto play" mode
 (AUTO-\*) and even then only through the game's own buy functions. The bot
 NEVER clicks anything except: good golden cookies, the big cookie, the
@@ -394,6 +396,11 @@ See [§7 State machine](#7-state-machine) for how this maps onto code.
   the crumbly egg is unlocked into the store at once (the game's own rule;
   below that it appears once 1M are baked). Fails in red when the egg is
   already bought.
+- **DBG-16** Unlock all easter upgrades: unlocks every Easter egg upgrade
+  (`Game.easterEggs`, normally random drops from golden cookies and
+  wrinklers during Easter season) that is neither unlocked nor bought, so
+  all of them sit in the store (EGG-\*). Fails in red when every egg is
+  already unlocked or bought.
 ### 3.12 Console voice
 
 The bot talks in the browser console, in the same cute style as the UI
@@ -723,6 +730,40 @@ action log (UI-6); nothing here is stored.
   highest building owned (the game's rule). Every step is logged
   (`"krumblor"`). Debug: DBG-15.
 
+### 3.19 Easter eggs (auto play)
+
+During Easter season golden cookies are drawn as bunnies (still
+`type === 'golden'`, so GC-\* is unchanged) and they and popped wrinklers
+drop egg upgrades into the store, where they stay. Each egg makes every
+remaining egg pricier: common ones cost 999 × 2^owned, rare ones 999 ×
+3^owned (`src/autoplay/easter-eggs.ts`).
+
+- **EGG-1** Auto play always buys the egg upgrades, like any other
+  candidate (AUTO-2..4); there is no separate switch.
+- **EGG-2** Values (`easterEggGain()`): the 12 common eggs +1% CpS;
+  Golden goose egg (golden cookies 5% more often) a golden upgrade worth
+  20% × 5% of CpS; Faberge egg (1% cheaper) +1% CpS; Wrinklerspawn 5% of
+  the wrinkler payout (WRINK-1's popMult × 0.05n² × m/(m+1)); Cookie egg
+  10% of the clicking income at the hammer rate; Century egg its boost one
+  day from now (the game's formula, up to +10% on day 100 of the
+  ascension, `Game.startDate`); "egg" +9 base CpS. Any of these that is
+  worth less than 0.1% of CpS right now (Omelette always, Wrinklerspawn at
+  stage 0, a fresh Century egg) gets that nominal value, so it is still
+  bought once its cost is insignificant.
+- **EGG-3** Order: buying an egg triples every rare egg's price but only
+  doubles a common one's, so the 7 rare eggs (all but the Chocolate egg)
+  are preferred (AUTO-4 B) and a common egg is held back while one of them
+  waits in the store in reach (affordable within `autoReachSec`). Bought
+  first, the rare eggs cost ~1M together; after the commons, ~1.6 billion
+  each.
+- **EGG-4** Chocolate egg (bursts into 5% of the bank when bought): only
+  once no other egg waits in the store (buying it first would triple their
+  prices) and the burst is >= 2× its price; its dCps is the burst, so it
+  goes out at once. It is never "saved for".
+- **EGG-5** Every egg goes through the normal purchase path: AUTO-7 gates,
+  store visit + pulse (AUTO-9), `"auto buy"` log with type `egg` (the
+  Golden goose egg: `golden`). Debug: DBG-16.
+
 ## 4. Non-functional requirements
 
 - **NFR-1** Versioning: MAJOR.MINOR.PATCH, shown in the panel. Bump with
@@ -735,9 +776,9 @@ action log (UI-6); nothing here is stored.
   idle mood is a patch, not a minor). Keep `package.json`'s `version` and
   `src/core/constants.ts`'s
   `VERSION` identical, and add a changelog entry (§12) for every bump, not
-  just the ones that ship. The one exception: changes that only touch
-  AGENTS.md or README.md never bump the version and get no changelog
-  entry.
+  just the ones that ship. The one exception: pure documentation changes
+  (AGENTS.md, README.md, anything under `docs/`) never bump the version and
+  get no changelog entry.
 - **NFR-2** No dependencies at runtime, no network, no external assets.
   Runs in page context (`@grant none`) at `document-idle`; a second
   instance refuses to start.
@@ -876,7 +917,7 @@ gainLumps) — still guarded, still the only path to those `Game.*` calls.
 | Routing | `src/routing/route-planner.ts` | `exactRoute` (Held-Karp DP, <= 11 cookies), `heuristicRoute` (nearest-neighbor + 2-opt/Or-opt + restarts), `planRoute` (GC-5) |
 | Idle | `src/idle/` | `idle-behavior.ts` (IdleBehavior module: `idleJob` → IdleWanderAction), `pending-work.ts` (conditions + queue state via `CursorManager.hasJobsAbove` — the shared "is anything more important pending?" predicate) |
 | Input synthesis | `src/input/` | `dispatch.ts` (dispatchMouse/dispatchMove — MOUSE-\*), `human-click.ts` (ClickTiming: delays, waitUntil, humanClick), `cursor-controller.ts` (CursorController: low-level PAW-4 arc/spline/warp travel, moveCursorTo/glideCursor — the only file that writes `runtime.cursor.x/y`), `background-clock.ts` (BackgroundClock: BG-1/BG-2 worker timer), `keep-alive.ts` (BG-3) |
-| Auto play | `src/autoplay/` | `valuation-tables.ts` (AUTO_BLOCKED_\*, AUTO_GOLDEN_UPGRADES, AUTO_KITTEN_POWER, AUTO_FINGER_STEPS, AUTO_BUILDING_CAPS — AUTO-2 data), `building-valuation.ts` + `upgrade-classifier.ts` (AUTO-3 gain math per candidate type), `collector.ts` (`autoCollect`: gathers candidates + ctx, AUTO-7 safety gates), `strategy.ts` (`autoDecide`: the pure insignificant/good/postpone/save decision, AUTO-4 — flagship unit-test target), `shopping.ts` (`AutoPlayEngine`: evaluate/shopJob/statusText, AUTO-1/8/9/10/12), `auto-hammer.ts` (AUTO-11), `grimoire-unlock.ts` (`GrimoireUnlocker`: AUTO-13 gating, steps from GrimoireView), `wrinkler-strategy.ts` (pure: respawn time, maturity, fewest-fattest pick — WRINK-2/3), `grandmapocalypse-valuation.ts` (pure: stage 1 gain, delay, chain-step dCps — WRINK-1), `wrinkler-popper.ts` (`WrinklerPopper`: WRINK-3/4 gating, plan, job, HUD text), `krumblor-strategy.ts` (pure: next Krumblor step — KRUMB-1/2/5), `krumblor.ts` (`KrumblorTrainer`: KRUMB-\* gating, state, jobs, the cursor sale/rebuy), `income-tracker.ts` (smoothed clicking income for AUTO-3's `income`), `buy-value-overlay.ts` (BUY-\*) |
+| Auto play | `src/autoplay/` | `valuation-tables.ts` (AUTO_BLOCKED_\*, AUTO_GOLDEN_UPGRADES, AUTO_KITTEN_POWER, AUTO_FINGER_STEPS, AUTO_BUILDING_CAPS — AUTO-2 data), `building-valuation.ts` + `upgrade-classifier.ts` (AUTO-3 gain math per candidate type), `collector.ts` (`autoCollect`: gathers candidates + ctx, AUTO-7 safety gates), `strategy.ts` (`autoDecide`: the pure insignificant/good/postpone/save decision, AUTO-4 — flagship unit-test target), `shopping.ts` (`AutoPlayEngine`: evaluate/shopJob/statusText, AUTO-1/8/9/10/12), `auto-hammer.ts` (AUTO-11), `grimoire-unlock.ts` (`GrimoireUnlocker`: AUTO-13 gating, steps from GrimoireView), `wrinkler-strategy.ts` (pure: respawn time, maturity, fewest-fattest pick — WRINK-2/3), `grandmapocalypse-valuation.ts` (pure: stage 1 gain, delay, chain-step dCps — WRINK-1), `wrinkler-popper.ts` (`WrinklerPopper`: WRINK-3/4 gating, plan, job, HUD text), `krumblor-strategy.ts` (pure: next Krumblor step — KRUMB-1/2/5), `krumblor.ts` (`KrumblorTrainer`: KRUMB-\* gating, state, jobs, the cursor sale/rebuy), `easter-eggs.ts` (pure-ish: egg values and order — EGG-\*), `income-tracker.ts` (smoothed clicking income for AUTO-3's `income`), `buy-value-overlay.ts` (BUY-\*) |
 | Scheduler | `src/scheduler/` | `priority.ts` (`selectJobRequest`: the SCHED-1 cascade as pure data), `scheduler.ts` (`Scheduler.tick()`: wrath logging, queue build, enqueues ONE job via CursorManager), `overlay-loop.ts` (`OverlayLoop`: the requestAnimationFrame draw loop — hitboxes, buy-value overlay, paw) |
 | Rendering | `src/rendering/` | `paw-cursor.ts` (`PawCursor`: PAW-1..3, sprite rasterizing, click pulse, fallback drawn paw), `overlay-canvas.ts` (resize/DPR handling) |
 | Stats | `src/stats/` | `log.ts` (`LogStore`), `stats.ts` (`StatsRecorder`: GC-6/AUTO-10 counters + hourly buckets) |
@@ -952,8 +993,8 @@ file.**
 
 Three layers, each catching a different class of bug:
 
-1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 319 tests
-   across 35 files. Pure functions (route planner, `autoDecide`, the chart
+1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 330 tests
+   across 36 files. Pure functions (route planner, `autoDecide`, the chart
    engine, `normalizeSetting`) are tested directly with plain data; the
    cursor queue/actions have their own fake mover/timing tests. Classes
    that depend on the game are tested against `FakeGameAdapter`
@@ -1100,6 +1141,23 @@ mouse while the bot runs and confirm the "+N" number follows your cursor,
 not the paw's).
 
 ## 12. Changelog
+
+- **5.2.1** Removed the "Auto: buy Easter eggs" setting (`autoEasterEggs`)
+  from 5.2.0: auto play always buys the Easter eggs (EGG-1).
+
+- **5.2.0** New auto play module: Easter eggs (EGG-\*). Auto play now
+  buys the 8 rare eggs, which matched no candidate type before (the 12
+  common ones were already bought as flat multipliers), each valued by its
+  own effect (`src/autoplay/easter-eggs.ts`, `easterEggGain()`). Every
+  egg now goes through that module. Rare eggs are preferred and the
+  common ones wait for them, since each egg triples the rare ones'
+  prices. The Chocolate egg comes last, once its burst (5% of the bank)
+  is >= 2× its price. New setting "Auto: buy Easter eggs"
+  (`autoEasterEggs`, on) and debug tool "Unlock all easter upgrades"
+  (DBG-16); `IGameAdapter` gains `getRunStartDate()` and
+  `unlockEasterEggs()`. Checked in a local copy of the game (2.058): all
+  20 eggs unlocked by DBG-16 and bought, rare ones first. Unit tests in
+  `tests/unit/easter-eggs.test.ts`.
 
 - **5.1.1** The Krumblor debug tool (DBG-15) is now "Unlock crumblor": it
   grants the heavenly upgrade "How to bake your dragon" instead of only

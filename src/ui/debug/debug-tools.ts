@@ -51,6 +51,7 @@ export class DebugTools {
       { label: 'Spawn a wrinkler', run: () => this.spawnWrinkler() },
       { label: 'Pop a wrinkler', run: () => this.wrinklers.debugPopWrinkler() },
       { label: 'Unlock crumblor', run: () => this.unlockKrumblor() },
+      { label: 'Unlock all easter upgrades', run: () => this.unlockEasterEggs() },
       { label: 'Show buildings view', run: () => this.buildingsNav.debugShowBuildingsView() },
       { label: 'Scroll to Wizard towers', run: () => this.buildingsNav.debugScrollToWizardTowers() },
       { label: 'Show grimoire', run: () => this.buildingsNav.debugShowGrimoire() },
@@ -131,6 +132,18 @@ export class DebugTools {
     return this.game.unlockKrumblor()
       ? '"How to bake your dragon" granted, a crumbly egg is in the store: with auto play on, the paw trains Krumblor owo'
       : '"How to bake your dragon" granted: the crumbly egg shows up once you have baked 1 million cookies';
+  }
+
+  /** DBG-16: puts every Easter egg (usually random golden cookie / wrinkler drops) in the
+   * store. */
+  private unlockEasterEggs(): string {
+    const n = this.game.unlockEasterEggs();
+
+    if (!n) {
+      throw new Error('every Easter egg is already unlocked or bought');
+    }
+
+    return `${n} Easter eggs are in the store now: with auto play on, the paw buys them owo`;
   }
 
   /** DBG-13: one wrinkler crawls into the first free slot. */

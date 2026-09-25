@@ -3,6 +3,7 @@ import type { RuntimeState } from '../core/runtime-state';
 import type { IGameAdapter } from '../game/game-adapter';
 import type { GameBuilding, GameUpgrade } from '../game/types';
 import { autoBuildingGain, autoFingerBonus, autoPerClick, autoUnbuffedCps } from './building-valuation';
+import { EASTER_EGGS, easterEggGain } from './easter-eggs';
 import type { IncomeTracker } from './income-tracker';
 import { autoPrice, autoResearchCandidateGain, autoUpgradeGain } from './upgrade-classifier';
 import {
@@ -176,6 +177,7 @@ export function autoCollect(game: IGameAdapter, data: PersistedData, runtime: Ru
 
   // Grandmapocalypse stage 1 (WRINK-1): the research chain up to One mind, on by default.
   const grandmapocalypse = data.config.autoGrandmapocalypse !== false;
+  const maturity = Math.max(1, num(data.config.autoWrinklerMaturity, 5));
 
   for (const up of game.getUpgradesInStore()) {
     if (!up || up.bought) continue;
@@ -186,7 +188,7 @@ export function autoCollect(game: IGameAdapter, data: PersistedData, runtime: Ru
     if (Object.prototype.hasOwnProperty.call(AUTO_RESEARCH, up.name)) {
       if (!grandmapocalypse) continue;
 
-      const gain = autoResearchCandidateGain(game, up, ctx, Math.max(1, num(data.config.autoWrinklerMaturity, 5)));
+      const gain = autoResearchCandidateGain(game, up, ctx, maturity);
       const cost = autoPrice(up);
 
       if (gain != null && gain > 0 && cost > 0) {
@@ -200,7 +202,8 @@ export function autoCollect(game: IGameAdapter, data: PersistedData, runtime: Ru
       continue;
     }
 
-    const g = autoUpgradeGain(game, up, ctx);
+    // Easter eggs (EGG-*) have their own valuation.
+    const g = EASTER_EGGS.has(up.name) ? easterEggGain(game, up, { ...ctx, maturity, reachSec: cfg.reachSec }) : autoUpgradeGain(game, up, ctx);
     if (!g || !(g.gain > 0)) continue;
 
     const cost = autoPrice(up);
@@ -213,7 +216,7 @@ export function autoCollect(game: IGameAdapter, data: PersistedData, runtime: Ru
       obj: up,
       cost,
       dCps: g.gain,
-      pref: g.type === 'golden' ? AUTO_PREF_GOLDEN : 0,
+      pref: (g as { pref?: number }).pref ?? (g.type === 'golden' ? AUTO_PREF_GOLDEN : 0),
     });
   }
 

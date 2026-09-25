@@ -46,6 +46,8 @@ export interface IGameAdapter {
   getAchievementsOwned(): number;
   /** Game.prestige: the prestige level (each level is worth +1% CpS at full heavenly potential). */
   getPrestige(): number;
+  /** Game.startDate: when the current ascension started (ms since epoch; Century egg). */
+  getRunStartDate(): number;
 
   // ---- Grandmapocalypse / wrinklers (WRINK-*) ----
   /** Game.elderWrath: 0 = calm, 1 awoken (One mind), 2 displeased, 3 angered. */
@@ -87,6 +89,9 @@ export interface IGameAdapter {
   /** Grants the heavenly upgrade "How to bake your dragon"; true when "A crumbly egg" is in
    * the store now (the game only unlocks it once 1M cookies are baked). */
   unlockKrumblor(): boolean;
+  /** Unlocks every Easter egg upgrade (Game.easterEggs) that is not yet unlocked or bought, so
+   * it sits in the store; returns how many were unlocked. */
+  unlockEasterEggs(): number;
 }
 
 export class GameAdapter implements IGameAdapter {
@@ -360,6 +365,12 @@ export class GameAdapter implements IGameAdapter {
     return Game ? Math.max(0, Number(Game.prestige) || 0) : 0;
   }
 
+  getRunStartDate(): number {
+    const Game = window.Game;
+    const t = Game ? Number(Game.startDate) : NaN;
+    return Number.isFinite(t) && t > 0 ? t : Date.now();
+  }
+
   getElderWrath(): number {
     const Game = window.Game;
     return Game ? Number(Game.elderWrath) || 0 : 0;
@@ -630,6 +641,26 @@ export class GameAdapter implements IGameAdapter {
 
     Game.Unlock('A crumbly egg');
     return true;
+  }
+
+  unlockEasterEggs(): number {
+    const Game = window.Game;
+
+    if (!Game || !Array.isArray(Game.easterEggs) || typeof Game.Unlock !== 'function' || !Game.Upgrades) {
+      throw new Error('Game.easterEggs is not available');
+    }
+
+    let n = 0;
+
+    for (const name of Game.easterEggs) {
+      const up = Game.Upgrades[name];
+      if (!up || up.bought || up.unlocked) continue;
+
+      Game.Unlock(name);
+      n++;
+    }
+
+    return n;
   }
 
   /** Debug-only: fills every empty wrinkler slot with an attached wrinkler that has already
