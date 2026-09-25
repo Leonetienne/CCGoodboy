@@ -5,6 +5,8 @@ import type { RuntimeState } from '../core/runtime-state';
 import type { GrimoireView } from '../hunting/grimoire-view';
 import type { AutoPlayEngine } from '../autoplay/shopping';
 import type { WrinklerPopper } from '../autoplay/wrinkler-popper';
+import type { AscensionPlanner } from '../autoplay/ascension';
+import type { AscensionRunner } from '../autoplay/ascension-runner';
 import type { IncomeTracker } from '../autoplay/income-tracker';
 import type { IGameAdapter } from '../game/game-adapter';
 import type { GoldenCookieModel } from '../game/golden-cookie-model';
@@ -53,6 +55,8 @@ export interface BootstrapDeps {
   wrinklerPopper: WrinklerPopper;
   grimoireView: GrimoireView;
   incomeTracker: IncomeTracker;
+  ascension: AscensionPlanner;
+  ascensionRunner: AscensionRunner;
 }
 
 /** The user mouse events that trigger syncGameMouseFromUser(). */
@@ -131,7 +135,7 @@ export class Bootstrap {
       return;
     }
 
-    const { runtime, data, game, log, clock, keepAlive, scheduler, goldenCookieModel, goldenQueue, clickTiming, hurryMode, autoPlay, wrinklerPopper, grimoireView, incomeTracker } =
+    const { runtime, data, game, log, clock, keepAlive, scheduler, goldenCookieModel, goldenQueue, clickTiming, hurryMode, autoPlay, wrinklerPopper, grimoireView, incomeTracker, ascension, ascensionRunner } =
       this.deps;
 
     window.__CCSmartGoldenComboBot = {
@@ -166,6 +170,8 @@ export class Bootstrap {
       clock,
       keepAlive,
       incomeTracker,
+      ascension,
+      ascensionRunner,
     });
 
     this.pawCursor = new PawCursor(runtime);
@@ -190,7 +196,7 @@ export class Bootstrap {
       }
     }, 2000);
 
-    this.overlayLoop = new OverlayLoop(runtime, data, this.uiRoot.overlayCtx, game, autoPlay, this.pawCursor, {
+    this.overlayLoop = new OverlayLoop(runtime, data, this.uiRoot.overlayCtx, game, autoPlay, ascension, ascensionRunner, this.pawCursor, {
       game,
       goldenCookieModel,
       goldenQueue,

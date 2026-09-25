@@ -1,4 +1,4 @@
-import type { CpsBuff, GameBuilding, GameShimmer, GameUpgrade, GameWrinkler, GrimoireMinigame, RawBuff } from './types';
+import type { CpsBuff, GameBuilding, GameShimmer, GameUpgrade, GameWrinkler, GrimoireMinigame, HeavenlyUpgradeInfo, RawBuff } from './types';
 
 /** Every access to the live Cookie Clicker `Game` object goes through this interface. It is
  * the one mockable seam between our logic and the page's own global. */
@@ -52,6 +52,27 @@ export interface IGameAdapter {
   getPrestige(): number;
   /** Game.startDate: when the current ascension started (ms since epoch; Century egg). */
   getRunStartDate(): number;
+
+  // ---- ascension (ASC-*) ----
+  /** Game.heavenlyChips: chips not spent yet. */
+  getHeavenlyChips(): number;
+  /** Game.cookiesReset: cookies of every earlier run (they count for prestige). */
+  getCookiesReset(): number;
+  /** Game.cookiesEarned: cookies baked this run. */
+  getCookiesEarned(): number;
+  /** Game.HCfactor: level = (cookies / 1e12)^(1/HCfactor); 3 in the live game. */
+  getHCFactor(): number;
+  /** True on the ascension screen itself (Game.OnAscend: the heavenly tree is shown), not
+   * during the ascend animation before it. */
+  onAscendScreen(): boolean;
+  /** Every heavenly upgrade (Game.PrestigeUpgrades with pool 'prestige'). */
+  getHeavenlyUpgrades(): HeavenlyUpgradeInfo[];
+  /** The ascend animation between the "Ascend" confirmation and the ascension screen
+   * (Game.AscendTimer running, not on the screen yet). */
+  isAscendIntro(): boolean;
+  /** Pans the heavenly tree by (dx, dy) screen pixels, like dragging it (Game.AscendOffXT/YT,
+   * scaled by the zoom; the game clamps it to the tree's bounds and eases towards it). */
+  panAscendTree(dx: number, dy: number): void;
 
   // ---- Grandmapocalypse / wrinklers (WRINK-*) ----
   /** Game.elderWrath: 0 = calm, 1 awoken (One mind), 2 displeased, 3 angered. */
@@ -415,6 +436,85 @@ export class GameAdapter implements IGameAdapter {
     const Game = window.Game;
     const t = Game ? Number(Game.startDate) : NaN;
     return Number.isFinite(t) && t > 0 ? t : Date.now();
+  }
+
+  getHeavenlyChips(): number {
+    const Game = window.Game;
+    return Game ? Math.max(0, Number(Game.heavenlyChips) || 0) : 0;
+  }
+
+  getCookiesReset(): number {
+    const Game = window.Game;
+    return Game ? Math.max(0, Number(Game.cookiesReset) || 0) : 0;
+  }
+
+  getCookiesEarned(): number {
+    const Game = window.Game;
+    return Game ? Math.max(0, Number(Game.cookiesEarned) || 0) : 0;
+  }
+
+  getHCFactor(): number {
+    const Game = window.Game;
+    const f = Game ? Number(Game.HCfactor) : NaN;
+    return Number.isFinite(f) && f > 0 ? f : 3;
+  }
+
+  onAscendScreen(): boolean {
+    const Game = window.Game;
+    return !!(Game && Game.OnAscend);
+  }
+
+  getHeavenlyUpgrades(): HeavenlyUpgradeInfo[] {
+    const out: HeavenlyUpgradeInfo[] = [];
+
+    try {
+      const Game = window.Game;
+      const list = Game && Array.isArray(Game.PrestigeUpgrades) ? Game.PrestigeUpgrades : [];
+
+      for (const up of list) {
+        if (!up || up.pool !== 'prestige') continue;
+
+        // The game turns the parent names into upgrade objects at load (-1 = none).
+        const parents: string[] = [];
+        for (const p of Array.isArray(up.parents) ? up.parents : []) {
+          if (typeof p === 'string') parents.push(p);
+          else if (p && typeof p === 'object' && typeof p.name === 'string') parents.push(p.name);
+        }
+
+        const price = typeof up.getPrice === 'function' ? Number(up.getPrice()) : Number(up.basePrice);
+
+        out.push({
+          id: Number(up.id),
+          name: String(up.name),
+          price: Number.isFinite(price) ? price : 0,
+          bought: !!up.bought,
+          parents,
+          canBePurchased: !!up.canBePurchased,
+        });
+      }
+    } catch (_e) {
+      return [];
+    }
+
+    return out;
+  }
+
+  isAscendIntro(): boolean {
+    const Game = window.Game;
+    return !!(Game && !Game.OnAscend && Number(Game.AscendTimer) > 0);
+  }
+
+  panAscendTree(dx: number, dy: number): void {
+    try {
+      const Game = window.Game;
+      if (!Game || !Game.OnAscend) return;
+
+      const zoom = Number(Game.AscendZoomT) || 1;
+      Game.AscendOffXT = (Number(Game.AscendOffXT) || 0) + dx / zoom;
+      Game.AscendOffYT = (Number(Game.AscendOffYT) || 0) + dy / zoom;
+    } catch (_e) {
+      /* the tree stays where it is; the step retries */
+    }
   }
 
   getElderWrath(): number {

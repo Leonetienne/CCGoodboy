@@ -4,6 +4,8 @@ import type { RuntimeState } from '../core/runtime-state';
 import type { GrimoireView } from '../hunting/grimoire-view';
 import type { AutoPlayEngine } from '../autoplay/shopping';
 import type { WrinklerPopper } from '../autoplay/wrinkler-popper';
+import type { AscensionPlanner } from '../autoplay/ascension';
+import type { AscensionRunner } from '../autoplay/ascension-runner';
 import type { IncomeTracker } from '../autoplay/income-tracker';
 import type { IGameAdapter } from '../game/game-adapter';
 import type { GoldenCookieModel } from '../game/golden-cookie-model';
@@ -38,6 +40,8 @@ export interface UiRootDeps {
   clock: BackgroundClock;
   keepAlive: KeepAliveController;
   incomeTracker: IncomeTracker;
+  ascension: AscensionPlanner;
+  ascensionRunner: AscensionRunner;
 }
 
 /** Builds the whole interface once at start: overlay canvas, HUD panel, graphs/logs/debug
@@ -58,7 +62,7 @@ export class UiRoot {
 
   constructor(deps: UiRootDeps) {
     this.deps = deps;
-    const { runtime, data, game, log, goldenCookieModel, goldenQueue, clickTiming, hurryMode, autoPlay, wrinklerPopper, grimoireView, clock, keepAlive, incomeTracker } = deps;
+    const { runtime, data, game, log, goldenCookieModel, goldenQueue, clickTiming, hurryMode, autoPlay, wrinklerPopper, grimoireView, clock, keepAlive, incomeTracker, ascension, ascensionRunner } = deps;
 
     injectStyles();
     applyFrameOpacity(data.config.frameOpacity ?? 0.95);
@@ -81,7 +85,7 @@ export class UiRoot {
     this.debugPanel = new DebugPanel(this.debugTools);
     document.body.appendChild(this.debugPanel.element);
 
-    this.panelUpdater = new PanelUpdater(this.panel, runtime, data, game, goldenCookieModel, goldenQueue, clickTiming, hurryMode, autoPlay, wrinklerPopper, clock, keepAlive);
+    this.panelUpdater = new PanelUpdater(this.panel, runtime, data, game, goldenCookieModel, goldenQueue, clickTiming, hurryMode, autoPlay, wrinklerPopper, ascension, ascensionRunner, clock, keepAlive);
 
     this.settingsPanel = new SettingsPanel(this.panel, data, runtime, keepAlive, () => {
       applyFrameOpacity(data.config.frameOpacity);
@@ -132,6 +136,7 @@ export class UiRoot {
     bindCheckbox('ccsb-auto-grandmapocalypse', data.config.autoGrandmapocalypse !== false);
     bindCheckbox('ccsb-auto-pop-wrinklers', data.config.autoPopWrinklers !== false);
     bindCheckbox('ccsb-auto-krumblor', data.config.autoKrumblor !== false);
+    bindCheckbox('ccsb-auto-ascend', data.config.autoAscend !== false);
 
     autoPlay.applyVisibility();
 
@@ -139,6 +144,12 @@ export class UiRoot {
 
     document.getElementById('ccsb-auto-toggle')!.addEventListener('click', () => {
       autoPlay.setAutoPlay(data.config.autoPlay !== true);
+      this.panelUpdater.update();
+    });
+
+    document.getElementById('ccsb-ascend-overlay')!.addEventListener('click', () => {
+      data.config.showAscendOverlay = data.config.showAscendOverlay === false;
+      data.scheduleSave();
       this.panelUpdater.update();
     });
 

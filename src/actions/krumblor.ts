@@ -16,6 +16,8 @@ export interface DragonClickParams {
   /** Checked SETTLE_MS after the click: did the click do what it should? */
   onResult: (ok: boolean) => void;
   worked: () => boolean;
+  /** Runs right after the click, before the settle (the ascension claims its prompt here). */
+  onClicked?: () => void;
   /** HUD mood (§7); 'krumblor' unless given (Santa's popup uses 'santa'). */
   mood?: string;
 }
@@ -45,6 +47,7 @@ export class DragonClickAction implements CursorAction {
     if (!el) return;
 
     await ctx.clickTiming.humanClick(el, ctx.runtime.cursor.x, ctx.runtime.cursor.y);
+    this.p.onClicked?.();
     await ctx.clock.sleep(SETTLE_MS);
 
     this.p.onResult(this.p.worked());

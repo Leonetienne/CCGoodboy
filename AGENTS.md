@@ -39,8 +39,11 @@ also ships "debug tools" (cheats) to test the hunter on a test save.
 
 Out of scope: seasons (switching them; auto play does buy the Easter egg
 upgrades a season drops, EGG-\*, and the Christmas upgrades, evolving Santa,
-XMAS-\*), garden, stock market, pantheon, ascending,
-and any Grandmapocalypse beyond stage 1 (WRINK-1).
+XMAS-\*), garden, stock market, pantheon, challenge modes and permanent
+upgrade slots when ascending (auto play ascends by itself unless "Auto:
+ascend" is switched off, ASC-10; without auto play the ascension plan is
+only shown), and any
+Grandmapocalypse beyond stage 1 (WRINK-1).
 Buying is only done by the optional, OFF-by-default "Auto play" mode
 (AUTO-\*) and even then only through the game's own buy functions. The bot
 NEVER clicks anything except: good golden cookies, reindeer (XMAS-6), the big cookie, the
@@ -49,8 +52,9 @@ Options/Stats menu buttons and the "View Grimoire" button needed to get the
 FTHOF spell on screen (FT-8), and — in auto play only — the Wizard tower's
 "lvl" button (AUTO-13), mature wrinklers (WRINK-5), Krumblor's tab,
 popup and aura picker (KRUMB-3) and Santa's tab, "Evolve" button and popup
-"x" (XMAS-4) (the paw only "visits" store items,
-AUTO-9).
+"x" (XMAS-4), and with "Auto: ascend" the Legacy button, the "Ascend" /
+"Reincarnate" prompts, heavenly upgrade crates and the Reincarnate button
+(ASC-10) (the paw only "visits" store items, AUTO-9).
 
 ## 2. Terms
 
@@ -80,6 +84,10 @@ AUTO-9).
 | respawn time | how long an emptied wrinkler slot takes to digest again: `1 / (spawn chance per frame × fps) + 10s` crawl (~56 min at stage 1: 0.00001 per frame). |
 | Krumblor | the cookie dragon, unlocked by the upgrade "A crumbly egg" (in the store once the heavenly upgrade "How to bake your dragon" is owned and 1M cookies are baked). `Game.dragonLevel` 0-4 are egg levels paid in cookies (1M × 2^level), level 5 → 6 ("Train Dragon Cursor") sacrifices 100 cursors; aura `id` is known from level `id + 4`. |
 | Santa | the Christmas special, unlocked by the upgrade "A festive hat" (in the store during Christmas season once 25 cookies are baked). `Game.santaLevel` 0 (Festive test tube) to 14 (Final Claus); evolving from level `l` costs `(l+1)^(l+1)` cookies and unlocks one Santa gift (`Game.santaDrops`), which costs `2525 × 3^santaLevel`. |
+| prestige level | `Game.prestige`; each level is +1% CpS (at full heavenly potential) and one heavenly chip. Ascending sets it to `floor(((cookiesReset + cookiesEarned) / 1e12)^(1/3))`, the game's `Game.HowMuchPrestige` (`Game.HCfactor` = 3). |
+| pending level | the prestige level ascending right now would give; pending − current = the levels (and chips) gained. |
+| lucky level | a prestige level containing enough 7s ANYWHERE in its digits for a lucky heavenly upgrade: >= 1 for Lucky digit (777 chips), >= 2 for Lucky number (77,777), >= 4 for Lucky payout (77,777,777). This is the game's `showIf` (`(Game.prestige+'').split('7').length-1`), checked on the ascension screen against the new level. |
+| stagnating | a run whose marginal prestige rate (levels per hour at the current income) has fallen below its average rate since the run started: ascending now maximises levels per hour (ASC-3). |
 | mature | a wrinkler that has digested for >= "maturity" × the respawn time (estimated as `sucked / (CpS × cpsSucked)`). |
 
 ## 3. Functional requirements
@@ -220,6 +228,9 @@ refactor) which `tests/visual/scenarios.mjs` scenario exercises it.
 - **LUMP-6** Each successful harvest is recorded (`stats.lumpHarvests`,
   shown in the HUD statistics row) and logged (`"harvest sugar lump"`).
   Debug: "Ripen growing sugar lump" / DBG-8.
+- **LUMP-7** Not while ascending (the intro or the ascension screen): the
+  lump isn't there to click, and a ripe lump must not hold back the
+  ascension at the tier below (ASC-10).
 
 ### 3.6 Scheduling and priority
 
@@ -229,7 +240,8 @@ refactor) which `tests/visual/scenarios.mjs` scenario exercises it.
   3. FTHOF cast (and its FT-8 preparation steps), then lump refill
   4. a ripe sugar lump (LUMP-\*)
   5. a buildings-view recipe already under way / the "Show grimoire"
-     debug goal (DBG-9/11), then auto play: Grimoire unlock (AUTO-13),
+     debug goal (DBG-9/11), then auto play: an ascension that is due or
+     under way (ASC-10), then the Grimoire unlock (AUTO-13),
      then a Krumblor step (KRUMB-\*), then a Santa step (XMAS-4), then
      popping a wrinkler for a purchase (WRINK-3), then shopping (only when a purchase is due,
      AUTO-8)
@@ -318,9 +330,10 @@ See [§7 State machine](#7-state-machine) for how this maps onto code.
   saved and kept on screen). Title shows the script version.
 - **UI-2** Rows: Mood, Chasing, Shinies waiting (ready / fading in /
   wrath), Click Frenzy, Buffies, Grimoire, LOCK_A, Click cooldown,
-  Background, Wrinklers (WRINK-7), Auto play, statistics.
-- **UI-3** Buttons: Pause/Resume, Hammer cookie, Auto play, Graphs, Logs,
-  Debug tools, Settings.
+  Background, Wrinklers (WRINK-7), Ascension (ASC-5), Auto play,
+  statistics.
+- **UI-3** Buttons: Pause/Resume, Hammer cookie, Auto play, Ascend overlay
+  (ASC-6), Graphs, Logs, Debug tools, Settings.
 - **UI-4** Settings are STAGED: editing only marks "unsaved"; "Save
   settings" (or Enter) validates, clamps, applies and stores them at once.
 - **UI-5** Graphs: hourly golden-cookie clicks by effect and Grimoire
@@ -445,7 +458,10 @@ action log (UI-6); nothing here is stored.
   (WRINK-6), `"Krumblor wears Dragon Cursor now, clicky clicky ^w^"`
   once the aura is on (KRUMB-5), and `"Santa is Final Claus now, ho ho ho
   ^w^"` once Santa reaches his last level (XMAS-4); a caught reindeer
-  says `"Caught a reindeer!! Ho ho ho, gewd boy :3"` (XMAS-6).
+  says `"Caught a reindeer!! Ho ho ho, gewd boy :3"` (XMAS-6); an
+  automatic ascension says `"Ascending!! See you on the other side, cookies
+  ^w^"` and, after reincarnating, `"Back in the mortal world, time to bake
+  again :3"` (ASC-10).
 - **CON-2** "Wanted to ..., but ..." lines (`console.log`) whenever the bot
   wants to do something and can't. Conditions re-checked every scheduler
   tick go through `sayCantWhile(wish, reasonCode, msg)`, which says each
@@ -464,7 +480,8 @@ action log (UI-6); nothing here is stored.
   One-off events use `sayCant(msg)`: a golden cookie click that didn't pop
   it (not for storm drops) or a reindeer that ran away, a FTHOF/refill/lump click that did nothing,
   FT-8 preparation falling back to a direct cast, the Grimoire unlock,
-  wrinkler popping, Krumblor training or Santa's evolution pausing (with the reason), a purchase the shop refused,
+  wrinkler popping, Krumblor training, Santa's evolution or an ascension
+  pausing (with the reason), a heavenly upgrade the ascension skips, a purchase the shop refused,
   a failed debug tool or "Show grimoire".
 - **CON-3** Errors (`sayOops`, `console.error` with the error object): a
   failing action (SCHED-4, `CursorManager`), a failing timer callback, the
@@ -574,6 +591,8 @@ action log (UI-6); nothing here is stored.
   purchases, AUTO-14), >= 400ms between purchases; a failed purchase / an
   error pauses it (3s / 30s). "Auto play dry run" only logs what it WOULD
   buy.
+  `shoppingAllowed()` checks the prompt itself, so shopping never starts a
+  trip while one is open (the ascension's "Ascend" prompt, ASC-10).
 - **AUTO-8** Priority: below golden cookies, Click Frenzy and
   FTHOF/refill, above hammer mode, dance and idle; a due purchase
   interrupts hammering and idle play at once.
@@ -923,6 +942,177 @@ unlocks Santa's dominion. Clicked reindeer drop the 7 reindeer biscuits
   cookie storm/chain checks still only look at golden cookies. Debug:
   DBG-19.
 
+### 3.21 Ascension: planning, tips and auto ascension
+
+The bot works out when ascending would pay off, at which level and what to
+buy in heaven (ASC-1..9), and shows it. With auto play on (and "Auto:
+ascend", on by default) the bot also ascends by itself (ASC-10). Pure logic in `src/autoplay/ascension-strategy.ts`,
+`heavenly-shopping.ts` and `ascension-steps.ts`, the live planner in
+`ascension.ts`, the automation in `ascension-runner.ts`, the overlay in
+`ascension-overlay.ts`.
+
+- **ASC-1** Pending level = `floor(((Game.cookiesReset +
+  Game.cookiesEarned + the wrinklers' payout) / 1e12)^(1/HCfactor))`, the
+  same computation the game uses when ascending (so a total exactly on a
+  level boundary floors like the game does). The wrinklers' payout
+  (digested × pop multiplier, shiny ones too) counts because the bot pops
+  them all before ascending (ASC-10); the game throws them away on reset.
+  Levels gained = pending − `Game.prestige`; chips after ascending =
+  `Game.heavenlyChips` + that gain.
+- **ASC-2** Income = cookies per second over the last 30 minutes, measured
+  from the all-time cookie count (sampled every 5s), so CpS, clicks, golden
+  cookie payouts and popped wrinklers all count and one combo is only a bump
+  in it; unbuffed CpS until 2 minutes of history exist (e.g. after a
+  reload).
+- **ASC-3** Stagnation: the marginal rate (income × 3600 / the cookie cost
+  of the next level) is below the run's average (levels gained / hours
+  since `Game.startDate`).
+- **ASC-4** Verdict, checked in this order: no level to gain → "no gain";
+  below the ASC-8 boost → "too small"; not stagnating (ASC-3) → "growing";
+  the shopping list (ASC-9) needs a level above the pending one → "waiting
+  for level L to afford <wish>"; otherwise "would ascend now". So an
+  ascension needs BOTH a noticeable boost (ASC-8) AND a run that stagnates
+  (ASC-3): a run still making prestige quickly keeps going however big the
+  boost already is; and then it waits until its heavenly shopping list is
+  paid for, rather than ascending a few chips short.
+- **ASC-8** Noticeable impact: the prestige CpS bonus after ascending
+  (+1% per level, assuming full heavenly potential) must be at least
+  "Ascend: minimum CpS boost (x)" (`ascendMinBoost`, default 2) times the
+  bonus now. With 2: a first ascension needs 100 levels, 1,000 prestige
+  needs 2,100. Merely breaking even never counts (e.g. 0 + 10 levels is
+  x1.10).
+- **ASC-9** Heavenly shopping list (`src/autoplay/heavenly-shopping.ts`,
+  `planHeavenlyShopping()`): a hardcoded priority list of 41 heavenly
+  upgrades (`HEAVENLY_PRIORITY`, names checked against the game's
+  `main.js` 2.058; left out: permanent upgrade slots, the golden switch and
+  other switches, cosmetics and extras the bot can't use). Walked in order
+  from the first level worth ascending at (the pending level or the ASC-8
+  level, whichever is higher); each wish is taken with every parent not
+  owned yet (read live from `Game.PrestigeUpgrades`, 1 chip per level), as
+  long as the run reaches a level paying for everything taken so far
+  within "Ascend: wait for heavenly upgrades up to (s)" (`ascendShopWaitSec`,
+  default 21600) AND the extra levels stay a small share of what the
+  ascension gains anyway: "Ascend: wait for heavenly upgrades at most (x
+  levels gained)" (`ascendShopWaitShare`, default 0.1: at +47,826 levels at
+  most ~4,800 more), so the bot waits when it is a few chips short, never
+  for a wish that would take a big part of another run (a wish already
+  paid for at the current level needs no wait). The first ordinary wish that is too far off ends the list: its
+  chips are kept for it, nothing below it is bought. The lucky upgrades are
+  wishes too, but they also need a level with enough 7s (§2) — the lucky
+  level for everything taken so far — within "Ascend: wait for a lucky
+  level up to (s)" (`ascendLuckyWaitSec`, default 86400; the share cap
+  does not apply to them: a missed lucky level is hard to get back, and the run keeps earning levels while it
+  waits); one out of reach is skipped without ending the list. Result: the
+  level to ascend at, the upgrades to buy there in buying order (parents
+  first), the wish the run waits for, and the wish it saves for next.
+- **ASC-5** Plain wording, one fact per line (`planLines()`,
+  `src/autoplay/ascension.ts`), used by the HUD row "Ascension" (joined
+  with "; "; hidden until there is prestige or a level to gain) and the
+  Legacy card (ASC-6):
+  (1) a headline that says what to do: "ASCEND NOW", "WAIT: ascend at level
+  L (~ETA)", "NOT YET: prestige still comes in fast", "NOT YET: too few
+  levels to be worth it" or "NOT YET: no prestige level to gain";
+  (2) why, in plain words (e.g. "then the chips also pay for X", "N
+  levels/h now, M levels/h on average this run", "CpS bonus would grow
+  x1.10, wanted x2.00 (level 100, ~ETA)");
+  (3) "Prestige: current -> pending";
+  (4) "CpS bonus after ascending: xN" and "Heavenly chips to spend: N"
+  (unspent chips + the levels gained);
+  (5) only for ASCEND NOW / WAIT: "Buy in heaven: N upgrades (X chips)" and,
+  for the next wish this ascension does NOT wait for, "Later: X (cost
+  chips)" plus "N chips left over after buying = P% of it";
+  (6) the ASC-11 "Bot:" line.
+- **ASC-6** Overlay (with "Pretty overlays" and the "Ascend overlay" HUD
+  button on, `showAscendOverlay`, default on): a box around the Legacy
+  button (`#legacyButton`), gold and solid for ASCEND NOW, dashed otherwise
+  (amber WAIT, baby blue NOT YET while prestige still comes in fast,
+  lavender the other NOT YETs), with a card under it. Collapsed by default
+  to one line, the level after ascending and the answer ("Lv 54,369 ·
+  ASCEND NOW" / "· WAIT" / "· NOT YET", `compactLine()`); while the real
+  mouse is over the card itself (the canvas takes no mouse events, so it
+  uses the tracked real mouse position, `runtime.userMouse`; the open card
+  covers the collapsed one's spot, so it stays open while hovered) it shows
+  all the ASC-5 lines (the headline in the box's colour). While the mouse
+  is over the Legacy button itself, the box and the card are not drawn at
+  all, so the game's own Legacy tooltip stays readable. The card's right edge sits on the
+  Legacy frame's right edge, so it grows to the left and never into the
+  store.
+- **ASC-7** On the ascension screen every heavenly upgrade on screen
+  (`#heavenlyUpgrade{id}`) gets a box: on the shopping list for the chips
+  owned right now (ASC-9 without waiting) thick pink with its place in the
+  buying order above it; otherwise owned faint lavender, buyable and
+  affordable green, buyable but too pricey amber dashed, not available yet
+  (parent missing) red dashed, lucky upgrades gold (solid when buyable and
+  affordable). Unowned ones carry their price under the crate (a
+  not-yet-available lucky one: how many 7s it needs); the Reincarnate
+  button (`#ascendButton`) gets a box, the chips to spend and the list.
+  Its card (`heavenScreenLines()`) says "BUY THE PINK ONES, in order (1, 2,
+  3...)", "N upgrades for X of your Y chips", "then click Reincarnate" (or
+  "NOTHING TO BUY: click Reincarnate"), the "Later:" lines and the Bot line.
+- **ASC-11** Bot line (`AscensionRunner.botLine()`), always the last line
+  of the HUD row and the cards, so nothing has to be guessed from a missing
+  line: "Bot: auto play is off, so it won't ascend by itself", "Bot: "Auto:
+  ascend" is off, so it won't ascend by itself", "Bot: dry run, it only
+  writes "would ascend" in the log", "Bot: will ascend by itself once it
+  pays off" (NOT YET), "Bot: will ascend by itself at level L" (WAIT), "Bot:
+  popping the wrinklers first, then ascending", "Bot: ascending now", or
+  "Bot: will ascend once <reason>" (the buffs are over, golden cookies and
+  frenzies are done, the open prompt is closed, its pause after a hiccup is
+  over, the next lucky level ...); on the ascension screen "Bot: buying the
+  pink ones, then reincarnating" for its own ascension, else "Bot: you
+  ascended yourself, so the buying is up to you".
+- **ASC-10** Auto ascension: with auto play and "Auto: ascend"
+  (`config.autoAscend`, DEFAULT ON; auto play itself is off by default), the bot
+  acts on the "would ascend now" verdict (ASC-4), one step per scheduler
+  tick re-derived from the live game (`nextAscensionStep()`), every step a
+  real synthetic click or a visible drag (NFR-8):
+  (1) pop every attached wrinkler, shiny ones too, fattest first
+  (`WrinklerPopAction`; the game would throw their cookies away);
+  (2) click the Legacy button (`#legacyButton`) and the visible "Ascend" in
+  its prompt (`#promptContentAscend #promptOption0`); the prompt counts as
+  its own from the Legacy click on (`DragonClickParams.onClicked`), so no
+  other module gets a tick in between; if the moment passes while that
+  prompt is open (a golden cookie, a buff) it clicks "Cancel";
+  (3) sit out the ~5s ascend animation (`WaitWhileAction`, nothing below
+  its tier runs);
+  (4) buy the shopping list for the chips on hand (ASC-9 without waiting)
+  crate by crate (`#heavenlyUpgrade{id}`, looked up fresh since every
+  purchase rebuilds the tree), first dragging the tree so the crate sits in
+  the middle of the screen when it is not (`DragTreeAction`: the paw
+  presses and slides, the tree pans through `Game.AscendOffXT/YT`); a
+  crate missing from the tree or failing 3 times is skipped, and after 3
+  minutes in heaven the rest of the list is;
+  (5) click Reincarnate (`#ascendButton`) and "Yes" in its prompt;
+  (6) reset the bot's per-run state (`RuntimeState.resetForNewRun()`: LOCK_A,
+  plans, Krumblor/Santa/wrinkler bookkeeping, the auto hammer's
+  calibration) and hold the scheduler 3s while the game rebuilds.
+  Gates (for steps 1-2): the AUTO-7 ones (no golden cookie ready, Click
+  Frenzy, storm/chain, FTHOF/refill pending, paused, a prompt other than
+  its own), no CpS buff at all, and ASC-12; its own pause only
+  (`ascendBlockUntil`), never shopping's (`autoBlockUntil`, which shopping
+  sets whenever a re-plan is refused). It only ever finishes an ascension it
+  started (a reload on the ascension screen leaves it to the player). A
+  click that didn't do its job pauses it 3s, an element that doesn't show
+  up for 5s pauses it 10s. Dry run only logs "would ascend". Priority: tier
+  5, first (an ascension due or under way outranks the other auto play
+  steps and interrupts hammering and idle play). Logged as `"ascend"`
+  (with the level, gain and shopping list), `"heavenly upgrade"` per
+  purchase; counted in `stats.ascensions` ("Ascensions" in the HUD
+  statistics once > 0).
+- **ASC-12** The 7s survive the pops: the planner's pending level already
+  includes the wrinklers' exact payout (the game's pop formula, ASC-1), and
+  the game earns nothing during the ascend animation, so the level is only
+  at risk from income while the paw pops wrinklers and walks to Legacy.
+  When the shopping list holds a lucky upgrade (`shop.sevens` > 0) the plan
+  says how long the pending level keeps those 7s at the current income
+  (`luckySafeSec`: until the first higher level with too few), and the bot
+  only starts when that is at least 30s + 5s per attached wrinkler
+  (`LUCKY_MARGIN_SEC`, `LUCKY_MARGIN_PER_POP_SEC`), and only confirms its
+  own "Ascend" prompt with >= 2s left; else it lets that lucky level go
+  (ASC-11: "Bot: will ascend once the next lucky level ...") and the plan moves
+  on to the next one. Without a lucky upgrade on the list the 7s are
+  ignored.
+
 ## 4. Non-functional requirements
 
 - **NFR-1** Versioning: MAJOR.MINOR.PATCH, shown in the panel. Bump with
@@ -997,6 +1187,11 @@ saved (see `normalizeSetting()` in
 | `frameOpacity` | Frame opacity (0.1-1) | 0.95 | 0.1-1 |
 | `overlayOpacity` | Overlay opacity (0.1-1) | 1 | 0.1-1 |
 | `keepAlive` | Background keep-alive (silent audio) [checkbox] | true | – |
+| `ascendMinBoost` | Ascend: minimum CpS boost (x) (ASC-8) | 2 | 1-100 |
+| `ascendShopWaitSec` | Ascend: wait for heavenly upgrades up to (s) (ASC-9) | 21600 | 0-2592000 |
+| `ascendShopWaitShare` | Ascend: wait for heavenly upgrades at most (x levels gained) (ASC-9) | 0.1 | 0-1 |
+| `ascendLuckyWaitSec` | Ascend: wait for a lucky level up to (s) (ASC-9) | 86400 | 0-2592000 |
+| `showAscendOverlay` | (Ascend overlay button, stored; ASC-6) | true | – |
 | `grimoireFthof` | Grimoire: cast Force the Hand of Fate [checkbox] (FT-9) | true | – |
 | `spendLumps` | Spend sugar lumps [checkbox] (FT-9: refills, AUTO-13 unlock) | true | – |
 | `autoPlay` | (Auto play button, stored) | false | – |
@@ -1015,6 +1210,7 @@ saved (see `normalizeSetting()` in
 | `autoGrandmapocalypse` | Auto: grandmapocalypse stage 1 (wrinklers) [checkbox] | true | – |
 | `autoPopWrinklers` | Auto: pop wrinklers for purchases [checkbox] | true | – |
 | `autoKrumblor` | Auto: train Krumblor (Dragon Cursor) [checkbox] | true | – |
+| `autoAscend` | Auto: ascend (and buy heavenly upgrades) [checkbox] (ASC-10) | true | – |
 
 (all "Auto" settings are only shown while Auto play is on)
 
@@ -1069,15 +1265,15 @@ gainLumps) — still guarded, still the only path to those `Game.*` calls.
 | Area | Path | Contents |
 |---|---|---|
 | Core state | `src/core/` | `constants.ts` (VERSION, clamp helpers), `console-voice.ts` (CON-\*), `persisted-data.ts`, `runtime-state.ts`, `state-machine.ts` |
-| Game facade | `src/game/` | `game-adapter.ts` (IGameAdapter + GameAdapter), `types.ts` (GameShimmer/RawBuff/CpsBuff/GrimoireMinigame/GameBuilding/GameUpgrade), `golden-cookie-model.ts` (fade curve, shimmer classification, GC-2/GC-3), `hurry-mode.ts` (HURRY-\*), `buffs-lock.ts` (LOCK_A, FT-6), `grimoire.ts` (FTHOF spell/cost lookup), `grimoire-dom.ts` (real Grimoire controls — FT-7), `lump-dom.ts` (`#lumps` control/centre — LUMP-\*), `wrinkler-dom.ts` (`#backgroundLeftCanvas`, a wrinkler's body point — WRINK-5), `dragon-dom.ts` (the special tabs on the left canvas, `#specialPopup`, the aura picker, Santa's "Evolve" button — KRUMB-3/XMAS-4), `buildings-view-dom.ts` (`#centerArea`, menu buttons, building rows/level buttons, the Options/Stats/Stats recipe, `centeredScrollTop` — AUTO-13), `reindeer.ts` (a reindeer's predicted path and the paw's meeting point — XMAS-6), `store-dom.ts` (the collapsible upgrade store sections, opened while the paw is there — AUTO-9), `dom-geometry.ts` (visibleRect/looseRect/clippedByAncestor — shared by every overlay box, GC-2/BUY-3) |
+| Game facade | `src/game/` | `game-adapter.ts` (IGameAdapter + GameAdapter), `types.ts` (GameShimmer/RawBuff/CpsBuff/GrimoireMinigame/GameBuilding/GameUpgrade), `golden-cookie-model.ts` (fade curve, shimmer classification, GC-2/GC-3), `hurry-mode.ts` (HURRY-\*), `buffs-lock.ts` (LOCK_A, FT-6), `grimoire.ts` (FTHOF spell/cost lookup), `grimoire-dom.ts` (real Grimoire controls — FT-7), `lump-dom.ts` (`#lumps` control/centre — LUMP-\*), `wrinkler-dom.ts` (`#backgroundLeftCanvas`, a wrinkler's body point — WRINK-5), `dragon-dom.ts` (the special tabs on the left canvas, `#specialPopup`, the aura picker, Santa's "Evolve" button — KRUMB-3/XMAS-4), `buildings-view-dom.ts` (`#centerArea`, menu buttons, building rows/level buttons, the Options/Stats/Stats recipe, `centeredScrollTop` — AUTO-13), `reindeer.ts` (a reindeer's predicted path and the paw's meeting point — XMAS-6), `ascension-dom.ts` (the Legacy button, the Ascend/Reincarnate prompts, heavenly crates, the Reincarnate button, how far to drag the tree — ASC-10), `store-dom.ts` (the collapsible upgrade store sections, opened while the paw is there — AUTO-9), `dom-geometry.ts` (visibleRect/looseRect/clippedByAncestor — shared by every overlay box, GC-2/BUY-3) |
 | Cursor (queue) | `src/cursor/` | `types.ts` (`JOB_PRIORITY`, `CursorAction`, `CursorJob`, `CursorJobContext`, `CursorMover`, `CursorClickTiming`, `JobRequest`), `cursor-manager.ts` (owns the priority queue + all cursor motion: click gap → travel → pre-click pause → `cursor_at_position`, dedup by key, preemption, single cursor writer) |
-| Actions | `src/actions/` | `click-element.ts` (ClickElementAction/MoveAction/VisualPressAction), `golden-cookie.ts` (GoldenCookieAction, `effectPrettyName`), `hammer.ts` (HammerAction + big-cookie point helpers, CF-\*), `fthof.ts` (FthofAction/RefillAction), `lump-harvest.ts` (LumpHarvestAction, LUMP-\*), `buildings-view.ts` (MenuButtonAction, ScrollIntoViewAction, MinigameButtonAction — FT-8/AUTO-13/DBG-9..11), `grimoire-unlock.ts` (GrimoireUnlockAction, AUTO-13), `wrinkler-pop.ts` (WrinklerPopAction, WRINK-5), `krumblor.ts` (DragonClickAction/DragonStoreAction, KRUMB-3; Santa's clicks reuse DragonClickAction, XMAS-4), `store-visit.ts` (`enterStoreElement`: the paw opening an upgrade's store section and moving onto the crate, AUTO-9), `dance.ts` (DanceAction + `danceEligible`/`anyGoldenPresent`/`getDanceMs`), `ponder.ts` (PonderAction), `idle.ts` (IdleWanderAction + `IDLE_SPOTS`/`pickIdleSpot`) |
+| Actions | `src/actions/` | `click-element.ts` (ClickElementAction/MoveAction/VisualPressAction), `golden-cookie.ts` (GoldenCookieAction, `effectPrettyName`), `hammer.ts` (HammerAction + big-cookie point helpers, CF-\*), `fthof.ts` (FthofAction/RefillAction), `lump-harvest.ts` (LumpHarvestAction, LUMP-\*), `buildings-view.ts` (MenuButtonAction, ScrollIntoViewAction, MinigameButtonAction — FT-8/AUTO-13/DBG-9..11), `grimoire-unlock.ts` (GrimoireUnlockAction, AUTO-13), `wrinkler-pop.ts` (WrinklerPopAction, WRINK-5), `krumblor.ts` (DragonClickAction/DragonStoreAction, KRUMB-3; Santa's and the ascension's clicks reuse DragonClickAction, XMAS-4/ASC-10), `ascension.ts` (WaitWhileAction, DragTreeAction — ASC-10), `store-visit.ts` (`enterStoreElement`: the paw opening an upgrade's store section and moving onto the crate, AUTO-9), `dance.ts` (DanceAction + `danceEligible`/`anyGoldenPresent`/`getDanceMs`), `ponder.ts` (PonderAction), `idle.ts` (IdleWanderAction + `IDLE_SPOTS`/`pickIdleSpot`) |
 | Hunting (modules) | `src/hunting/` | `click-golden.ts` (golden hunter: `jobFor` → GoldenCookieAction), `click-big-cookie.ts` (hammer module: `job` → HammerAction), `golden-queue.ts` (route caching, wraps route-planner), `fthof.ts` (FthofActions: `fthofOrRefillPending` + `castJob`/`refillJob`), `lump-harvest.ts` (LumpHarvestActions: `pending` + `harvestJob`), `happy-dance.ts` (HappyDance: `job` → DanceAction), `buildings-view.ts` (BuildingsViewNavigator: Options/Stats/Stats recipe + scroll-into-view steps, `PrepStep`), `grimoire-view.ts` (GrimoireView: step planner to an unlocked/open, on-screen Grimoire — FT-8/AUTO-13 — plus the DBG-9..11 tools and their scheduler tier), `hitbox-overlay.ts` (GC-2) |
 | Routing | `src/routing/route-planner.ts` | `exactRoute` (Held-Karp DP, <= 11 cookies), `heuristicRoute` (nearest-neighbor + 2-opt/Or-opt + restarts), `planRoute` (GC-5) |
 | Idle | `src/idle/` | `idle-behavior.ts` (IdleBehavior module: `idleJob` → IdleWanderAction), `pending-work.ts` (conditions + queue state via `CursorManager.hasJobsAbove` — the shared "is anything more important pending?" predicate) |
 | Input synthesis | `src/input/` | `dispatch.ts` (dispatchMouse/dispatchMove — MOUSE-\*), `human-click.ts` (ClickTiming: delays, waitUntil, humanClick), `cursor-controller.ts` (CursorController: low-level PAW-4 arc/spline/warp travel, moveCursorTo/glideCursor — the only file that writes `runtime.cursor.x/y`), `background-clock.ts` (BackgroundClock: BG-1/BG-2 worker timer), `keep-alive.ts` (BG-3) |
-| Auto play | `src/autoplay/` | `valuation-tables.ts` (AUTO_BLOCKED_\*, AUTO_GOLDEN_UPGRADES, AUTO_KITTEN_POWER, AUTO_FINGER_STEPS, AUTO_BUILDING_CAPS — AUTO-2 data), `building-valuation.ts` + `upgrade-classifier.ts` (AUTO-3 gain math per candidate type), `collector.ts` (`autoCollect`: gathers candidates + ctx, AUTO-7 safety gates), `strategy.ts` (`autoDecide`: the pure insignificant/good/postpone/save decision, AUTO-4 — flagship unit-test target), `buy-streak.ts` (pure: whether the paw buys one more of the same building in its streak, AUTO-14), `achievement-milestones.ts` (pure: a building's value on its way to a count achievement, AUTO-15), `shopping.ts` (`AutoPlayEngine`: evaluate/shopJob/statusText, AUTO-1/8/9/10/12), `auto-hammer.ts` (AUTO-11), `grimoire-unlock.ts` (`GrimoireUnlocker`: AUTO-13 gating, steps from GrimoireView), `wrinkler-strategy.ts` (pure: respawn time, maturity, fewest-fattest pick — WRINK-2/3), `grandmapocalypse-valuation.ts` (pure: stage 1 gain, delay, chain-step dCps — WRINK-1), `wrinkler-popper.ts` (`WrinklerPopper`: WRINK-3/4 gating, plan, job, HUD text), `krumblor-strategy.ts` (pure: next Krumblor step — KRUMB-1/2/5), `krumblor.ts` (`KrumblorTrainer`: KRUMB-\* gating, state, jobs, the cursor sale/rebuy), `easter-eggs.ts` (pure-ish: egg values and order — EGG-\*), `christmas.ts` (pure-ish: Christmas upgrade values — XMAS-1..3), `santa-strategy.ts` (pure: next Santa step — XMAS-4), `santa.ts` (`SantaTrainer`: XMAS-4/5 gating, jobs), `income-tracker.ts` (smoothed clicking income for AUTO-3's `income`), `buy-value-overlay.ts` (BUY-\*) |
-| Scheduler | `src/scheduler/` | `priority.ts` (`selectJobRequest`: the SCHED-1 cascade as pure data), `scheduler.ts` (`Scheduler.tick()`: wrath logging, queue build, enqueues ONE job via CursorManager), `overlay-loop.ts` (`OverlayLoop`: the requestAnimationFrame draw loop — hitboxes, buy-value overlay, paw) |
+| Auto play | `src/autoplay/` | `valuation-tables.ts` (AUTO_BLOCKED_\*, AUTO_GOLDEN_UPGRADES, AUTO_KITTEN_POWER, AUTO_FINGER_STEPS, AUTO_BUILDING_CAPS — AUTO-2 data), `building-valuation.ts` + `upgrade-classifier.ts` (AUTO-3 gain math per candidate type), `collector.ts` (`autoCollect`: gathers candidates + ctx, AUTO-7 safety gates), `strategy.ts` (`autoDecide`: the pure insignificant/good/postpone/save decision, AUTO-4 — flagship unit-test target), `buy-streak.ts` (pure: whether the paw buys one more of the same building in its streak, AUTO-14), `achievement-milestones.ts` (pure: a building's value on its way to a count achievement, AUTO-15), `shopping.ts` (`AutoPlayEngine`: evaluate/shopJob/statusText, AUTO-1/8/9/10/12), `auto-hammer.ts` (AUTO-11), `grimoire-unlock.ts` (`GrimoireUnlocker`: AUTO-13 gating, steps from GrimoireView), `wrinkler-strategy.ts` (pure: respawn time, maturity, fewest-fattest pick — WRINK-2/3), `grandmapocalypse-valuation.ts` (pure: stage 1 gain, delay, chain-step dCps — WRINK-1), `wrinkler-popper.ts` (`WrinklerPopper`: WRINK-3/4 gating, plan, job, HUD text), `krumblor-strategy.ts` (pure: next Krumblor step — KRUMB-1/2/5), `krumblor.ts` (`KrumblorTrainer`: KRUMB-\* gating, state, jobs, the cursor sale/rebuy), `easter-eggs.ts` (pure-ish: egg values and order — EGG-\*), `christmas.ts` (pure-ish: Christmas upgrade values — XMAS-1..3), `santa-strategy.ts` (pure: next Santa step — XMAS-4), `santa.ts` (`SantaTrainer`: XMAS-4/5 gating, jobs), `ascension-strategy.ts` (pure: pending level, stagnation, boost gate, verdict — ASC-1..4/8), `heavenly-shopping.ts` (pure: the heavenly priority list, lucky 7s, the shopping list and the level it needs — ASC-9), `ascension-steps.ts` (pure: the next step of an automatic ascension — ASC-10), `ascension-runner.ts` (`AscensionRunner`: ASC-10 gating, steps, jobs, the per-run reset), `ascension.ts` (`AscensionPlanner`: measured income, cached plan, HUD text — ASC-2/5), `ascension-overlay.ts` (Legacy button and heavenly tree boxes — ASC-6/7), `income-tracker.ts` (smoothed clicking income for AUTO-3's `income`), `buy-value-overlay.ts` (BUY-\*) |
+| Scheduler | `src/scheduler/` | `priority.ts` (`selectJobRequest`: the SCHED-1 cascade as pure data), `scheduler.ts` (`Scheduler.tick()`: wrath logging, queue build, enqueues ONE job via CursorManager), `overlay-loop.ts` (`OverlayLoop`: the requestAnimationFrame draw loop — hitboxes, buy-value overlay, ascension overlay, paw) |
 | Rendering | `src/rendering/` | `paw-cursor.ts` (`PawCursor`: PAW-1..3, sprite rasterizing, click pulse, fallback drawn paw), `overlay-canvas.ts` (resize/DPR handling) |
 | Stats | `src/stats/` | `log.ts` (`LogStore`), `stats.ts` (`StatsRecorder`: GC-6/AUTO-10 counters + hourly buckets) |
 | UI | `src/ui/` | `root.ts` (`UiRoot`: composes every panel, wires ~25 event listeners — was `createUi()`), `styles.ts` (UI-7 theme), `format.ts` (escapeHtml/formatNum/moodText/targetText), `gui-frames/` (panel DOM template, drag-to-move, the 200ms `PanelUpdater`), `settings/` (`normalize-setting.ts` clamps, `settings-panel.ts` UI-4 staged save), `stats-window/` (`chart-engine.ts` canvas chart drawing, `graphs-panel.ts` UI-5, `logs-panel.ts` UI-6 filter/export), `debug/debug-tools.ts` (DBG-\*) |
@@ -1131,6 +1327,7 @@ target)`) instead of scattering direct field writes across every task.
 | `wrinkler-pop` | poking a mature wrinkler until it bursts (WRINK-5) | `WrinklerPopAction` |
 | `krumblor` | buying the crumbly egg, clicking Krumblor's tab/popup/aura picker, selling/buying cursors for the sacrifice (KRUMB-\*) | `DragonClickAction` / `DragonStoreAction` |
 | `santa` | clicking Santa's tab, "Evolve" button and popup "x" (XMAS-4) | `DragonClickAction` (from `SantaTrainer`) |
+| `ascend` | popping wrinklers before, clicking Legacy/"Ascend", waiting out the animation, dragging the heavenly tree, buying heavenly upgrades, Reincarnate/"Yes" (ASC-10) | `DragonClickAction` / `WaitWhileAction` / `DragTreeAction` (from `AscensionRunner`; the pops show `wrinkler-pop`) |
 | `auto-shop` | visiting/buying a store item (AUTO-9) | auto-shop `CursorAction` from `AutoPlayEngine.shopJob()` |
 | `happy-dance` | post-catch celebration (DANCE-\*) | `DanceAction` |
 
@@ -1153,8 +1350,8 @@ file.**
 
 Three layers, each catching a different class of bug:
 
-1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 384 tests
-   across 41 files. Pure functions (route planner, `autoDecide`, the chart
+1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 452 tests
+   across 45 files. Pure functions (route planner, `autoDecide`, the chart
    engine, `normalizeSetting`) are tested directly with plain data; the
    cursor queue/actions have their own fake mover/timing tests. Classes
    that depend on the game are tested against `FakeGameAdapter`
@@ -1242,7 +1439,14 @@ an assertion — hence the visual suite instead.
   `Game.getWrinklersMax()`, `building.tieredAchievs`/`Game.Tiers[tier].achievUnlock`
   (count achievements, AUTO-15), the wrinkler spawn/pop formulas and hit box
   (WRINK-\*; read from the game's `main.js` 2.058, and one pop verified live:
-  3 pokes, digested × 1.1 gained). If one is missing, the
+  3 pokes, digested × 1.1 gained), `Game.cookiesReset`/`cookiesEarned`/
+  `heavenlyChips`/`HCfactor`/`PrestigeUpgrades` (`parents` turned into
+  upgrade objects at load, `canBePurchased`)/`OnAscend`, the lucky upgrades'
+  7-counting `showIf`, the `#legacyButton`/`#heavenlyUpgrade{id}`/
+  `#ascendButton` DOM, the prompts' `#promptContent{id}`/`#promptOption{n}`
+  ids, `Game.AscendTimer`/`AscendOffXT`/`AscendOffYT`/`AscendZoomT`, and that
+  `Game.Reset()` drops wrinklers without paying them out (ASC-\*; read from
+  `main.js` 2.058). If one is missing, the
   affected feature degrades quietly (see NFR-4) and the Debug tools report
   an error in red.
 - In a hidden tab the bot itself keeps working (worker timers, BG-1/BG-2).
@@ -1255,7 +1459,10 @@ an assertion — hence the visual suite instead.
   first and compare its log with your own judgement.
 - Auto play does not click the big cookie for you (combine with Hammer
   mode), does not buy kittens/mouse upgrades/dragon/seasonal switches, and
-  has no ascension logic.
+  ascends by itself unless "Auto: ascend" is off (ASC-10). Auto
+  ascension never picks a challenge mode or fills permanent upgrade slots,
+  and a page reload on the ascension screen leaves that ascension to the
+  player.
 - Grandmapocalypse stage 1 is on by default (WRINK-1) and cannot be undone
   by the bot. Its cost: 1 in 3 golden cookies becomes a wrath cookie that
   the bot ignores (GC-1), and the visible CpS drops by n × 5% while n
@@ -1299,12 +1506,152 @@ the next one, the popup closed), Grimoire unlock (AUTO-13: on a test
 save with a Wizard tower at level 0, give lumps, open Options, switch auto
 play on, scroll the building list to the top; watch Options/Stats/Stats,
 the wheel-scroll and the "lvl" click; DBG-9/10 exercise the first two
-steps on their own), settings staging (UI-4), log
+steps on their own), ascension planning (ASC-\*: on a save with some prestige, check the Legacy
+button's box and label against the game's own Legacy tooltip — "gained"
+must match the levels it offers — then ascend by hand and check the
+heavenly upgrade boxes and prices), auto ascension (ASC-10: on a TEST save
+where the Ascension row says "tip: good time to ascend", switch on auto
+play and "Auto: ascend"; watch every wrinkler popped, Legacy and "Ascend"
+clicked, the tree dragged to each pink crate and each bought in order,
+Reincarnate and "Yes", then the bot resuming after ~3s; a Frenzy spawned
+while the "Ascend" prompt is open must make it click "Cancel"), settings staging (UI-4), log
 filter/export (UI-6), real-mouse compatibility (MOUSE-1/2 — move your own
 mouse while the bot runs and confirm the "+N" number follows your cursor,
 not the paw's).
 
 ## 12. Changelog
+
+- **5.5.8** Undid 5.5.7's lift of the game's tooltips above the overlay
+  (it wasn't enough). Instead the Legacy box and card are not drawn while
+  the mouse is over the Legacy button, so its tooltip is readable (ASC-6).
+
+- **5.5.7** The Legacy card opens when the mouse is over the card itself,
+  not the Legacy button (ASC-6), and the game's own tooltips
+  (`#tooltipAnchor`) now sit above the bot's overlay canvas, so the Legacy
+  tooltip is readable again. The "Prestige" line no longer repeats the
+  levels gained ("Prestige: 4,317 -> 54,369").
+
+- **5.5.6** The Legacy card (ASC-6) is collapsed to one line, the level
+  after ascending and the answer ("Lv 54,369 · ASCEND NOW"), and opens
+  fully while the mouse is over the Legacy button or the card. The full
+  card (and the HUD row) also shows "Heavenly chips to spend" (ASC-5). New
+  `compactLine()`. Unit tests in `tests/unit/ascension.test.ts`.
+
+- **5.5.5** The ascension texts were easy to misread ("worth ascending
+  now" next to "saving for Unholy bait ... ~148h" read like a 148h wait,
+  and a missing auto line had to be guessed from). Every card and the HUD
+  row now answer in plain words, one fact per line (ASC-5): a headline
+  ASCEND NOW / WAIT / NOT YET and why, "Prestige: a -> b (+n levels)", "CpS
+  bonus after ascending", and only when ascending is on the table "Buy in
+  heaven" and "Later: X (cost)" with the leftover chips' share of it. A
+  "Bot:" line is always there, auto play on or off (ASC-11,
+  `AscensionRunner.botLine()`, was `autoNote()`); the ascension screen says
+  "BUY THE PINK ONES, in order" or "NOTHING TO BUY: click Reincarnate"
+  (ASC-7). New `planLines()`, `verdictLines()`, `heavenLines()`,
+  `heavenScreenLines()` replace `verdictText()`/`shopText()`/`shopLines()`.
+  Unit tests in `tests/unit/ascension.test.ts` and
+  `tests/unit/ascension-runner.test.ts`.
+
+- **5.5.5** The next wish's line read like a wait ("saving for Unholy bait
+  ... ~148h") although the bot was about to ascend without it. It now says
+  "left over for next time: 25.8K of 44.4K chips for Unholy bait (58%)", with
+  no ETA (ASC-5/ASC-6).
+
+- **5.5.4** Fixed: the heavenly shopping list (ASC-9) waited for any wish
+  the run could reach within 6h, however much it cost: at +47,826 levels
+  (x12 CpS) it held the ascension back for 25K more chips for Unholy bait.
+  An ordinary wish is now only waited for while the extra levels stay within
+  "Ascend: wait for heavenly upgrades at most (x levels gained)"
+  (`ascendShopWaitShare`, 10% of what the ascension gains); beyond that it is
+  saved for next time. Lucky wishes keep their own time budget. Unit tests
+  in `tests/unit/heavenly-shopping.test.ts` and `tests/unit/ascension.test.ts`.
+
+- **5.5.3** Fixed: auto ascension looped: it opened the "Ascend" prompt,
+  clicked "Cancel" at once, hammered, and opened it again. In the moment
+  between the Legacy click and the bot claiming the prompt, shopping got a
+  tick, had its re-plan refused (a prompt was open) and paused itself for
+  1.5s, and the ascension's gate treated shopping's pause as a reason not to
+  ascend. The gate now only minds its own pause, the prompt is claimed the
+  instant Legacy is clicked (`DragonClickParams.onClicked`), and shopping
+  never starts while any prompt is open (AUTO-7, `shoppingAllowed()`).
+  Unit tests in `tests/unit/ascension-runner.test.ts` and the new
+  `tests/unit/shopping-gates.test.ts`.
+
+- **5.5.2** "Auto: ascend" is on by default (ASC-10): with auto play on,
+  the bot ascends by itself. Popping wrinklers before ascending can no
+  longer cost a lucky level's 7s (ASC-12): when the shopping list holds a
+  lucky upgrade, the bot only starts if the level keeps its 7s long enough
+  for the pops and clicks (30s + 5s per wrinkler), else it waits for the
+  next lucky level; new `AscensionPlan.luckySafeSec`,
+  `HeavenlyShopPlan.sevens`. Unit tests in `tests/unit/ascension.test.ts`
+  and `tests/unit/ascension-runner.test.ts`.
+
+- **5.5.1** The ascension texts are neutral now ("worth ascending now",
+  "shopping list: ...") instead of tips that read wrong in auto play (ASC-5),
+  with what auto play does about it on its own line (ASC-11: "auto:
+  ascending now", "auto: ascends once the buffs are over", "Auto: ascend is
+  off", ...). The wish saved for next shows its progress (chips left after
+  the list / its cost, %, ETA; `savingProgress()`). The Legacy card is
+  right-anchored to the Legacy frame so it no longer grows into the store.
+  Unit tests in `tests/unit/ascension.test.ts` and
+  `tests/unit/ascension-runner.test.ts`.
+
+- **5.5.0** Auto ascension (ASC-10): with auto play and the new setting
+  "Auto: ascend" (`autoAscend`, off by default), the bot acts on the
+  planner's "ascend now": it pops every wrinkler (the game would throw
+  their cookies away, so the planner now also counts them for prestige),
+  clicks Legacy and "Ascend", waits out the animation, drags the heavenly
+  tree to each crate on its shopping list and buys it, clicks Reincarnate
+  and "Yes", and resets its per-run state; never during a buff or anything
+  more important, and it cancels its own "Ascend" prompt if the moment
+  passes. Without it, the HUD row and overlay are worded as tips ("tip:
+  good time to ascend; then buy ...") instead of as if the bot would act.
+  Lump harvesting now skips the ascension screen (LUMP-7). New mood
+  `ascend`, stat "Ascensions"; `IGameAdapter` gains `isAscendIntro()` and
+  `panAscendTree()`; new `src/autoplay/ascension-steps.ts`,
+  `ascension-runner.ts`, `src/actions/ascension.ts`,
+  `src/game/ascension-dom.ts`, `RuntimeState.resetForNewRun()`. Unit tests
+  in `tests/unit/ascension-runner.test.ts` and `tests/unit/ascension.test.ts`.
+
+- **5.4.2** The ascension planner now plans its heavenly shopping list
+  before ascending (ASC-9): a priority list of 41 heavenly upgrades, taken
+  with their missing parents, and the run goes on until the chips pay for
+  it (new setting "Ascend: wait for heavenly upgrades up to (s)",
+  `ascendShopWaitSec`, 6h), so it never ascends a few chips short. The
+  lucky upgrades became wishes on that list (their 7s level within the
+  lucky wait) instead of a separate target; the verdict "waiting for
+  <lucky>" is now "waiting for level L to afford <wish>". The HUD and the
+  Legacy card show the list; on the ascension screen the planned upgrades
+  get a pink box with their buying order. New HUD button "Ascend overlay"
+  (`showAscendOverlay`, on) switches the ascension overlay. New
+  `src/autoplay/heavenly-shopping.ts` (the lucky/7s helpers moved there).
+  Unit tests in `tests/unit/heavenly-shopping.test.ts` and
+  `tests/unit/ascension.test.ts`.
+
+- **5.4.1** Fixed: the ascension planner (ASC-\*) said "would ascend now"
+  for a stagnating run worth only 10 levels from prestige 0 (+10% CpS),
+  which throws a whole run away for almost nothing. An ascension now also
+  needs a noticeable impact (ASC-8): the prestige CpS bonus must grow by the
+  new setting "Ascend: minimum CpS boost (x)" (`ascendMinBoost`, default
+  2), on top of the run stagnating. New verdict "too small" with the level
+  needed and its ETA; lucky levels are searched from that level on; the
+  Legacy label shows the boost. Unit tests in `tests/unit/ascension.test.ts`.
+
+- **5.4.0** New read-only module: ascension planning (ASC-\*). The bot
+  works out what ascending now would give (pending level, chips), whether
+  the run stagnates (marginal prestige rate below the run's average, from
+  income measured over 30 minutes) and which lucky level to aim for: the
+  nearest level containing enough 7s for Lucky digit/number/payout that the
+  chips then pay for (ancestors included) within the new setting "Ascend:
+  wait for a lucky level up to (s)" (`ascendLuckyWaitSec`, 1 day). New HUD
+  row "Ascension"; the overlay boxes the Legacy button with "Lv current +
+  gained = pending" and the plan, and on the ascension screen every
+  heavenly upgrade by state (owned, buyable, too pricey, not available,
+  lucky) with its price, plus the Reincarnate button. It never ascends or
+  buys anything. `IGameAdapter` gains `getHeavenlyChips()`,
+  `getCookiesReset()`, `getCookiesEarned()`, `getHCFactor()`,
+  `onAscendScreen()` and `getHeavenlyUpgrades()`; new `formatShort()`. Unit
+  tests in `tests/unit/ascension.test.ts`.
 
 - **5.3.11** Achievement top-offs (AUTO-15) no longer lock in. A cheap
   copy on its way to a far milestone counted as "insignificant" by its own

@@ -32,6 +32,11 @@ export class Scheduler {
       return;
     }
 
+    // Right after a reincarnation the game is still rebuilding (ASC-10).
+    if (Date.now() < this.runtime.settleUntil) {
+      return;
+    }
+
     const buffs = this.buffLockTracker.update();
     const shimmers = this.goldenCookieModel.getGoldenShimmers();
 

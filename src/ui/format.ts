@@ -23,6 +23,31 @@ export function formatNum(n: unknown): string {
   return (Math.round(v * 10) / 10).toString();
 }
 
+/** Suffixes of formatShort(): thousand, million, billion, trillion, quadrillion, ... */
+const SHORT_SUFFIXES = ['', 'K', 'M', 'B', 'T', 'Qa', 'Qi', 'Sx', 'Sp', 'Oc', 'No', 'Dc'];
+
+/** Compact number for tight overlay labels ("777", "77.8K", "77.8M"); 3 significant digits. */
+export function formatShort(n: unknown): string {
+  const v = Number(n);
+
+  if (!Number.isFinite(v)) {
+    return '—';
+  }
+
+  let tier = 0;
+  let x = Math.abs(v);
+
+  while (x >= 999.5 && tier < SHORT_SUFFIXES.length - 1) {
+    x /= 1000;
+    tier++;
+  }
+
+  const digits = tier === 0 || x >= 100 ? 0 : x >= 10 ? 1 : 2;
+  const text = Number(x.toFixed(digits)).toString();
+
+  return (v < 0 ? '-' : '') + text + SHORT_SUFFIXES[tier];
+}
+
 /** Display-only cute wording for the internal action names (the names themselves stay
  * untouched). */
 export function moodText(action: string): string {
@@ -43,6 +68,7 @@ export function moodText(action: string): string {
     'wrinkler-pop': 'popping a wrinkler owo',
     krumblor: 'training Krumblor ^w^',
     santa: 'evolving Santa ho ho ^w^',
+    ascend: 'ascending to cookie heaven ^w^',
   };
 
   return map[action] || action;

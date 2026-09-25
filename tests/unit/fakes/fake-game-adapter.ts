@@ -1,5 +1,5 @@
 import type { IGameAdapter } from '../../../src/game/game-adapter';
-import type { CpsBuff, GameBuilding, GameShimmer, GameUpgrade, GameWrinkler, GrimoireMinigame, RawBuff } from '../../../src/game/types';
+import type { CpsBuff, GameBuilding, GameShimmer, GameUpgrade, GameWrinkler, GrimoireMinigame, HeavenlyUpgradeInfo, RawBuff } from '../../../src/game/types';
 
 /** A hand-written stand-in for GameAdapter, settable per test. Everything defaults to the
  * "Game not ready" shape so a test only needs to override what it cares about. */
@@ -243,6 +243,49 @@ export class FakeGameAdapter implements IGameAdapter {
 
   getRunStartDate(): number {
     return this.runStartDate;
+  }
+
+  heavenlyChips = 0;
+  cookiesReset = 0;
+  cookiesEarned = 0;
+  hcFactor = 3;
+  ascendScreen = false;
+  heavenlyUpgrades: HeavenlyUpgradeInfo[] = [];
+
+  getHeavenlyChips(): number {
+    return this.heavenlyChips;
+  }
+
+  getCookiesReset(): number {
+    return this.cookiesReset;
+  }
+
+  getCookiesEarned(): number {
+    return this.cookiesEarned;
+  }
+
+  getHCFactor(): number {
+    return this.hcFactor;
+  }
+
+  onAscendScreen(): boolean {
+    return this.ascendScreen;
+  }
+
+  getHeavenlyUpgrades(): HeavenlyUpgradeInfo[] {
+    return this.heavenlyUpgrades.map((u) => ({ ...u, parents: [...u.parents] }));
+  }
+
+  ascendIntro = false;
+  /** Every panAscendTree() call. */
+  pans: Array<{ dx: number; dy: number }> = [];
+
+  isAscendIntro(): boolean {
+    return this.ascendIntro;
+  }
+
+  panAscendTree(dx: number, dy: number): void {
+    this.pans.push({ dx, dy });
   }
 
   getElderWrath(): number {

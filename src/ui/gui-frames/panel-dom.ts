@@ -51,6 +51,10 @@ function panelBodyHtml(version: string): string {
         <span class="ccsb-label">Wrinklers</span>
         <span class="ccsb-value" id="ccsb-wrinklers">none</span>
     </div>
+    <div class="ccsb-row" id="ccsb-ascend-row">
+        <span class="ccsb-label">Ascension</span>
+        <span class="ccsb-value" id="ccsb-ascend">—</span>
+    </div>
     <div class="ccsb-row" id="ccsb-auto-row">
         <span class="ccsb-label">Auto play</span>
         <span class="ccsb-value" id="ccsb-auto">off</span>
@@ -64,6 +68,7 @@ function panelBodyHtml(version: string): string {
         <button class="ccsb-btn" id="ccsb-pause">Pause :3</button>
         <button class="ccsb-btn" id="ccsb-hammer" title="Click the big cookie non-stop (like Click Frenzy). Lowest priority, above idling.">Hammer cookie :3</button>
         <button class="ccsb-btn" id="ccsb-auto-toggle" title="Full auto play: also buys buildings and upgrades (off by default).">Auto play :3</button>
+        <button class="ccsb-btn" id="ccsb-ascend-overlay" title="Show the ascension plan on the Legacy button and the heavenly upgrades' boxes on the ascension screen">Ascend overlay :3</button>
         <button class="ccsb-btn" id="ccsb-toggle-graphs">Graphs ^w^</button>
         <button class="ccsb-btn" id="ccsb-toggle-logs">Logs owo</button>
         <button class="ccsb-btn" id="ccsb-toggle-debug">Debug tools :3</button>
@@ -122,6 +127,22 @@ function panelBodyHtml(version: string): string {
         <div class="ccsb-setting">
             <span>Log entries to keep</span>
             <input data-setting="logLimit" type="number" min="100" max="50000" step="100">
+        </div>
+        <div class="ccsb-setting" title="An ascension must multiply the prestige CpS bonus (+1% per level) at least this much: 2 = the bonus doubles">
+            <span>Ascend: minimum CpS boost (x)</span>
+            <input data-setting="ascendMinBoost" type="number" min="1" max="100" step="0.1">
+        </div>
+        <div class="ccsb-setting" title="Only wait for a heavenly upgrade when it is a few chips short: the extra levels may be at most this share of the levels the ascension gains anyway (0.1 = 10%)">
+            <span>Ascend: wait for heavenly upgrades at most (x levels gained)</span>
+            <input data-setting="ascendShopWaitShare" type="number" min="0" max="1" step="0.05">
+        </div>
+        <div class="ccsb-setting" title="How long a stagnating run may go on so the chips pay for the next heavenly upgrade on the bot's shopping list">
+            <span>Ascend: wait for heavenly upgrades up to (s)</span>
+            <input data-setting="ascendShopWaitSec" type="number" min="0" max="2592000" step="3600">
+        </div>
+        <div class="ccsb-setting" title="How long a stagnating run may go on to reach a prestige level with enough 7s for a lucky heavenly upgrade (Lucky digit/number/payout)">
+            <span>Ascend: wait for a lucky level up to (s)</span>
+            <input data-setting="ascendLuckyWaitSec" type="number" min="0" max="2592000" step="3600">
         </div>
         <div class="ccsb-setting ccsb-setting-range">
             <span>Frame opacity (0.1-1)</span>
@@ -221,6 +242,10 @@ function panelBodyHtml(version: string): string {
             <label style="display:flex;gap:6px;align-items:center;margin-top:5px" title="Buys the crumbly egg, trains Krumblor with cookies (only insignificant amounts), sacrifices 100 cursors (selling the ones above 100 first and buying them back after) and puts on the Dragon Cursor aura (switching an aura sacrifices 1 of your highest building)">
                 <input id="ccsb-auto-krumblor" type="checkbox">
                 Auto: train Krumblor (Dragon Cursor) ^w^
+            </label>
+            <label style="display:flex;gap:6px;align-items:center;margin-top:5px" title="Ascends by itself when the Ascension row says it's time: pops every wrinkler, clicks Legacy, buys the heavenly shopping list and reincarnates. There is no undo for an ascension.">
+                <input id="ccsb-auto-ascend" type="checkbox">
+                Auto: ascend (and buy heavenly upgrades) owo
             </label>
             <label style="display:flex;gap:6px;align-items:center;margin-top:5px">
                 <input id="ccsb-auto-dry" type="checkbox">

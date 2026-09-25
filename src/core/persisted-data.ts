@@ -23,6 +23,12 @@ export interface Config {
   keepAlive: boolean;
   grimoireFthof: boolean;
   spendLumps: boolean;
+  ascendLuckyWaitSec: number;
+  ascendMinBoost: number;
+  ascendShopWaitSec: number;
+  ascendShopWaitShare: number;
+  showAscendOverlay: boolean;
+  autoAscend: boolean;
   autoPlay: boolean;
   autoDryRun: boolean;
   autoInsignificantSec: number;
@@ -49,6 +55,7 @@ export interface Stats {
   lumpHarvests: number;
   autoBuys: number;
   wrinklersPopped: number;
+  ascensions: number;
 }
 
 export interface HourlyBucket {
@@ -108,6 +115,12 @@ export const DEFAULTS: PersistedState = {
     keepAlive: true,
     grimoireFthof: true,
     spendLumps: true,
+    ascendLuckyWaitSec: 86400,
+    ascendMinBoost: 2,
+    ascendShopWaitSec: 21600,
+    ascendShopWaitShare: 0.1,
+    showAscendOverlay: true,
+    autoAscend: true,
     autoPlay: false,
     autoDryRun: false,
     autoInsignificantSec: 60,
@@ -133,6 +146,7 @@ export const DEFAULTS: PersistedState = {
     lumpHarvests: 0,
     autoBuys: 0,
     wrinklersPopped: 0,
+    ascensions: 0,
   },
   hourly: {},
   logs: [],

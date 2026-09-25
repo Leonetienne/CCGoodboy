@@ -19,7 +19,8 @@ export class LumpHarvestActions {
 
   /** A ripe sugar lump is waiting to be harvested (the same condition the scheduler uses). */
   pending(): boolean {
-    return this.game.isLumpRipe();
+    // The lump isn't on the ascension screen (nor during its intro): nothing to click there.
+    return this.game.isLumpRipe() && !this.game.isAscending();
   }
 
   /** Harvest job. Preconditions are re-checked by the action's abort predicate right before the

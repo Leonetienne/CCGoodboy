@@ -1,3 +1,4 @@
+import type { AscensionRunner } from '../../src/autoplay/ascension-runner';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PersistedData } from '../../src/core/persisted-data';
 import { RuntimeState } from '../../src/core/runtime-state';
@@ -89,6 +90,7 @@ function makeDeps(overrides: Partial<PriorityDeps> = {}): PriorityDeps {
     fthof,
     lumpHarvest,
     grimoireView: { pending: () => false } as unknown as GrimoireView,
+    ascension: { pending: () => false } as unknown as AscensionRunner,
     grimoireUnlock,
     krumblor,
     santa: { pending: () => false } as unknown as SantaTrainer,

@@ -39,6 +39,11 @@ export class StatsRecorder {
     this.data.scheduleSave();
   }
 
+  recordAscension(): void {
+    this.data.stats.ascensions = (this.data.stats.ascensions || 0) + 1;
+    this.data.scheduleSave();
+  }
+
   recordAutoBuy(): void {
     this.data.stats.autoBuys += 1;
     this.data.scheduleSave();

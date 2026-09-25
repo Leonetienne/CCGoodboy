@@ -129,7 +129,11 @@ right cookie to show up.
 ## Good to know
 
 - **What it doesn't do:** seasons, the garden, the stock market, the pantheon,
-  ascending, or anything beyond Grandmapocalypse stage 1.
+  or anything beyond Grandmapocalypse stage 1.
+- **Ascending.** The "Ascension" row and the box on the Legacy button tell
+  you when ascending pays off and which heavenly upgrades to buy. With auto
+  play on, the bot also ascends by itself; untick "Auto: ascend" in the auto
+  play settings if you'd rather do that part yourself.
 - **Stage 1 has a cost.** With wrinklers around, one in three golden cookies
   turns into a wrath cookie, which the bot skips. The wrinklers more than make
   up for it, but if you'd rather not, switch off

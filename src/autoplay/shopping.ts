@@ -243,6 +243,9 @@ export class AutoPlayEngine {
       this.data.config.autoPlay === true &&
       this.game.isPresent() &&
       this.game.isReady() &&
+      // AUTO-7: never with a prompt open (its re-plan would be refused, and the refusal pauses
+      // shopping; the ascension's own "Ascend" prompt must not get a shopping trip in between).
+      !this.game.isPromptOpen() &&
       Date.now() >= this.runtime.autoBlockUntil &&
       Date.now() - this.runtime.lastAutoBuyAt >= 400 &&
       !this.shoppingInterrupted()

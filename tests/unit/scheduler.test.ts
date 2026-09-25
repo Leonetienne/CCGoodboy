@@ -1,3 +1,4 @@
+import type { AscensionRunner } from '../../src/autoplay/ascension-runner';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PersistedData } from '../../src/core/persisted-data';
 import { RuntimeState } from '../../src/core/runtime-state';
@@ -66,6 +67,7 @@ function makeScheduler(game: FakeGameAdapter, overrides: Partial<SchedulerDeps> 
     grimoireUnlock: { pending: () => false } as unknown as GrimoireUnlocker,
     krumblor: { pending: () => false } as unknown as KrumblorTrainer,
     santa: { pending: () => false } as unknown as SantaTrainer,
+    ascension: { pending: () => false } as unknown as AscensionRunner,
     autoPlay: { shopReady: () => false } as unknown as AutoPlayEngine,
     wrinklerPopper: { pending: () => false } as unknown as WrinklerPopper,
     happyDance: {

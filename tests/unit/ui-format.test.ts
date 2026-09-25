@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { escapeHtml, formatNum, moodText, targetText } from '../../src/ui/format';
+import { escapeHtml, formatNum, formatShort, moodText, targetText } from '../../src/ui/format';
 
 describe('escapeHtml', () => {
   it('escapes the five HTML-sensitive characters', () => {
@@ -38,5 +38,19 @@ describe('moodText / targetText', () => {
   it('passes unknown keys through unchanged', () => {
     expect(moodText('some-future-action')).toBe('some-future-action');
     expect(targetText('some-future-target')).toBe('some-future-target');
+  });
+});
+
+describe('formatShort', () => {
+  it('keeps three significant digits with a suffix', () => {
+    expect(formatShort(777)).toBe('777');
+    expect(formatShort(77777)).toBe('77.8K');
+    expect(formatShort(77777777)).toBe('77.8M');
+    expect(formatShort(1234)).toBe('1.23K');
+    expect(formatShort(2.5e15)).toBe('2.5Qa');
+  });
+
+  it('shows a dash for non-numbers', () => {
+    expect(formatShort(NaN)).toBe('—');
   });
 });

@@ -48,6 +48,18 @@ export function normalizeSetting(key: string, raw: string): number {
     case 'autoReserveSec':
       return Number.isFinite(value) && raw !== '' ? clamp(value, 0, 1000000) : 0;
 
+    case 'ascendLuckyWaitSec':
+      return Number.isFinite(value) && raw !== '' ? clamp(value, 0, 2592000) : 86400;
+
+    case 'ascendShopWaitShare':
+      return Number.isFinite(value) && raw !== '' ? clamp(value, 0, 1) : 0.1;
+
+    case 'ascendShopWaitSec':
+      return Number.isFinite(value) && raw !== '' ? clamp(value, 0, 2592000) : 21600;
+
+    case 'ascendMinBoost':
+      return Number.isFinite(value) && raw !== '' ? clamp(value, 1, 100) : 2;
+
     case 'autoWizardTowerTarget':
       return Number.isFinite(value) && raw !== '' ? clampInt(value, 0, 500, 57) : 57;
 

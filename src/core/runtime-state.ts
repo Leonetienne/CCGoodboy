@@ -103,17 +103,18 @@ export class RuntimeState {
   santaBlockUntil = 0;
   santaMenuOurs = false;
   santaStuckSince = 0;
-  autoHammerState: AutoHammerState = {
-    on: false,
-    wanted: null,
-    nextEvalAt: 0,
-    nextProbeAt: 0,
-    probeUntil: 0,
-    probeT0: 0,
-    probeH0: 0,
-    cal: 1,
-    share: 0,
-  };
+  /** Automatic ascension (ASC-10): whether the bot started the ascension on screen (it only
+   * ever finishes its own) and when, a pause after a failure, since when a step's element
+   * can't be found, heavenly upgrades it gave up on, failed purchases and tree drags per
+   * crate. */
+  ascendOurs = false;
+  ascendOursAt = 0;
+  ascendBlockUntil = 0;
+  ascendStuckSince = 0;
+  ascendSkip = new Set<string>();
+  ascendFails = new Map<number, number>();
+  ascendPans = new Map<number, number>();
+  autoHammerState: AutoHammerState = freshAutoHammerState();
 
   // ---- paw animation ----
   cursorTilt = 0;
@@ -130,6 +131,8 @@ export class RuntimeState {
   panelTimer = 0;
   /** Delays the scheduler's start until the page settled (LIFE-1). */
   settleTimer = 0;
+  /** The scheduler does nothing until then: the game settling after a reincarnation (ASC-10). */
+  settleUntil = 0;
   schedulerTimer: IntervalHandle | 0 = 0;
   keepAlive: KeepAliveState = { ctx: null, state: 'off', listening: false };
   drawRaf = 0;
@@ -142,4 +145,56 @@ export class RuntimeState {
       y: Math.max(80, window.innerHeight * 0.45),
     };
   }
+
+  /** A new run after reincarnating (ASC-10): forgets everything that belonged to the old run
+   * (buff lock, plans, the Krumblor/Santa/wrinkler bookkeeping, the hammer calibration) and
+   * holds the scheduler for `settleMs` while the game rebuilds its minigames. */
+  resetForNewRun(settleMs: number, now = Date.now()): void {
+    this.lockA = false;
+    this.lastCpsBuffCount = 0;
+    this.lastCpsSignature = '';
+    this.refillInFlight = false;
+    this.goldenReadyAt.clear();
+    this.route = null;
+    this.seenWrath.clear();
+
+    this.autoPlan = null;
+    this.autoNextEvalAt = 0;
+    this.autoHand = null;
+    this.buyValueCache = null;
+    this.buyValueAt = 0;
+    this.buildingsViewSteps = [];
+    this.wrinklerPlan = null;
+    this.wrinklerNextEvalAt = 0;
+    this.krumblorRebuy = 0;
+    this.krumblorMenuOurs = false;
+    this.krumblorPickerAt = 0;
+    this.krumblorStuckSince = 0;
+    this.santaMenuOurs = false;
+    this.santaStuckSince = 0;
+    this.autoHammerState = freshAutoHammerState();
+
+    this.ascendOurs = false;
+    this.ascendOursAt = 0;
+    this.ascendStuckSince = 0;
+    this.ascendSkip.clear();
+    this.ascendFails.clear();
+    this.ascendPans.clear();
+
+    this.settleUntil = now + settleMs;
+  }
+}
+
+function freshAutoHammerState(): AutoHammerState {
+  return {
+    on: false,
+    wanted: null,
+    nextEvalAt: 0,
+    nextProbeAt: 0,
+    probeUntil: 0,
+    probeT0: 0,
+    probeH0: 0,
+    cal: 1,
+    share: 0,
+  };
 }

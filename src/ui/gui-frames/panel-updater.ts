@@ -8,13 +8,15 @@ import type { HurryMode } from '../../game/hurry-mode';
 import type { BackgroundClock } from '../../input/background-clock';
 import type { ClickTiming } from '../../input/human-click';
 import { backgroundStatusText, type KeepAliveController } from '../../input/keep-alive';
+import type { AscensionPlanner } from '../../autoplay/ascension';
+import type { AscensionRunner } from '../../autoplay/ascension-runner';
 import type { AutoPlayEngine } from '../../autoplay/shopping';
 import type { WrinklerPopper } from '../../autoplay/wrinkler-popper';
 import type { GoldenQueue } from '../../hunting/golden-queue';
 import { escapeHtml, formatNum, moodText, targetText } from '../format';
 
 /** Refreshes the HUD every 200ms: Mood (+ hurry note), Chasing, Shinies waiting, Click Frenzy,
- * Buffies, Grimoire (mana, cost, lumps, refill state), LOCK_A, Click cooldown, statistics,
+ * Buffies, Grimoire (mana, cost, lumps, refill state), LOCK_A, Click cooldown, Ascension, statistics,
  * button labels. */
 export class PanelUpdater {
   constructor(
@@ -28,6 +30,8 @@ export class PanelUpdater {
     private readonly hurryMode: HurryMode,
     private readonly autoPlay: AutoPlayEngine,
     private readonly wrinklerPopper: WrinklerPopper,
+    private readonly ascension: AscensionPlanner,
+    private readonly ascensionRunner: AscensionRunner,
     private readonly clock: BackgroundClock,
     private readonly keepAlive: KeepAliveController,
   ) {}
@@ -88,11 +92,21 @@ export class PanelUpdater {
       el('ccsb-wrinklers')!.textContent = this.wrinklerPopper.statusText();
     }
 
+    // Only once there is prestige or a level to gain (ASC-5).
+    const ascendText = this.ascension.statusText(this.ascensionRunner.botLine());
+    el('ccsb-ascend-row')!.style.display = ascendText ? '' : 'none';
+    if (ascendText) el('ccsb-ascend')!.textContent = ascendText;
+
     el('ccsb-bg')!.textContent = backgroundStatusText(this.clock, this.runtime, this.data);
 
     const autoBtn = el('ccsb-auto-toggle')!;
     autoBtn.textContent = this.data.config.autoPlay === true ? 'Auto play ON ^w^' : 'Auto play :3';
     autoBtn.classList.toggle('active', this.data.config.autoPlay === true);
+
+    const ascendBtn = el('ccsb-ascend-overlay')!;
+    const ascendOverlayOn = this.data.config.showAscendOverlay !== false;
+    ascendBtn.textContent = ascendOverlayOn ? 'Ascend overlay ON ^w^' : 'Ascend overlay :3';
+    ascendBtn.classList.toggle('active', ascendOverlayOn);
 
     const hammerBtn = el('ccsb-hammer')!;
     hammerBtn.textContent = this.runtime.hammer ? 'Hammer ON ^w^' : 'Hammer cookie :3';
@@ -108,6 +122,7 @@ export class PanelUpdater {
       `<span>FTHOF casts ^w^</span><b>${this.data.stats.fthofCasts}</b>`,
       `<span>Grimoire refills :3</span><b>${this.data.stats.grimoireRefills}</b>`,
       `<span>Sugar lumps harvested :3</span><b>${this.data.stats.lumpHarvests || 0}</b>`,
+      ...(this.data.stats.ascensions ? [`<span>Ascensions ^w^</span><b>${this.data.stats.ascensions}</b>`] : []),
       ...(this.data.stats.wrinklersPopped ? [`<span>Wrinklers popped owo</span><b>${this.data.stats.wrinklersPopped}</b>`] : []),
       ...(this.data.config.autoPlay === true ? [`<span>Auto purchases ^w^</span><b>${this.data.stats.autoBuys || 0}</b>`] : []),
     ].join('');

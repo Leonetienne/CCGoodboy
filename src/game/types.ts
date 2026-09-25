@@ -92,3 +92,15 @@ export interface GameWrinkler {
   y: number;
   r: number;
 }
+
+/** A heavenly upgrade (Game.PrestigeUpgrades, pool 'prestige'), shaped for ascension planning
+ * (ASC-*). `parents` are names; `canBePurchased` is the game's own flag from its last
+ * BuildAscendTree() (shown in the tree and every parent bought). */
+export interface HeavenlyUpgradeInfo {
+  id: number;
+  name: string;
+  price: number;
+  bought: boolean;
+  parents: string[];
+  canBePurchased: boolean;
+}

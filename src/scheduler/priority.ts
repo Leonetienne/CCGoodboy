@@ -3,6 +3,7 @@ import type { RuntimeState } from '../core/runtime-state';
 import type { IGameAdapter } from '../game/game-adapter';
 import { getFthofCost, refillCanReachCost } from '../game/grimoire';
 import type { CpsBuff } from '../game/types';
+import type { AscensionRunner } from '../autoplay/ascension-runner';
 import type { GrimoireUnlocker } from '../autoplay/grimoire-unlock';
 import type { KrumblorTrainer } from '../autoplay/krumblor';
 import type { SantaTrainer } from '../autoplay/santa';
@@ -29,6 +30,7 @@ export interface PriorityDeps {
   fthof: FthofActions;
   lumpHarvest: LumpHarvestActions;
   grimoireView: GrimoireView;
+  ascension: AscensionRunner;
   grimoireUnlock: GrimoireUnlocker;
   krumblor: KrumblorTrainer;
   santa: SantaTrainer;
@@ -45,8 +47,9 @@ export interface PriorityDeps {
  *   3 FTHOF, else refill     -> FthofAction / RefillAction (only outside Click Frenzy); FTHOF
  *                               first gets the Grimoire on screen (FT-8, GrimoireView steps)
  *   4 ripe sugar lump        -> LumpHarvestAction (harvest before the game auto-harvests it)
- *   5 a started buildings-view recipe / "Show grimoire" debug goal, then auto play: unlock
- *     the Grimoire, train Krumblor, evolve Santa, pop a wrinkler for a purchase, then shopping
+ *   5 a started buildings-view recipe / "Show grimoire" debug goal, then auto play: ascend
+ *     (ASC-10), unlock the Grimoire, train Krumblor, evolve Santa, pop a wrinkler for a
+ *     purchase, then shopping
  *                            -> MenuButtonAction / ScrollIntoViewAction / MinigameButtonAction /
  *                               GrimoireUnlockAction / DragonClickAction / DragonStoreAction /
  *                               WrinklerPopAction, else the auto-shop
@@ -59,7 +62,7 @@ export interface PriorityDeps {
  * still falls through to lump harvest/auto-shop/hammer/dance/idle below it, exactly as the
  * original did. */
 export function selectJobRequest(deps: PriorityDeps): JobRequest | null {
-  const { queue, buffs, runtime, data, game, clickGolden, clickBigCookie, fthof, lumpHarvest, grimoireView, grimoireUnlock, krumblor, santa, autoPlay, wrinklerPopper, happyDance, idleBehavior, hammerActive } = deps;
+  const { queue, buffs, runtime, data, game, clickGolden, clickBigCookie, fthof, lumpHarvest, grimoireView, ascension, grimoireUnlock, krumblor, santa, autoPlay, wrinklerPopper, happyDance, idleBehavior, hammerActive } = deps;
 
   let job: JobRequest | null = null;
 
@@ -106,6 +109,12 @@ export function selectJobRequest(deps: PriorityDeps): JobRequest | null {
   // debug tools' "Show grimoire" goal.
   if (!job && grimoireView.pending()) {
     job = grimoireView.job();
+  }
+
+  // Auto play: an ascension that is due or under way (ASC-10): nothing else in this tier
+  // makes sense during it.
+  if (!job && ascension.pending()) {
+    job = ascension.job();
   }
 
   // Auto play: unlock the Grimoire with a sugar lump as soon as possible (AUTO-13).
