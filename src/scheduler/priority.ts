@@ -8,6 +8,7 @@ import type { GrimoireUnlocker } from '../autoplay/grimoire-unlock';
 import type { KrumblorTrainer } from '../autoplay/krumblor';
 import type { SantaTrainer } from '../autoplay/santa';
 import type { BankUnlocker } from '../autoplay/bank-unlock';
+import type { FarmUnlocker } from '../autoplay/farm-unlock';
 import type { AutoPlayEngine } from '../autoplay/shopping';
 import type { WrinklerPopper } from '../autoplay/wrinkler-popper';
 import type { JobRequest } from '../cursor/types';
@@ -20,6 +21,7 @@ import type { HappyDance } from '../hunting/happy-dance';
 import type { LumpHarvestActions } from '../hunting/lump-harvest';
 import type { IdleBehavior } from '../idle/idle-behavior';
 import type { StockTrader } from '../market/stock-trader';
+import type { Gardener } from '../garden/gardener';
 
 export interface PriorityDeps {
   queue: GoldenQueueItem[];
@@ -35,9 +37,11 @@ export interface PriorityDeps {
   ascension: AscensionRunner;
   grimoireUnlock: GrimoireUnlocker;
   bankUnlock: BankUnlocker;
+  farmUnlock: FarmUnlocker;
   krumblor: KrumblorTrainer;
   santa: SantaTrainer;
   stockTrader: StockTrader;
+  gardener: Gardener;
   autoPlay: AutoPlayEngine;
   wrinklerPopper: WrinklerPopper;
   happyDance: HappyDance;
@@ -54,12 +58,14 @@ export interface PriorityDeps {
  *                               first gets the Grimoire on screen (FT-8, GrimoireView steps)
  *   4 ripe sugar lump        -> LumpHarvestAction (harvest before the game auto-harvests it)
  *   5 a started buildings-view recipe / "Show grimoire" debug goal, then auto play: ascend
- *     (ASC-10), unlock the Grimoire, unlock the stock market, train Krumblor, evolve Santa;
- *     then a stock market trade (STOCK-*, not tied to auto play); then auto play again: pop
+ *     (ASC-10), unlock the Grimoire, unlock the stock market, unlock the garden, train
+ *     Krumblor, evolve Santa; then a stock market trade (STOCK-*) and a garden step
+ *     (GARDEN-*), both not tied to auto play; then auto play again: pop
  *     a wrinkler for a purchase, then shopping
  *                            -> MenuButtonAction / ScrollIntoViewAction / MinigameButtonAction /
  *                               GrimoireUnlockAction / MinigameUnlockAction /
  *                               DragonClickAction / DragonStoreAction / MarketClickAction /
+ *                               GardenClickAction /
  *                               WrinklerPopAction, else the auto-shop
  *                               action (only when a purchase is due)
  *   6 hammer mode            -> HammerAction
@@ -70,7 +76,7 @@ export interface PriorityDeps {
  * still falls through to lump harvest/auto-shop/hammer/dance/idle below it, exactly as the
  * original did. */
 export function selectJobRequest(deps: PriorityDeps): JobRequest | null {
-  const { queue, buffs, runtime, data, game, clickGolden, clickBigCookie, fthof, lumpHarvest, grimoireView, ascension, grimoireUnlock, bankUnlock, krumblor, santa, stockTrader, autoPlay, wrinklerPopper, happyDance, idleBehavior, hammerActive } = deps;
+  const { queue, buffs, runtime, data, game, clickGolden, clickBigCookie, fthof, lumpHarvest, grimoireView, ascension, grimoireUnlock, bankUnlock, farmUnlock, krumblor, santa, stockTrader, gardener, autoPlay, wrinklerPopper, happyDance, idleBehavior, hammerActive } = deps;
 
   let job: JobRequest | null = null;
 
@@ -141,6 +147,11 @@ export function selectJobRequest(deps: PriorityDeps): JobRequest | null {
     job = bankUnlock.job();
   }
 
+  // Auto play: unlock the garden with a sugar lump when it is to be tended (AUTO-17).
+  if (!job && farmUnlock.pending()) {
+    job = farmUnlock.job();
+  }
+
   // Auto play: train Krumblor up to the Dragon Cursor aura (KRUMB-*).
   if (!job && krumblor.pending()) {
     job = krumblor.job();
@@ -155,6 +166,12 @@ export function selectJobRequest(deps: PriorityDeps): JobRequest | null {
   // setting, with or without auto play.
   if (!job && stockTrader.pending()) {
     job = stockTrader.job();
+  }
+
+  // The garden: harvest, weed, soil, plant (GARDEN-*). Its own setting, with or without auto
+  // play.
+  if (!job && gardener.pending()) {
+    job = gardener.job();
   }
 
   // Auto play: pop mature wrinklers whose cookies the next purchase needs (WRINK-2..6).

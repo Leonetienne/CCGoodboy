@@ -1,5 +1,5 @@
 import type { IGameAdapter } from '../../../src/game/game-adapter';
-import type { CpsBuff, GameBuilding, GameShimmer, GameUpgrade, GameWrinkler, GrimoireMinigame, HeavenlyUpgradeInfo, MarketSnapshot, RawBuff } from '../../../src/game/types';
+import type { CpsBuff, GameBuilding, GameShimmer, GameUpgrade, GameWrinkler, GardenSnapshot, GrimoireMinigame, HeavenlyUpgradeInfo, MarketSnapshot, RawBuff } from '../../../src/game/types';
 
 /** A hand-written stand-in for GameAdapter, settable per test. Everything defaults to the
  * "Game not ready" shape so a test only needs to override what it cares about. */
@@ -61,6 +61,7 @@ export class FakeGameAdapter implements IGameAdapter {
   market: MarketSnapshot | null = null;
   marketTicks = 0;
   marketSpeed = 1;
+  garden: GardenSnapshot | null = null;
 
   isPresent(): boolean {
     return this.present;
@@ -406,6 +407,10 @@ export class FakeGameAdapter implements IGameAdapter {
 
   getMarketSnapshot(): MarketSnapshot | null {
     return this.market;
+  }
+
+  getGardenSnapshot(): GardenSnapshot | null {
+    return this.garden;
   }
 
   marketTickNow(): void {

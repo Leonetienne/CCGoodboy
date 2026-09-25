@@ -28,7 +28,14 @@ export class Scheduler {
   ) {}
 
   tick(): void {
-    if (this.runtime.destroyed || !this.runtime.running || !this.game.isPresent() || !this.game.isReady()) {
+    if (this.runtime.destroyed || !this.game.isPresent() || !this.game.isReady()) {
+      return;
+    }
+
+    // The garden grows whether or not the paw is paused (GARDEN-10).
+    this.deps.gardener.track();
+
+    if (!this.runtime.running) {
       return;
     }
 

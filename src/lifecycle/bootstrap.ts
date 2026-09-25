@@ -1,4 +1,5 @@
 import type { StockTrader } from '../market/stock-trader';
+import type { Gardener } from '../garden/gardener';
 import { sayYay } from '../core/console-voice';
 import { VERSION } from '../core/constants';
 import type { PersistedData } from '../core/persisted-data';
@@ -60,6 +61,7 @@ export interface BootstrapDeps {
   ascension: AscensionPlanner;
   ascensionRunner: AscensionRunner;
   stockTrader: StockTrader;
+  gardener: Gardener;
 }
 
 /** The user mouse events that trigger syncGameMouseFromUser(). */
@@ -139,7 +141,7 @@ export class Bootstrap {
       return;
     }
 
-    const { runtime, data, game, log, clock, keepAlive, scheduler, goldenCookieModel, goldenQueue, clickTiming, hurryMode, autoPlay, wrinklerPopper, grimoireView, incomeTracker, ascension, ascensionRunner, stockTrader } =
+    const { runtime, data, game, log, clock, keepAlive, scheduler, goldenCookieModel, goldenQueue, clickTiming, hurryMode, autoPlay, wrinklerPopper, grimoireView, incomeTracker, ascension, ascensionRunner, stockTrader, gardener } =
       this.deps;
 
     window.__CCSmartGoldenComboBot = {
@@ -179,6 +181,7 @@ export class Bootstrap {
       ascension,
       ascensionRunner,
       stockTrader,
+      gardener,
       updateChecker: this.updateChecker,
     });
 

@@ -13,6 +13,7 @@ import type { AscensionRunner } from '../../autoplay/ascension-runner';
 import type { AutoPlayEngine } from '../../autoplay/shopping';
 import type { WrinklerPopper } from '../../autoplay/wrinkler-popper';
 import { signedCookies, type StockTrader } from '../../market/stock-trader';
+import type { Gardener } from '../../garden/gardener';
 import type { GoldenQueue } from '../../hunting/golden-queue';
 import { escapeHtml, formatNum, moodText, targetText } from '../format';
 
@@ -34,6 +35,7 @@ export class PanelUpdater {
     private readonly ascension: AscensionPlanner,
     private readonly ascensionRunner: AscensionRunner,
     private readonly stockTrader: StockTrader,
+    private readonly gardener: Gardener,
     private readonly clock: BackgroundClock,
     private readonly keepAlive: KeepAliveController,
   ) {}
@@ -104,6 +106,11 @@ export class PanelUpdater {
     el('ccsb-stock-row')!.style.display = stockText ? '' : 'none';
     if (stockText) el('ccsb-stock')!.textContent = stockText;
 
+    // Only while "Tend the garden" is on (GARDEN-8).
+    const gardenText = this.gardener.statusText();
+    el('ccsb-garden-row')!.style.display = gardenText ? '' : 'none';
+    if (gardenText) el('ccsb-garden-status')!.textContent = gardenText;
+
     el('ccsb-bg')!.textContent = backgroundStatusText(this.clock, this.runtime, this.data);
 
     const autoBtn = el('ccsb-auto-toggle')!;
@@ -129,6 +136,13 @@ export class PanelUpdater {
         ? [
             `<span>Stock trades ^w^</span><b>${this.data.stats.stockTrades}</b>`,
             `<span>Stock market profit :3</span><b>${escapeHtml(signedCookies(this.data.stats.stockProfit || 0))}</b>`,
+          ]
+        : []),
+      ...(this.data.stats.gardenPlants || this.data.stats.gardenHarvests
+        ? [
+            `<span>Garden: planted :3</span><b>${this.data.stats.gardenPlants || 0}</b>`,
+            `<span>Garden: harvested ^w^</span><b>${this.data.stats.gardenHarvests || 0}</b>`,
+            `<span>Garden profit :3</span><b>${escapeHtml(signedCookies(this.data.stats.gardenProfit || 0))}</b>`,
           ]
         : []),
       ...(this.data.stats.wrinklersPopped ? [`<span>Wrinklers popped owo</span><b>${this.data.stats.wrinklersPopped}</b>`] : []),

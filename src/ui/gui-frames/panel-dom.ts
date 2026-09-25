@@ -43,6 +43,10 @@ function panelBodyHtml(version: string): string {
         <span class="ccsb-label">Stock market</span>
         <span class="ccsb-value" id="ccsb-stock">off</span>
     </div>
+    <div class="ccsb-row" id="ccsb-garden-row">
+        <span class="ccsb-label">Garden</span>
+        <span class="ccsb-value" id="ccsb-garden-status">off</span>
+    </div>
     <div class="ccsb-row" id="ccsb-auto-row">
         <span class="ccsb-label">Auto play</span>
         <span class="ccsb-value" id="ccsb-auto">off</span>
@@ -127,6 +131,10 @@ function panelBodyHtml(version: string): string {
             <span>Stocks: invest at most (share of bank)</span>
             <input data-setting="stockMaxShare" type="number" min="0" max="1" step="0.05">
         </div>
+        <label style="display:flex;gap:6px;align-items:center;margin-top:5px" title="The paw keeps the Farm's garden full of Baker's wheat (+1% CpS each), harvests plants before they wither, weeds out pests, uses clay soil once you have 100 farms and never plants during a buff (seeds cost more then). With auto play it also unlocks the garden (Farm level 1, one sugar lump); it never spends lumps on the garden otherwise.">
+            <input id="ccsb-garden" type="checkbox">
+            Tend the garden :3
+        </label>
         <div class="ccsb-setting">
             <span>Happy dance length (ms, 0 = off)</span>
             <input data-setting="happyDanceMs" type="number" min="0" max="10000" step="100">

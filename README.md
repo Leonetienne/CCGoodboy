@@ -132,8 +132,14 @@ right cookie to show up.
 
 ## Good to know
 
-- **What it doesn't do:** seasons, the garden, the stock market, the pantheon,
-  or anything beyond Grandmapocalypse stage 1.
+- **What it doesn't do:** seasons, the pantheon, the stock market's offices
+  and loans, breeding new garden seeds on purpose, or anything beyond
+  Grandmapocalypse stage 1.
+- **The garden.** With "Tend the garden" on (the default), the paw keeps the
+  Farm's garden full of Baker's wheat (+1% CpS each), harvests plants before
+  they wither, weeds out pests and uses clay once you have 100 farms. It
+  never plants during a buff (seeds cost more then) and never spends a sugar
+  lump on the garden, except that auto play unlocks it (Farm level 1).
 - **Ascending.** The "Ascension" row and the box on the Legacy button tell
   you when ascending pays off and which heavenly upgrades to buy. With auto
   play on, the bot also ascends by itself; untick "Auto: ascend" in the auto

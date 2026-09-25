@@ -71,6 +71,8 @@ export function moodText(action: string): string {
     ascend: 'ascending to cookie heaven ^w^',
     'stock-market': 'playing the stock market, stonks ^w^',
     'bank-unlock': 'unlocking the stock market ^w^',
+    garden: 'gardening, dirty paws :3',
+    'farm-unlock': 'unlocking the garden ^w^',
   };
 
   return map[action] || action;

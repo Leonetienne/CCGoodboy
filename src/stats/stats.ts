@@ -103,6 +103,23 @@ export class StatsRecorder {
     this.data.scheduleSave();
   }
 
+  recordGardenPlant(): void {
+    this.data.stats.gardenPlants = (this.data.stats.gardenPlants || 0) + 1;
+    this.data.scheduleSave();
+  }
+
+  recordGardenHarvest(): void {
+    this.data.stats.gardenHarvests = (this.data.stats.gardenHarvests || 0) + 1;
+    this.data.scheduleSave();
+  }
+
+  /** GARDEN-10: adds cookies the garden made (+) or cost (-). */
+  recordGardenProfit(cookies: number): void {
+    if (!Number.isFinite(cookies) || cookies === 0) return;
+    this.data.stats.gardenProfit = (this.data.stats.gardenProfit || 0) + cookies;
+    this.data.scheduleSave();
+  }
+
   recordWrinklerPop(): void {
     this.data.stats.wrinklersPopped = (this.data.stats.wrinklersPopped || 0) + 1;
     this.data.scheduleSave();

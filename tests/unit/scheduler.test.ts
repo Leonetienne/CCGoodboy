@@ -18,6 +18,8 @@ import type { GrimoireView } from '../../src/hunting/grimoire-view';
 import type { AutoPlayEngine } from '../../src/autoplay/shopping';
 import type { WrinklerPopper } from '../../src/autoplay/wrinkler-popper';
 import type { BankUnlocker } from '../../src/autoplay/bank-unlock';
+import type { FarmUnlocker } from '../../src/autoplay/farm-unlock';
+import type { Gardener } from '../../src/garden/gardener';
 import type { KrumblorTrainer } from '../../src/autoplay/krumblor';
 import type { StockTrader } from '../../src/market/stock-trader';
 import type { SantaTrainer } from '../../src/autoplay/santa';
@@ -68,7 +70,9 @@ function makeScheduler(game: FakeGameAdapter, overrides: Partial<SchedulerDeps> 
     grimoireView: { pending: () => false } as unknown as GrimoireView,
     grimoireUnlock: { pending: () => false } as unknown as GrimoireUnlocker,
     bankUnlock: { pending: () => false } as unknown as BankUnlocker,
+    farmUnlock: { pending: () => false } as unknown as FarmUnlocker,
     stockTrader: { pending: () => false } as unknown as StockTrader,
+    gardener: { pending: () => false, track: () => {} } as unknown as Gardener,
     krumblor: { pending: () => false } as unknown as KrumblorTrainer,
     santa: { pending: () => false } as unknown as SantaTrainer,
     ascension: { pending: () => false, committed: () => false } as unknown as AscensionRunner,

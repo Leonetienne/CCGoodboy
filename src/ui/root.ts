@@ -9,6 +9,7 @@ import type { AscensionRunner } from '../autoplay/ascension-runner';
 import type { IncomeTracker } from '../autoplay/income-tracker';
 import type { IGameAdapter } from '../game/game-adapter';
 import type { StockTrader } from '../market/stock-trader';
+import type { Gardener } from '../garden/gardener';
 import type { GoldenCookieModel } from '../game/golden-cookie-model';
 import type { HurryMode } from '../game/hurry-mode';
 import type { GoldenQueue } from '../hunting/golden-queue';
@@ -45,6 +46,7 @@ export interface UiRootDeps {
   ascension: AscensionPlanner;
   ascensionRunner: AscensionRunner;
   stockTrader: StockTrader;
+  gardener: Gardener;
   updateChecker: UpdateChecker;
 }
 
@@ -89,7 +91,7 @@ export class UiRoot {
     this.debugPanel = new DebugPanel(this.debugTools);
     document.body.appendChild(this.debugPanel.element);
 
-    this.panelUpdater = new PanelUpdater(this.panel, runtime, data, game, goldenCookieModel, goldenQueue, clickTiming, hurryMode, autoPlay, wrinklerPopper, ascension, ascensionRunner, deps.stockTrader, clock, keepAlive);
+    this.panelUpdater = new PanelUpdater(this.panel, runtime, data, game, goldenCookieModel, goldenQueue, clickTiming, hurryMode, autoPlay, wrinklerPopper, ascension, ascensionRunner, deps.stockTrader, deps.gardener, clock, keepAlive);
 
     this.settingsPanel = new SettingsPanel(this.panel, data, runtime, keepAlive, () => {
       applyFrameOpacity(data.config.frameOpacity);
@@ -139,6 +141,7 @@ export class UiRoot {
     bindCheckbox('ccsb-grimoire-fthof', data.config.grimoireFthof !== false);
     bindCheckbox('ccsb-spend-lumps', data.config.spendLumps !== false);
     bindCheckbox('ccsb-stock-market', data.config.stockMarket !== false);
+    bindCheckbox('ccsb-garden', data.config.garden !== false);
     bindCheckbox('ccsb-auto-hammer', data.config.autoHammer !== false);
     bindCheckbox('ccsb-auto-grandmapocalypse', data.config.autoGrandmapocalypse !== false);
     bindCheckbox('ccsb-auto-pop-wrinklers', data.config.autoPopWrinklers !== false);

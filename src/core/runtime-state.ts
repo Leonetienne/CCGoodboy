@@ -84,6 +84,11 @@ export class RuntimeState {
   buildingsViewStartedAt = 0;
   grimoireUnlockBlockUntil = 0;
   bankUnlockBlockUntil = 0;
+  farmUnlockBlockUntil = 0;
+  /** Garden (GARDEN-*): a pause after a failed click or view step. */
+  gardenBlockUntil = 0;
+  /** Last time the garden's passive CpS gain was added to its profit (GARDEN-10), 0 = none. */
+  gardenTrackedAt = 0;
   /** Stock market (STOCK-*): each held good's highest price since it was bought (for the
    * trailing stop), and a pause after a failed click. */
   marketPeaks = new Map<number, number>();

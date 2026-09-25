@@ -36,12 +36,13 @@ human: it catches good golden cookies, hammers the big cookie during Click
 Frenzy, keeps a Grimoire "Force the Hand of Fate" (FTHOF) combo going, and
 shows all of that through a little paw cursor, a HUD, charts and logs. With
 the ON-by-default setting "Play the stock market" it also trades on the
-Bank's stock market (STOCK-\*). It also ships "debug tools" (cheats) to
+Bank's stock market (STOCK-\*), and with "Tend the garden" (also on by
+default) it keeps the Farm's garden planted (GARDEN-\*). It also ships "debug tools" (cheats) to
 test the hunter on a test save.
 
 Out of scope: seasons (switching them; auto play does buy the Easter egg
 upgrades a season drops, EGG-\*, and the Christmas upgrades, evolving Santa,
-XMAS-\*), garden, pantheon, the stock market's offices and loans (STOCK-8), challenge modes and permanent
+XMAS-\*), breeding garden seeds on purpose (GARDEN-9), pantheon, the stock market's offices and loans (STOCK-8), challenge modes and permanent
 upgrade slots when ascending (auto play ascends by itself unless "Auto:
 ascend" is switched off, ASC-10; without auto play the ascension plan is
 only shown), and any
@@ -55,8 +56,10 @@ FTHOF spell button, the lump-refill button, a ripe sugar lump, the
 Options/Stats menu buttons and the "View Grimoire" button needed to get the
 FTHOF spell on screen (FT-8), with "Play the stock market" the "View Stock
 Market" button, the market's buy/sell buttons and its "Hire" (broker)
-button (STOCK-\*), and — in auto play only — the Wizard tower's
-"lvl" button (AUTO-13), the Bank's "lvl" button (AUTO-16), mature wrinklers (WRINK-5), Krumblor's tab,
+button (STOCK-\*), with "Tend the garden" the "View Garden" button, the
+garden's plot tiles, seeds and soils (GARDEN-\*), and — in auto play only —
+the Wizard tower's "lvl" button (AUTO-13), the Bank's "lvl" button
+(AUTO-16), the Farm's "lvl" button (AUTO-17), mature wrinklers (WRINK-5), Krumblor's tab,
 popup and aura picker (KRUMB-3) and Santa's tab, "Evolve" button and popup
 "x" (XMAS-4), and with "Auto: ascend" the Legacy button, the "Ascend" /
 "Reincarnate" prompts, heavenly upgrade crates and the Reincarnate button
@@ -214,8 +217,8 @@ refactor) which `tests/visual/scenarios.mjs` scenario exercises it.
   "Spend sugar lumps" (`spendLumps`). With casting off, FT-1/FT-8 never
   run and no refill happens either (a refill only exists to pay for a
   cast). With lump spending off, the bot never spends a sugar lump on its
-  own: no FT-3 refill and no AUTO-13 Grimoire unlock (Wizard tower level
-  1). Nothing switched off is pending, blocks lower tiers or complains in
+  own: no FT-3 refill, no AUTO-13 Grimoire unlock (Wizard tower level
+  1), no AUTO-16/AUTO-17 unlock of the stock market or the garden. Nothing switched off is pending, blocks lower tiers or complains in
   the console (CON-2); the Grimoire HUD row says what is off. Harvesting
   ripe lumps (LUMP-\*) gains lumps and is unaffected, as is the explicit
   debug tool DBG-11.
@@ -256,10 +259,10 @@ refactor) which `tests/visual/scenarios.mjs` scenario exercises it.
   5. a buildings-view recipe already under way / the "Show grimoire"
      debug goal (DBG-9/11), then auto play: an ascension under way on the
      ascension screen (ASC-10), then the Grimoire unlock (AUTO-13), then the
-     stock market unlock (AUTO-16),
+     stock market unlock (AUTO-16), then the garden unlock (AUTO-17),
      then a Krumblor step (KRUMB-\*), then a Santa step (XMAS-4), then a
      stock market trade (STOCK-\*, its own setting, with or without auto
-     play), then popping a wrinkler for a purchase (WRINK-3), then shopping
+     play), then a garden step (GARDEN-\*, likewise), then popping a wrinkler for a purchase (WRINK-3), then shopping
      (only when a purchase is due, AUTO-8)
   6. hammer mode (manual button, or the auto hammer, AUTO-11)
   7. happy dance (only right after a catch, DANCE-1)
@@ -391,7 +394,7 @@ the paw clicks.
   saved and kept on screen). Title shows the script version.
 - **UI-2** Rows: Mood, Chasing, Shinies waiting (ready / fading in /
   wrath), Click Frenzy, Grimoire, Wrinklers (WRINK-7), Ascension (ASC-5),
-  Stock market (STOCK-7), Auto play, then a "Details" fold (`<details>`,
+  Stock market (STOCK-7), Garden (GARDEN-8), Auto play, then a "Details" fold (`<details>`,
   collapsed by default, session-only) with Buffies, LOCK_A, Click cooldown
   and Background, then the statistics.
 - **UI-3** Buttons: Pause/Resume, Hammer cookie, Auto play, Settings,
@@ -403,7 +406,7 @@ the paw clicks.
   settings" (or Enter) validates, clamps, applies and stores them at once.
 - **UI-11** Settings are split into "Basic" (what a nontechnical player
   would touch: the on/off switches for overlays, the hunting show, idle
-  play, keep-alive, FTHOF, lumps and the stock market, the stock budget,
+  play, keep-alive, FTHOF, lumps, the stock market and the garden, the stock budget,
   the dance length and the two opacities) and an "Advanced" section
   (timings, speeds, click rates, history/log sizes, the ascension tuning),
   a `<details>` collapsed by default. The auto play settings are split the
@@ -556,7 +559,8 @@ action log (UI-6); nothing here is stored.
   automatic ascension says `"Ascending!! See you on the other side, cookies
   ^w^"` and, after reincarnating, `"Back in the mortal world, time to bake
   again :3"` (ASC-10); a stock sold for a profit says `"Sold CRL for a
-  profit, stonks ^w^"` (STOCK-6).
+  profit, stonks ^w^"` (STOCK-6); a harvest that unlocks a seed says
+  `"Found a new seed: Thumbcorn!! ^w^"` (GARDEN-8).
 - **CON-2** "Wanted to ..., but ..." lines (`console.log`) whenever the bot
   wants to do something and can't. Conditions re-checked every scheduler
   tick go through `sayCantWhile(wish, reasonCode, msg)`, which says each
@@ -574,12 +578,16 @@ action log (UI-6); nothing here is stored.
   - Stock market unlock wanted (AUTO-16): sugar lumps not unlocked, no
     lumps. Trading wanted ("Play the stock market" on): no Bank, market
     still locked (Bank level 0).
+  - Garden unlock wanted (AUTO-17): sugar lumps not unlocked, no lumps.
+    Gardening wanted ("Tend the garden" on): no Farm, garden still locked
+    (Farm level 0).
 
   One-off events use `sayCant(msg)`: a golden cookie click that didn't pop
   it (not for storm drops) or a reindeer that ran away, a FTHOF/refill/lump click that did nothing,
   FT-8 preparation falling back to a direct cast, the Grimoire unlock,
   wrinkler popping, a stock market click that did nothing or a view step
-  that failed (STOCK-5), Krumblor training, Santa's evolution or an ascension
+  that failed (STOCK-5), a garden click that did nothing or a view step that
+  failed (GARDEN-7), Krumblor training, Santa's evolution or an ascension
   pausing (with the reason), a heavenly upgrade the ascension skips, a purchase the shop refused,
   a failed debug tool or "Show grimoire".
 - **CON-3** Errors (`sayOops`, `console.error` with the error object): a
@@ -813,6 +821,19 @@ action log (UI-6); nothing here is stored.
   Bank stays level 0. Priority: tier 5, right after the Grimoire unlock.
   Logged as `"auto bank unlock"`. `BankUnlocker`,
   `src/autoplay/bank-unlock.ts`.
+
+- **AUTO-17** Garden unlock: with auto play AND "Tend the garden"
+  (GARDEN-1) on, as soon as >= 1 Farm is owned, its level is still 0, sugar
+  lumps are unlocked and >= 1 lump is in stock, the paw spends one lump on
+  Farm level 1 (which unlocks the garden), unless "Spend sugar lumps" is off
+  (FT-9). Exactly AUTO-16's recipe, guards, pauses and dry run, run by the
+  Farm's `MinigameView` (`#productLevel2`). This is the only lump the bot
+  ever spends on the garden: the Farm is never levelled further (the plot
+  stays 2x2 unless the player levels it) and the garden's own lump refill
+  is never clicked. Priority: tier 5, right after the stock market unlock.
+  Logged as `"auto farm unlock"`. `FarmUnlocker`,
+  `src/autoplay/farm-unlock.ts`; `BankUnlocker` and `FarmUnlocker` share
+  `MinigameUnlocker` (`src/autoplay/minigame-unlock.ts`).
 
 ### 3.15 Background operation (browser tab not in front)
 
@@ -1455,6 +1476,100 @@ was read for every rule below.
   (ASC-13), the trader itself never sells for it; `runtime.marketPeaks`
   is reset with the run. Debug: DBG-22, DBG-23.
 
+### 3.24 Garden (the Farm's minigame)
+
+The gardener keeps the Farm's garden planted for its passive effects,
+every step a real click on the garden's own controls (NFR-8 a), one
+`GardenClickAction` job per click. Pure logic in
+`src/garden/garden-strategy.ts`, the module in `src/garden/gardener.ts`,
+the DOM in `src/game/garden-dom.ts`; the game's `minigameGarden.js`
+(2.058) was read for every rule below. How the garden works, for
+reference: plants age once per garden tick (dirt 5 min, fertilizer 3,
+clay 15; nothing grows while the game is closed), give 10/25/50/100% of
+their effect as bud/sprout/bloom/mature and die at age 100; a tile click
+harvests (mature: seed unlock, payout, drop upgrades, counts) or unearths
+(not mature: nothing) whatever grows there, else plants the selected seed
+(which the game then de-selects); a seed costs max(its minimum, the
+BUFFED CpS × its minutes); new seeds only appear by mutation in empty
+tiles next to mature plants.
+
+- **GARDEN-1** Setting "Tend the garden" (`garden`, a general setting,
+  DEFAULT ON). Not tied to auto play; auto play only adds the unlock
+  (AUTO-17). With the setting off the bot never touches the garden. Without
+  a Farm, or with Farm level 0, it only says so (CON-2) and waits. It never
+  spends a sugar lump on the garden (AUTO-17 aside).
+- **GARDEN-2** Order, re-planned from the live garden for every click
+  (`planGardenMove()`), so a preempted click is simply planned again:
+  (1) harvest a mature plant whose seed isn't known yet (unlocks it);
+  (2) unearth a known pest at once (GARDEN-4; harvest it when mature);
+  (3) harvest a mature plant about to wither (the game's own "dying" look:
+  age + the most it can age in one tick >= 100): it keeps its full effect
+  until then, and its seed chance, drops (Wheat slims, Bakeberry cookies,
+  ...) and the harvest achievements only come from a harvest; (4) during a
+  CpS buff, harvest a mature payout crop (GARDEN-5); (5) set the soil
+  (GARDEN-6); (6) fill an empty tile with the crop (GARDEN-3): click its
+  seed if it isn't selected, then the tile. A plant of a known, harmless
+  kind that isn't the crop (e.g. an Elderwort the player planted) is left
+  growing until it withers like the crop.
+- **GARDEN-3** The crop is Baker's wheat (`GARDEN_CROP`): known from the
+  start, one minute of CpS per seed, +1% CpS each while alive (+1.25% on
+  clay, ~+34% for a full 6x6 plot averaged over its life). It is only
+  planted with no CpS buff running (the seed price follows the buffed CpS:
+  a Frenzy makes it 7× dearer) and when the seed is affordable from the
+  bank minus auto play's reserve (AUTO-6, only while auto play is on).
+- **GARDEN-4** Pests (`GARDEN_PESTS`): Meddleweed, Brown mold, Shriekbulb,
+  Crumbspore, Doughshroom (negative effects, or they take over their
+  neighbours). Unearthed at once when their seed is known; an unknown one
+  grows to maturity first so its harvest unlocks the seed.
+- **GARDEN-5** Payout crops (`GARDEN_PAYOUT`: Bakeberry, Chocoroot, White
+  chocoroot, Queenbeet, Duketater) pay min(a share of the bank, some
+  minutes of the BUFFED CpS) on a mature harvest, so one that is mature is
+  harvested while a CpS buff runs rather than at its end. The bot doesn't
+  plant them (without a buff and a big bank they cost more than they pay).
+- **GARDEN-6** Soil: clay (effects ×1.25) once 100 farms allow it, else
+  dirt (`gardenSoilTarget()`); changed with a click on the soil once its
+  10-minute cooldown is over. A frozen garden (the player's freeze) is left
+  alone completely: no harvest, no planting, no soil.
+- **GARDEN-7** Safety: the AUTO-7 gates (golden cookie ready, Click Frenzy,
+  storm/chain, FTHOF/refill pending, paused; also a prompt open,
+  ascending). Getting the garden in front of the paw is the Farm's
+  `MinigameView` (goal "open", like STOCK-5): Options/Stats/Stats if a menu
+  covers the buildings, "View Garden" (`#productMinigameButton2`) if it is
+  closed, wheel-scroll `#centerArea` to the control. Every click re-checks
+  its move right before it fires (FT-4), since a tile click on the wrong
+  plant would unearth it. A click that changed nothing pauses the garden
+  3s, a failed view step 10s (`runtime.gardenBlockUntil`). Priority: tier 5
+  right after a stock market trade, before wrinkler pops and shopping; a
+  due step interrupts hammering and idle play (AUTO-8).
+- **GARDEN-8** Every step is logged (`"garden plant"` with the cost,
+  `"garden harvest"` with the cookies it paid and a seed it unlocked,
+  `"garden unearth"`, `"garden soil"`) and counted (`stats.gardenPlants`,
+  `stats.gardenHarvests`, "Garden: planted" / "Garden: harvested" in the
+  HUD statistics once > 0, with "Garden profit", GARDEN-10); a new seed
+  says so in the console (CON-1). HUD row "Garden" (only while GARDEN-1 is
+  on): tiles planted, the garden's CpS bonus, what it made (GARDEN-10), soil,
+  seeds known, the seed price while a tile is empty, the next step or the time
+  to the next garden tick; "locked (Farm level 0)" before the unlock,
+  "frozen" while frozen.
+- **GARDEN-9** Not done (yet): breeding new seeds on purpose (layouts for
+  mutations), other crops (Whiskerbloom's milk, clovers' golden cookie
+  frequency), freezing mature payout crops for a combo, the garden's lump
+  refill, levelling the Farm, sacrificing the garden. The plot is kept
+  full, so mutations (and weeds) are rare.
+- **GARDEN-10** Garden profit (`stats.gardenProfit`, persisted, in cookies):
+  (a) the passive gain: once a second (`Gardener.track()`, called by every
+  `Scheduler.tick()`, also while the paw is paused) the share of the real
+  income that is the garden's CpS bonus, `Game.cookiesPs × (1 − 1/M.effs.cps)`
+  × the seconds since the last sample (a gap over 5s, e.g. a throttled tab,
+  counts as 5s); a garden bonus below 1 (Brown mold) counts as a loss;
+  nothing while the setting is off, the garden is locked or frozen (its
+  bonus is then 1); (b) + what a mature payout crop's harvest paid (the
+  bank's rise over the click; any other harvest's rise is only the CpS
+  during the click and isn't counted); (c) − every seed the paw planted,
+  at its price at the click. Not counted: drop upgrades (Wheat slims, ...),
+  the garden's effects other than CpS, seeds the player planted.
+  `StatsRecorder.recordGardenProfit()`.
+
 ## 4. Non-functional requirements
 
 - **NFR-1** Versioning: MAJOR.MINOR.PATCH, shown in the panel. Bump with
@@ -1538,9 +1653,10 @@ saved (see `normalizeSetting()` in
 | `showAscendOverlay` | Show ascension overlay [checkbox] (ASC-6) | true | – |
 | `showDebugTools` | Show debug tools (cheats) [checkbox] (UI-3) | false | – |
 | `grimoireFthof` | Grimoire: cast Force the Hand of Fate [checkbox] (FT-9) | true | – |
-| `spendLumps` | Spend sugar lumps [checkbox] (FT-9: refills, AUTO-13/AUTO-16 unlocks) | true | – |
+| `spendLumps` | Spend sugar lumps [checkbox] (FT-9: refills, AUTO-13/AUTO-16/AUTO-17 unlocks) | true | – |
 | `stockMarket` | Play the stock market [checkbox] (STOCK-1) | true | – |
 | `stockMaxShare` | Stocks: invest at most (share of bank) (STOCK-4) | 0.5 | 0-1 |
+| `garden` | Tend the garden [checkbox] (GARDEN-1) | true | – |
 | `autoPlay` | (Auto play button, stored) | false | – |
 | `autoDryRun` | Auto play dry run (log only) [checkbox] | false | – |
 | `autoInsignificantSec` | Auto: insignificant cost (s of CpS) | 60 | 0-3600 |
@@ -1614,15 +1730,16 @@ gainLumps) — still guarded, still the only path to those `Game.*` calls.
 | Area | Path | Contents |
 |---|---|---|
 | Core state | `src/core/` | `constants.ts` (VERSION, clamp helpers), `console-voice.ts` (CON-\*), `persisted-data.ts`, `runtime-state.ts`, `state-machine.ts` |
-| Game facade | `src/game/` | `game-adapter.ts` (IGameAdapter + GameAdapter), `types.ts` (GameShimmer/RawBuff/CpsBuff/GrimoireMinigame/GameBuilding/GameUpgrade), `golden-cookie-model.ts` (fade curve, shimmer classification, GC-2/GC-3), `hurry-mode.ts` (HURRY-\*), `buffs-lock.ts` (LOCK_A, FT-6), `grimoire.ts` (FTHOF spell/cost lookup), `grimoire-dom.ts` (real Grimoire controls — FT-7), `market-dom.ts` (the stock market's trade and "Hire" buttons — STOCK-\*), `lump-dom.ts` (`#lumps` control/centre — LUMP-\*), `wrinkler-dom.ts` (`#backgroundLeftCanvas`, a wrinkler's body point — WRINK-5), `dragon-dom.ts` (the special tabs on the left canvas, `#specialPopup`, the aura picker, Santa's "Evolve" button — KRUMB-3/XMAS-4), `buildings-view-dom.ts` (`#centerArea`, menu buttons, building rows/level buttons, the Options/Stats/Stats recipe, `centeredScrollTop` — AUTO-13), `reindeer.ts` (a reindeer's predicted path and the paw's meeting point — XMAS-6), `ascension-dom.ts` (the Legacy button, the Ascend/Reincarnate prompts, heavenly crates, the Reincarnate button, how far to drag the tree — ASC-10), `store-dom.ts` (the collapsible upgrade store sections, opened while the paw is there — AUTO-9), `dom-geometry.ts` (visibleRect/looseRect/clippedByAncestor — shared by every overlay box, GC-2/BUY-3) |
+| Game facade | `src/game/` | `game-adapter.ts` (IGameAdapter + GameAdapter), `types.ts` (GameShimmer/RawBuff/CpsBuff/GrimoireMinigame/GameBuilding/GameUpgrade), `golden-cookie-model.ts` (fade curve, shimmer classification, GC-2/GC-3), `hurry-mode.ts` (HURRY-\*), `buffs-lock.ts` (LOCK_A, FT-6), `grimoire.ts` (FTHOF spell/cost lookup), `grimoire-dom.ts` (real Grimoire controls — FT-7), `market-dom.ts` (the stock market's trade and "Hire" buttons — STOCK-\*), `garden-dom.ts` (the garden's plot tiles, seeds and soils — GARDEN-\*), `lump-dom.ts` (`#lumps` control/centre — LUMP-\*), `wrinkler-dom.ts` (`#backgroundLeftCanvas`, a wrinkler's body point — WRINK-5), `dragon-dom.ts` (the special tabs on the left canvas, `#specialPopup`, the aura picker, Santa's "Evolve" button — KRUMB-3/XMAS-4), `buildings-view-dom.ts` (`#centerArea`, menu buttons, building rows/level buttons, the Options/Stats/Stats recipe, `centeredScrollTop` — AUTO-13), `reindeer.ts` (a reindeer's predicted path and the paw's meeting point — XMAS-6), `ascension-dom.ts` (the Legacy button, the Ascend/Reincarnate prompts, heavenly crates, the Reincarnate button, how far to drag the tree — ASC-10), `store-dom.ts` (the collapsible upgrade store sections, opened while the paw is there — AUTO-9), `dom-geometry.ts` (visibleRect/looseRect/clippedByAncestor — shared by every overlay box, GC-2/BUY-3) |
 | Cursor (queue) | `src/cursor/` | `types.ts` (`JOB_PRIORITY`, `CursorAction`, `CursorJob`, `CursorJobContext`, `CursorMover`, `CursorClickTiming`, `JobRequest`), `cursor-manager.ts` (owns the priority queue + all cursor motion: click gap → travel → pre-click pause → `cursor_at_position`, dedup by key, preemption, single cursor writer) |
-| Actions | `src/actions/` | `click-element.ts` (ClickElementAction/MoveAction/VisualPressAction), `golden-cookie.ts` (GoldenCookieAction, `effectPrettyName`), `hammer.ts` (HammerAction + big-cookie point helpers, CF-\*), `fthof.ts` (FthofAction/RefillAction), `lump-harvest.ts` (LumpHarvestAction, LUMP-\*), `buildings-view.ts` (MenuButtonAction, ScrollIntoViewAction, MinigameButtonAction — FT-8/AUTO-13/DBG-9..11), `minigame-unlock.ts` (MinigameUnlockAction: a building's "lvl" click that unlocks its minigame), `grimoire-unlock.ts` (GrimoireUnlockAction, AUTO-13), `market.ts` (MarketClickAction: one click on a stock market button, STOCK-\*), `wrinkler-pop.ts` (WrinklerPopAction, WRINK-5), `krumblor.ts` (DragonClickAction/DragonStoreAction, KRUMB-3; Santa's and the ascension's clicks reuse DragonClickAction, XMAS-4/ASC-10), `ascension.ts` (WaitWhileAction, DragTreeAction — ASC-10), `achievement-dump.ts` (AchievementDumpAction: buying a building copy by copy for its achievement — ASC-13), `store-visit.ts` (`enterStoreElement`: the paw opening an upgrade's store section and moving onto the crate, AUTO-9), `dance.ts` (DanceAction + `danceEligible`/`anyGoldenPresent`/`getDanceMs`), `ponder.ts` (PonderAction), `idle.ts` (IdleWanderAction + `IDLE_SPOTS`/`pickIdleSpot`) |
+| Actions | `src/actions/` | `click-element.ts` (ClickElementAction/MoveAction/VisualPressAction), `golden-cookie.ts` (GoldenCookieAction, `effectPrettyName`), `hammer.ts` (HammerAction + big-cookie point helpers, CF-\*), `fthof.ts` (FthofAction/RefillAction), `lump-harvest.ts` (LumpHarvestAction, LUMP-\*), `buildings-view.ts` (MenuButtonAction, ScrollIntoViewAction, MinigameButtonAction — FT-8/AUTO-13/DBG-9..11), `minigame-unlock.ts` (MinigameUnlockAction: a building's "lvl" click that unlocks its minigame), `grimoire-unlock.ts` (GrimoireUnlockAction, AUTO-13), `market.ts` (MarketClickAction: one click on a stock market button, STOCK-\*), `garden.ts` (GardenClickAction: one click on a garden tile, seed or soil, GARDEN-\*), `wrinkler-pop.ts` (WrinklerPopAction, WRINK-5), `krumblor.ts` (DragonClickAction/DragonStoreAction, KRUMB-3; Santa's and the ascension's clicks reuse DragonClickAction, XMAS-4/ASC-10), `ascension.ts` (WaitWhileAction, DragTreeAction — ASC-10), `achievement-dump.ts` (AchievementDumpAction: buying a building copy by copy for its achievement — ASC-13), `store-visit.ts` (`enterStoreElement`: the paw opening an upgrade's store section and moving onto the crate, AUTO-9), `dance.ts` (DanceAction + `danceEligible`/`anyGoldenPresent`/`getDanceMs`), `ponder.ts` (PonderAction), `idle.ts` (IdleWanderAction + `IDLE_SPOTS`/`pickIdleSpot`) |
 | Hunting (modules) | `src/hunting/` | `click-golden.ts` (golden hunter: `jobFor` → GoldenCookieAction), `click-big-cookie.ts` (hammer module: `job` → HammerAction), `golden-queue.ts` (route caching, wraps route-planner), `fthof.ts` (FthofActions: `fthofOrRefillPending` + `castJob`/`refillJob`), `lump-harvest.ts` (LumpHarvestActions: `pending` + `harvestJob`), `happy-dance.ts` (HappyDance: `job` → DanceAction), `buildings-view.ts` (BuildingsViewNavigator: Options/Stats/Stats recipe + scroll-into-view steps, `PrepStep`), `minigame-view.ts` (MinigameView: step planner to a building's unlocked/open, on-screen minigame — shared by the Grimoire and the stock market), `grimoire-view.ts` (GrimoireView: the Wizard tower's MinigameView for FT-8/AUTO-13, plus the DBG-9..11 tools and their scheduler tier), `hitbox-overlay.ts` (GC-2) |
 | Routing | `src/routing/route-planner.ts` | `exactRoute` (Held-Karp DP, <= 11 cookies), `heuristicRoute` (nearest-neighbor + 2-opt/Or-opt + restarts), `planRoute` (GC-5) |
 | Idle | `src/idle/` | `idle-behavior.ts` (IdleBehavior module: `idleJob` → IdleWanderAction), `pending-work.ts` (conditions + queue state via `CursorManager.hasJobsAbove` — the shared "is anything more important pending?" predicate) |
 | Input synthesis | `src/input/` | `dispatch.ts` (dispatchMouse/dispatchMove — MOUSE-\*), `human-click.ts` (ClickTiming: delays, waitUntil, humanClick), `cursor-controller.ts` (CursorController: low-level PAW-4 arc/spline/warp travel, moveCursorTo/glideCursor — the only file that writes `runtime.cursor.x/y`), `background-clock.ts` (BackgroundClock: BG-1/BG-2 worker timer), `keep-alive.ts` (BG-3) |
-| Auto play | `src/autoplay/` | `valuation-tables.ts` (AUTO_BLOCKED_\*, AUTO_GOLDEN_UPGRADES, AUTO_KITTEN_POWER, AUTO_FINGER_STEPS, AUTO_BUILDING_CAPS — AUTO-2 data), `building-valuation.ts` + `upgrade-classifier.ts` (AUTO-3 gain math per candidate type), `collector.ts` (`autoCollect`: gathers candidates + ctx, AUTO-7 safety gates), `strategy.ts` (`autoDecide`: the pure insignificant/good/postpone/save decision, AUTO-4 — flagship unit-test target), `buy-streak.ts` (pure: whether the paw buys one more of the same building in its streak, AUTO-14), `achievement-milestones.ts` (pure: a building's value on its way to a count achievement, AUTO-15), `shopping.ts` (`AutoPlayEngine`: evaluate/shopJob/statusText, AUTO-1/8/9/10/12), `auto-hammer.ts` (AUTO-11), `grimoire-unlock.ts` (`GrimoireUnlocker`: AUTO-13 gating, steps from GrimoireView), `bank-unlock.ts` (`BankUnlocker`: AUTO-16 gating, steps from the Bank's MinigameView), `wrinkler-strategy.ts` (pure: respawn time, maturity, fewest-fattest pick — WRINK-2/3), `grandmapocalypse-valuation.ts` (pure: stage 1 gain, delay, chain-step dCps — WRINK-1), `wrinkler-popper.ts` (`WrinklerPopper`: WRINK-3/4 gating, plan, job, HUD text), `krumblor-strategy.ts` (pure: next Krumblor step — KRUMB-1/2/5), `krumblor.ts` (`KrumblorTrainer`: KRUMB-\* gating, state, jobs, the cursor sale/rebuy), `easter-eggs.ts` (pure-ish: egg values and order — EGG-\*), `christmas.ts` (pure-ish: Christmas upgrade values — XMAS-1..3), `santa-strategy.ts` (pure: next Santa step — XMAS-4), `santa.ts` (`SantaTrainer`: XMAS-4/5 gating, jobs), `ascension-strategy.ts` (pure: pending level, stagnation, boost gate, verdict — ASC-1..4/8), `heavenly-shopping.ts` (pure: the heavenly priority list, lucky 7s, the shopping list and the level it needs — ASC-9), `ascension-steps.ts` (pure: the next step of an automatic ascension — ASC-10), `achievement-dump.ts` (pure: the cheapest-first achievement plan for the bank before an ascension — ASC-13), `ascension-runner.ts` (`AscensionRunner`: ASC-10 gating, steps, jobs, the per-run reset), `ascension.ts` (`AscensionPlanner`: measured income, cached plan, HUD text — ASC-2/5), `ascension-overlay.ts` (Legacy button and heavenly tree boxes — ASC-6/7), `income-tracker.ts` (smoothed clicking income for AUTO-3's `income`), `buy-value-overlay.ts` (BUY-\*) |
+| Auto play | `src/autoplay/` | `valuation-tables.ts` (AUTO_BLOCKED_\*, AUTO_GOLDEN_UPGRADES, AUTO_KITTEN_POWER, AUTO_FINGER_STEPS, AUTO_BUILDING_CAPS — AUTO-2 data), `building-valuation.ts` + `upgrade-classifier.ts` (AUTO-3 gain math per candidate type), `collector.ts` (`autoCollect`: gathers candidates + ctx, AUTO-7 safety gates), `strategy.ts` (`autoDecide`: the pure insignificant/good/postpone/save decision, AUTO-4 — flagship unit-test target), `buy-streak.ts` (pure: whether the paw buys one more of the same building in its streak, AUTO-14), `achievement-milestones.ts` (pure: a building's value on its way to a count achievement, AUTO-15), `shopping.ts` (`AutoPlayEngine`: evaluate/shopJob/statusText, AUTO-1/8/9/10/12), `auto-hammer.ts` (AUTO-11), `grimoire-unlock.ts` (`GrimoireUnlocker`: AUTO-13 gating, steps from GrimoireView), `minigame-unlock.ts` (`MinigameUnlocker`: a minigame's level 1 unlock, gating and steps from its MinigameView), `bank-unlock.ts` (`BankUnlocker`: AUTO-16), `farm-unlock.ts` (`FarmUnlocker`: AUTO-17), `wrinkler-strategy.ts` (pure: respawn time, maturity, fewest-fattest pick — WRINK-2/3), `grandmapocalypse-valuation.ts` (pure: stage 1 gain, delay, chain-step dCps — WRINK-1), `wrinkler-popper.ts` (`WrinklerPopper`: WRINK-3/4 gating, plan, job, HUD text), `krumblor-strategy.ts` (pure: next Krumblor step — KRUMB-1/2/5), `krumblor.ts` (`KrumblorTrainer`: KRUMB-\* gating, state, jobs, the cursor sale/rebuy), `easter-eggs.ts` (pure-ish: egg values and order — EGG-\*), `christmas.ts` (pure-ish: Christmas upgrade values — XMAS-1..3), `santa-strategy.ts` (pure: next Santa step — XMAS-4), `santa.ts` (`SantaTrainer`: XMAS-4/5 gating, jobs), `ascension-strategy.ts` (pure: pending level, stagnation, boost gate, verdict — ASC-1..4/8), `heavenly-shopping.ts` (pure: the heavenly priority list, lucky 7s, the shopping list and the level it needs — ASC-9), `ascension-steps.ts` (pure: the next step of an automatic ascension — ASC-10), `achievement-dump.ts` (pure: the cheapest-first achievement plan for the bank before an ascension — ASC-13), `ascension-runner.ts` (`AscensionRunner`: ASC-10 gating, steps, jobs, the per-run reset), `ascension.ts` (`AscensionPlanner`: measured income, cached plan, HUD text — ASC-2/5), `ascension-overlay.ts` (Legacy button and heavenly tree boxes — ASC-6/7), `income-tracker.ts` (smoothed clicking income for AUTO-3's `income`), `buy-value-overlay.ts` (BUY-\*) |
 | Stock market | `src/market/` | `market-strategy.ts` (pure: thresholds, trailing stop, budget, brokers, the next trade — STOCK-2..4), `stock-trader.ts` (`StockTrader`: STOCK-\* gating, peaks, jobs, HUD text; the Bank's `MinigameView`) |
+| Garden | `src/garden/` | `garden-strategy.ts` (pure: the crop, pests, payout crops, soil, the next step — GARDEN-2..6), `gardener.ts` (`Gardener`: GARDEN-\* gating, jobs, HUD text; the Farm's `MinigameView`) |
 | Scheduler | `src/scheduler/` | `priority.ts` (`selectJobRequest`: the SCHED-1 cascade as pure data), `scheduler.ts` (`Scheduler.tick()`: wrath logging, queue build, enqueues ONE job via CursorManager), `overlay-loop.ts` (`OverlayLoop`: the requestAnimationFrame draw loop — hunting show, hitboxes, buy-value overlay, ascension overlay, paw) |
 | Rendering | `src/rendering/` | `paw-cursor.ts` (`PawCursor`: PAW-1..3, sprite rasterizing, click pulse, fallback drawn paw), `hunt-fx.ts` (`HuntFx`: the osu!-style hunting show, FX-\*), `overlay-canvas.ts` (resize/DPR handling) |
 | Stats | `src/stats/` | `log.ts` (`LogStore`), `stats.ts` (`StatsRecorder`: GC-6/AUTO-10 counters + hourly buckets) |
@@ -1672,9 +1789,11 @@ target)`) instead of scattering direct field writes across every task.
 | `fthof` | casting Force the Hand of Fate (FT-1) | `FthofAction` |
 | `grimoire-refill` | spending a sugar lump on mana (FT-3) | `RefillAction` |
 | `lump-harvest` | harvesting a ripe sugar lump (LUMP-1) | `LumpHarvestAction` |
-| `buildings-view` | clicking Options/Stats back to the buildings, scrolling `#centerArea`, or clicking "View Grimoire" / "View Stock Market" (FT-8, AUTO-13, AUTO-16, STOCK-5, DBG-9..11) | `MenuButtonAction` / `ScrollIntoViewAction` / `MinigameButtonAction` |
+| `buildings-view` | clicking Options/Stats back to the buildings, scrolling `#centerArea`, or clicking "View Grimoire" / "View Stock Market" / "View Garden" (FT-8, AUTO-13, AUTO-16, AUTO-17, STOCK-5, GARDEN-7, DBG-9..11) | `MenuButtonAction` / `ScrollIntoViewAction` / `MinigameButtonAction` |
 | `grimoire-unlock` | spending a sugar lump on Wizard tower level 1 (AUTO-13) | `GrimoireUnlockAction` |
 | `bank-unlock` | spending a sugar lump on Bank level 1 (AUTO-16) | `MinigameUnlockAction` (from `BankUnlocker`) |
+| `farm-unlock` | spending a sugar lump on Farm level 1 (AUTO-17) | `MinigameUnlockAction` (from `FarmUnlocker`) |
+| `garden` | clicking a garden tile, seed or soil (GARDEN-\*) | `GardenClickAction` |
 | `stock-market` | clicking a stock market buy/sell button or "Hire" (STOCK-\*) | `MarketClickAction` |
 | `wrinkler-pop` | poking a mature wrinkler until it bursts (WRINK-5) | `WrinklerPopAction` |
 | `krumblor` | buying the crumbly egg, clicking Krumblor's tab/popup/aura picker, selling/buying cursors for the sacrifice (KRUMB-\*) | `DragonClickAction` / `DragonStoreAction` |
@@ -1702,8 +1821,8 @@ file.**
 
 Three layers, each catching a different class of bug:
 
-1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 543 tests
-   across 49 files. Pure functions (route planner, `autoDecide`, the chart
+1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 563 tests
+   across 50 files. Pure functions (route planner, `autoDecide`, the chart
    engine, `normalizeSetting`) are tested directly with plain data; the
    cursor queue/actions have their own fake mover/timing tests. Classes
    that depend on the game are tested against `FakeGameAdapter`
@@ -1802,7 +1921,11 @@ an assertion — hence the visual suite instead.
   `prev`/`last`/`active`), `M.getGoodMaxStock`/`getRestingVal`/
   `getMaxBrokers`/`getBrokerPrice`, `M.ticks`/`tickT`/`secondsPerTick`,
   `M.tick()` and the `#bankGood-{id}_{n}`/`#bankBrokersBuy` buttons
-  (STOCK-\*; read from `minigameMarket.js` 2.058). The trade strategy was
+  (STOCK-\*; read from `minigameMarket.js` 2.058), the garden's `M.plot`/
+  `plantsById`/`soilsById`/`getCost`/`isTileUnlocked`/`plotBoost`/
+  `seedSelected`/`freeze`/`nextSoil`/`nextStep` and the
+  `#gardenTile-{x}-{y}`/`#gardenSeed-{id}`/`#gardenSoil-{id}` controls
+  (GARDEN-\*; read from `minigameGarden.js` 2.058). The trade strategy was
   tuned in simulation, not on the live game: expect real results to vary. If one is missing, the
   affected feature degrades quietly (see NFR-4) and the Debug tools report
   an error in red.
@@ -1865,7 +1988,11 @@ test save with a Bank at level 0, some CpS and a sugar lump, switch on
 "View Stock Market", then "Stock market: crash prices": the paw clicks
 Max on the goods; tick with "Stock market: next tick now" until prices
 rise and fall again and watch it click "All", never below the purchase
-price), Grimoire unlock (AUTO-13: on a test
+price), garden (GARDEN-\*/AUTO-17: on a test save with a Farm at level 0,
+100+ farms and a sugar lump, auto play on; watch the Farm's "lvl" click,
+"View Garden", the soil switched to clay, then the wheat seed and an empty
+tile clicked in turn until the plot is full; spawn a Frenzy with an empty
+tile: nothing is planted until it ends), Grimoire unlock (AUTO-13: on a test
 save with a Wizard tower at level 0, give lumps, open Options, switch auto
 play on, scroll the building list to the top; watch Options/Stats/Stats,
 the wheel-scroll and the "lvl" click; DBG-9/10 exercise the first two
@@ -1885,6 +2012,27 @@ mouse while the bot runs and confirm the "+N" number follows your cursor,
 not the paw's).
 
 ## 12. Changelog
+
+- **5.8.1** Garden profit (GARDEN-10): the garden's CpS bonus over time,
+  its harvest payouts and minus the seeds the paw planted, in cookies
+  (`stats.gardenProfit`, `Gardener.track()`, sampled once a second by the
+  scheduler); shown as "Garden profit" in the HUD statistics and "+5.0% CpS;
+  made +1.2M cookies" in the Garden row. The garden snapshot gains
+  `cpsMult`. A harvest's `cookies` log field now only counts payout crops.
+  Unit tests in `tests/unit/garden.test.ts`.
+
+- **5.8.0** New module: the garden (GARDEN-\*). With the new setting
+  "Tend the garden" (`garden`, on) the paw keeps the Farm's garden full of
+  Baker's wheat on clay (dirt below 100 farms), harvests plants before they
+  wither (for their seed chance and drops), harvests new seeds as soon as
+  they are mature, weeds out known pests, harvests payout crops during a
+  CpS buff, and never plants during one; every step a real click on the
+  garden's tiles, seeds and soils (`GardenClickAction`). With auto play it
+  also unlocks the garden (Farm level 1, AUTO-17, `FarmUnlocker`); it never
+  spends another lump on it. The Bank's unlock became the shared
+  `MinigameUnlocker`. New HUD row "Garden", stats "Garden: planted" /
+  "Garden: harvested", moods `garden` and `farm-unlock`; `IGameAdapter`
+  gains `getGardenSnapshot()`. Unit tests in `tests/unit/garden.test.ts`.
 
 - **5.7.5** De-cluttered the main panel: Graphs, Logs and Debug tools
   moved behind a "More..." button (UI-3), the Debug tools button is hidden

@@ -26,6 +26,7 @@ export interface Config {
   spendLumps: boolean;
   stockMarket: boolean;
   stockMaxShare: number;
+  garden: boolean;
   ascendLuckyWaitSec: number;
   ascendMinBoost: number;
   ascendShopWaitSec: number;
@@ -68,6 +69,12 @@ export interface Stats {
   /** Per good id: units the bot bought and still holds, and what it paid for them (cookies,
    * overhead included). */
   stockBasis: Record<string, StockBasis>;
+  /** Seeds the paw planted and mature plants it harvested in the garden (GARDEN-8). */
+  gardenPlants: number;
+  gardenHarvests: number;
+  /** Cookies the garden made (+) or cost (-): its CpS bonus over time, harvest payouts, minus
+   * the seeds the paw planted (GARDEN-10). */
+  gardenProfit: number;
 }
 
 export interface StockBasis {
@@ -135,6 +142,7 @@ export const DEFAULTS: PersistedState = {
     spendLumps: true,
     stockMarket: true,
     stockMaxShare: 0.5,
+    garden: true,
     ascendLuckyWaitSec: 86400,
     ascendMinBoost: 2,
     ascendShopWaitSec: 21600,
@@ -172,6 +180,9 @@ export const DEFAULTS: PersistedState = {
     stockTrades: 0,
     stockProfit: 0,
     stockBasis: {},
+    gardenPlants: 0,
+    gardenHarvests: 0,
+    gardenProfit: 0,
   },
   hourly: {},
   logs: [],

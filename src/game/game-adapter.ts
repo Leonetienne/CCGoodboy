@@ -1,4 +1,4 @@
-import type { CpsBuff, GameBuilding, GameShimmer, GameUpgrade, GameWrinkler, GrimoireMinigame, HeavenlyUpgradeInfo, MarketGood, MarketSnapshot, RawBuff } from './types';
+import type { CpsBuff, GameBuilding, GameShimmer, GameUpgrade, GameWrinkler, GardenSnapshot, GardenTile, GrimoireMinigame, HeavenlyUpgradeInfo, MarketGood, MarketSnapshot, RawBuff } from './types';
 
 /** Every access to the live Cookie Clicker `Game` object goes through this interface. It is
  * the one mockable seam between our logic and the page's own global. */
@@ -115,6 +115,10 @@ export interface IGameAdapter {
   // ---- stock market (STOCK-*) ----
   /** The Bank's stock market, read-only, or null while it isn't loaded (Bank level 0). */
   getMarketSnapshot(): MarketSnapshot | null;
+
+  // ---- garden (GARDEN-*) ----
+  /** The Farm's garden, read-only, or null while it isn't loaded (Farm level 0). */
+  getGardenSnapshot(): GardenSnapshot | null;
 
   // ---- debug-tools-only raw operations (see ui/debug/debug-tools.ts) ----
   spawnGoldenShimmer(opts: { wrath?: boolean }): Record<string, unknown>;
@@ -1036,6 +1040,69 @@ export class GameAdapter implements IGameAdapter {
   }
 
   /** The Bank's minigame object, only once it has loaded (level >= 1). */
+  getGardenSnapshot(): GardenSnapshot | null {
+    try {
+      const M = this.garden();
+      const Game = window.Game;
+      if (!M || !Game || !Array.isArray(M.plot) || !Array.isArray(M.plantsById) || typeof M.isTileUnlocked !== 'function') return null;
+
+      const tiles: GardenTile[] = [];
+      for (let y = 0; y < 6; y++) {
+        for (let x = 0; x < 6; x++) {
+          if (!M.isTileUnlocked(x, y)) continue;
+
+          const tile = M.plot[y] && M.plot[y][x];
+          const id = tile ? Number(tile[0]) - 1 : -1;
+          const me = id >= 0 ? M.plantsById[id] : null;
+          const age = tile ? Number(tile[1]) || 0 : 0;
+          const immortal = !!(me && me.immortal);
+          const ageMult = Number(M.plotBoost?.[y]?.[x]?.[0]) || 1;
+
+          tiles.push({
+            x,
+            y,
+            plant: me ? String(me.key) : null,
+            age,
+            mature: me ? Number(me.mature) || 0 : 0,
+            dying: !!me && !immortal && age + Math.ceil((Number(me.ageTick) + Number(me.ageTickR)) * ageMult) >= 100,
+            immortal,
+          });
+        }
+      }
+
+      const soils = Array.isArray(M.soilsById) ? M.soilsById : [];
+      const now = Date.now();
+
+      return {
+        tiles,
+        seeds: M.plantsById.map((p: any) => ({
+          id: Number(p.id),
+          key: String(p.key),
+          name: String(p.name),
+          unlocked: !!p.unlocked,
+          plantable: p.plantable !== false,
+          cost: Number(M.getCost(p)) || 0,
+        })),
+        soil: Number(M.soil) || 0,
+        soils: soils.map((s: any) => ({ id: Number(s.id), key: String(s.key), name: String(s.name), req: Number(s.req) || 0 })),
+        soilCooldownSec: Math.max(0, ((Number(M.nextSoil) || 0) - now) / 1000),
+        frozen: !!M.freeze,
+        seedSelected: Number.isFinite(Number(M.seedSelected)) ? Number(M.seedSelected) : -1,
+        nextTickSec: Math.max(0, ((Number(M.nextStep) || 0) - now) / 1000),
+        farms: Number(M.parent?.amount) || 0,
+        cpsMult: Number(M.effs?.cps) || 1,
+      };
+    } catch (_e) {
+      return null;
+    }
+  }
+
+  private garden(): any {
+    const Game = window.Game;
+    const farm = Game && Game.Objects && Game.Objects['Farm'];
+    return farm && farm.minigameLoaded && farm.minigame ? farm.minigame : null;
+  }
+
   private market(): any {
     const Game = window.Game;
     const bank = Game && Game.Objects && Game.Objects['Bank'];

@@ -11,6 +11,8 @@ import type { LumpHarvestActions } from '../../src/hunting/lump-harvest';
 import type { IdleBehavior } from '../../src/idle/idle-behavior';
 import { JOB_PRIORITY } from '../../src/cursor/types';
 import type { BankUnlocker } from '../../src/autoplay/bank-unlock';
+import type { FarmUnlocker } from '../../src/autoplay/farm-unlock';
+import type { Gardener } from '../../src/garden/gardener';
 import type { StockTrader } from '../../src/market/stock-trader';
 import { selectJobRequest, type PriorityDeps } from '../../src/scheduler/priority';
 import type { GameShimmer } from '../../src/game/types';
@@ -95,9 +97,11 @@ function makeDeps(overrides: Partial<PriorityDeps> = {}): PriorityDeps {
     ascension: { pending: () => false, committed: () => false } as unknown as AscensionRunner,
     grimoireUnlock,
     bankUnlock: { pending: () => false } as unknown as BankUnlocker,
+    farmUnlock: { pending: () => false } as unknown as FarmUnlocker,
     krumblor,
     santa: { pending: () => false } as unknown as SantaTrainer,
     stockTrader: { pending: () => false } as unknown as StockTrader,
+    gardener: { pending: () => false } as unknown as Gardener,
     autoPlay,
     wrinklerPopper,
     happyDance,
