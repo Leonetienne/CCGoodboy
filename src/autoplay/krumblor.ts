@@ -3,6 +3,7 @@ import type { PersistedData } from '../core/persisted-data';
 import type { RuntimeState } from '../core/runtime-state';
 import { JOB_PRIORITY, type JobRequest } from '../cursor/types';
 import { DragonClickAction, DragonStoreAction } from '../actions/krumblor';
+import { storeScrollJob } from '../actions/store-visit';
 import { visibleRect } from '../game/dom-geometry';
 import { storeApproachPoint } from '../game/store-dom';
 import {
@@ -159,10 +160,18 @@ export class KrumblorTrainer {
       );
     };
 
+    // a store item scrolled out of the store column: scroll it into view first (AUTO-9)
+    const scrollTo = (el: () => Element | null, what: string) =>
+      storeScrollJob(this.runtime, el, { key: `krumblor:${s.kind}`, priority: JOB_PRIORITY.AUTO_SHOP, hud: { action: 'krumblor', target: `scrolling the store to ${what}` }, abortIf: () => !stillWanted() });
+
     switch (s.kind) {
       case 'buy-egg': {
         const egg = this.game.getUpgradeByName(EGG);
         if (!egg) return null;
+
+        const eggEl = () => document.getElementById(`upgrade${this.game.getUpgradesInStore().indexOf(egg)}`);
+        const scroll = scrollTo(eggEl, 'the crumbly egg');
+        if (scroll) return scroll;
 
         return req(
           new DragonStoreAction({
@@ -218,6 +227,8 @@ export class KrumblorTrainer {
         if (!cursor) return null;
 
         const selling = s.kind === 'sell-cursors';
+        const scroll = scrollTo(() => document.getElementById('product0'), 'the cursors');
+        if (scroll) return scroll;
 
         return req(
           new DragonStoreAction({

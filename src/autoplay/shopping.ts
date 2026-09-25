@@ -2,7 +2,7 @@ import { errText, sayCant, sayOops } from '../core/console-voice';
 import { clamp } from '../core/constants';
 import type { PersistedData } from '../core/persisted-data';
 import type { RuntimeState } from '../core/runtime-state';
-import { enterStoreElement } from '../actions/store-visit';
+import { enterStoreElement, storeScrollJob } from '../actions/store-visit';
 import { visibleRect } from '../game/dom-geometry';
 import { closeStoreSection, storeApproachPoint } from '../game/store-dom';
 import type { IGameAdapter } from '../game/game-adapter';
@@ -377,6 +377,15 @@ export class AutoPlayEngine {
       this.runtime.autoBlockUntil = Date.now() + 1500;
       return null;
     }
+
+    // scrolled out of the store column: the paw scrolls it into view first (AUTO-9)
+    const scroll = storeScrollJob(this.runtime, () => autoStoreElement(this.game, c), {
+      key: `auto-shop:${c.name}`,
+      priority: JOB_PRIORITY.AUTO_SHOP,
+      hud: { action: 'auto-shop', target: `scrolling the store to ${c.name}` },
+      abortIf: () => this.shoppingInterrupted(),
+    });
+    if (scroll) return scroll;
 
     // a crate in a collapsed store row is reached through its section's visible strip
     const pt = storeApproachPoint(autoStoreElement(this.game, c));

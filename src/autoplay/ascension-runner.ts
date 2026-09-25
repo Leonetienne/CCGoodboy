@@ -1,4 +1,5 @@
 import { AchievementDumpAction } from '../actions/achievement-dump';
+import { storeScrollJob } from '../actions/store-visit';
 import { DragTreeAction, WaitWhileAction } from '../actions/ascension';
 import { DragonClickAction } from '../actions/krumblor';
 import { WrinklerPopAction } from '../actions/wrinkler-pop';
@@ -491,6 +492,14 @@ export class AscensionRunner {
         return this.market ? this.market.sellAllJob(s.id, stillWanted) : null;
 
       case 'dump': {
+        const scroll = storeScrollJob(this.runtime, () => document.getElementById(`product${s.id}`), {
+          key,
+          priority: JOB_PRIORITY.AUTO_SHOP,
+          hud: { action: 'ascend', target: `scrolling the store to ${s.name}` },
+          abortIf: () => !stillWanted(),
+        });
+        if (scroll) return scroll;
+
         const building = () => this.game.getBuildings().find((b) => Number(b.id) === s.id) || null;
         const before = Number(building()?.amount) || 0;
 

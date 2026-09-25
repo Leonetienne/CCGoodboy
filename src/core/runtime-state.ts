@@ -124,6 +124,8 @@ export class RuntimeState {
   /** ASC-12: the locked target of a committed ascension (null: none). The routine ascends once
    * the real prestige level is within [level, end]. */
   ascendTarget: AscendTarget | null = null;
+  /** AUTO-9: store items whose scroll into view failed, and until when it isn't retried. */
+  storeScrollGiveUp = new Map<string, number>();
   /** ASC-12: the routine's preparation (pops, sales, achievements) is done for this target. */
   ascendPrepDone = false;
   autoHammerState: AutoHammerState = freshAutoHammerState();

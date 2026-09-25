@@ -51,6 +51,9 @@ export interface ScrollIntoViewParams {
   label: string;
   /** The element to bring into view, re-resolved on every wheel tick. */
   element: () => Element | null;
+  /** The scrolling column the element sits in: #centerArea unless given (the store column
+   * #sectionRight for store items, AUTO-9). */
+  container?: () => HTMLElement | null;
   abortIf?: () => boolean;
   /** Called when scrolling ends (not when preempted), with whether the element is now on
    * screen. */
@@ -58,7 +61,7 @@ export interface ScrollIntoViewParams {
   hud?: { action: string; target: string };
 }
 
-/** Rests the paw over the #centerArea column and scrolls it like a mouse wheel (ticks of
+/** Rests the paw over the #centerArea column (or the given one) and scrolls it like a mouse wheel (ticks of
  * ~70-120px with short pauses) until the element sits in the middle of the column, or the
  * column cannot scroll any further. No click is sent: scrolling only moves the view. */
 export class ScrollIntoViewAction implements CursorAction {
@@ -78,8 +81,12 @@ export class ScrollIntoViewAction implements CursorAction {
     return this.p.hud;
   }
 
+  private area(): HTMLElement | null {
+    return this.p.container ? this.p.container() : getCenterArea();
+  }
+
   target(): { x: number; y: number } | null {
-    const r = visibleRect(getCenterArea());
+    const r = visibleRect(this.area());
     if (!r) return null;
 
     const top = Math.max(r.top, 0);
@@ -89,11 +96,11 @@ export class ScrollIntoViewAction implements CursorAction {
   }
 
   abortIf(): boolean {
-    return !getCenterArea() || !this.p.element() || !!(this.p.abortIf && this.p.abortIf());
+    return !this.area() || !this.p.element() || !!(this.p.abortIf && this.p.abortIf());
   }
 
   async cursor_at_position(ctx: CursorJobContext): Promise<void> {
-    const area = getCenterArea();
+    const area = this.area();
     if (!area) return;
 
     const aborted = () => ctx.abortRequested() || this.abortIf();

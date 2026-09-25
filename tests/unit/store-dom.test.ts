@@ -1,11 +1,13 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { enterStoreElement } from '../../src/actions/store-visit';
+import { enterStoreElement, storeScrollJob } from '../../src/actions/store-visit';
+import { RuntimeState } from '../../src/core/runtime-state';
 import type { CursorJobContext } from '../../src/cursor/types';
 import {
   STORE_OPEN_CLASS,
   closeStoreSection,
   openStoreSection,
   storeApproachPoint,
+  storeScrollTarget,
   storeSectionOf,
 } from '../../src/game/store-dom';
 
@@ -84,5 +86,40 @@ describe('store sections (AUTO-9)', () => {
     store();
     const ctx = { runtime: { cursor: { x: 0, y: 0 } }, clock: { sleep: async () => {} } } as unknown as CursorJobContext;
     expect(await enterStoreElement(ctx, document.getElementById('product0'))).toBeNull();
+  });
+});
+
+describe('scrolling the store column to an item (AUTO-9)', () => {
+  /** #sectionRight (on screen at y 0..800) holding the buildings list; product17 far below. */
+  function column(): { col: HTMLElement; row: HTMLElement; near: HTMLElement } {
+    document.body.innerHTML = `
+      <div id="sectionRight"><div id="products" class="storeSection"><div id="product0"></div><div id="product17"></div></div></div>`;
+    const col = document.getElementById('sectionRight')!;
+    const near = document.getElementById('product0')!;
+    const row = document.getElementById('product17')!;
+    col.getBoundingClientRect = () => rect(1000, 0, 300, 800);
+    near.getBoundingClientRect = () => rect(1000, 300, 300, 64);
+    row.getBoundingClientRect = () => rect(1000, 1400 - col.scrollTop, 300, 64);
+    document.body.querySelectorAll<HTMLElement>('div').forEach((el) => (el.style.opacity = '1'));
+    col.style.overflowY = 'scroll';
+    return { col, row, near };
+  }
+
+  it('wants a building row below the fold scrolled into view, not one on screen', () => {
+    const { row, near } = column();
+    expect(storeScrollTarget(row)).toBe(row);
+    expect(storeScrollTarget(near)).toBeNull();
+    expect(storeScrollTarget(null)).toBeNull();
+  });
+
+  it('hands out a scroll job over the store column, and stops trying after a failed scroll', () => {
+    const { row } = column();
+    const runtime = new RuntimeState();
+    const job = storeScrollJob(runtime, () => row, { key: 'auto-shop:Javascript console', priority: 5, hud: { action: 'auto-shop', target: 'x' }, abortIf: () => false })!;
+    expect(job.key).toBe('auto-shop:Javascript console:scroll');
+    expect(job.action.label).toBe('scroll the store');
+
+    (job.action as unknown as { p: { onDone: (inView: boolean) => void } }).p.onDone(false);
+    expect(storeScrollJob(runtime, () => row, { key: 'k', priority: 5, hud: { action: 'auto-shop', target: 'x' }, abortIf: () => false })).toBeNull();
   });
 });

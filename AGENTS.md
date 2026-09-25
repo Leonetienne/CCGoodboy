@@ -647,8 +647,17 @@ action log (UI-6); nothing here is stored.
   interrupted). A crate folded away in a collapsed row is reached through
   the section's visible strip (`storeApproachPoint()`,
   `src/game/store-dom.ts`; `enterStoreElement()`,
-  `src/actions/store-visit.ts`). The same applies to Krumblor's egg
-  (KRUMB-3). The purchase is decided again once the paw is there (things
+  `src/actions/store-visit.ts`). The store column itself (`#sectionRight`)
+  scrolls on its own: an item scrolled out of it (a building far down the
+  list, the upgrades above a scrolled-down list) is first brought into view
+  by a separate job: the paw rests over the column and wheel-scrolls it
+  until the item (or its collapsed section) sits in the middle
+  (`storeScrollTarget()`, `storeScrollJob()`, `ScrollIntoViewAction` with
+  the store column as its container); the visit follows on a later tick. A
+  scroll that doesn't bring the item into view isn't retried for 10s
+  (`runtime.storeScrollGiveUp`). The same applies to Krumblor's egg and
+  cursors (KRUMB-3) and the achievement purchases before an ascension
+  (ASC-13). The purchase is decided again once the paw is there (things
   change on the way: hammering stops, the bank moves) and BEFORE the press:
   the paw buys what it stands on when it is still the tick's pick, or still
   one of this tick's purchases and buying it first leaves enough for the
@@ -1609,7 +1618,7 @@ target)`) instead of scattering direct field writes across every task.
 | `krumblor` | buying the crumbly egg, clicking Krumblor's tab/popup/aura picker, selling/buying cursors for the sacrifice (KRUMB-\*) | `DragonClickAction` / `DragonStoreAction` |
 | `santa` | clicking Santa's tab, "Evolve" button and popup "x" (XMAS-4) | `DragonClickAction` (from `SantaTrainer`) |
 | `ascend` | getting ready for a committed ascension (ASC-12: selling, buying for achievements, holding at Legacy), clicking Legacy/"Ascend", waiting out the animation, dragging the heavenly tree, buying heavenly upgrades, Reincarnate/"Yes" (ASC-10) | `DragonClickAction` / `WaitWhileAction` / `DragTreeAction` (from `AscensionRunner`; the pops show `wrinkler-pop`) |
-| `auto-shop` | visiting/buying a store item (AUTO-9) | auto-shop `CursorAction` from `AutoPlayEngine.shopJob()` |
+| `auto-shop` | scrolling the store column to an item, visiting/buying it (AUTO-9) | auto-shop `CursorAction` from `AutoPlayEngine.shopJob()` |
 | `happy-dance` | post-catch celebration (DANCE-\*) | `DanceAction` |
 
 `currentTarget` is free-text shown in the "Chasing" row (`targetText()`
@@ -1631,7 +1640,7 @@ file.**
 
 Three layers, each catching a different class of bug:
 
-1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 526 tests
+1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 528 tests
    across 48 files. Pure functions (route planner, `autoDecide`, the chart
    engine, `normalizeSetting`) are tested directly with plain data; the
    cursor queue/actions have their own fake mover/timing tests. Classes
@@ -1814,6 +1823,17 @@ mouse while the bot runs and confirm the "+N" number follows your cursor,
 not the paw's).
 
 ## 12. Changelog
+
+- **5.7.1** Fixed: the paw seemed to click into thin air over the store.
+  The store column (`#sectionRight`) scrolls on its own, and a building far
+  down the list (e.g. the Javascript console) was scrolled out of it:
+  `storeApproachPoint()` found nothing to head for, so the paw stayed where
+  it was and bought (a whole streak, ~10 pulses a second) out of sight. It
+  now wheel-scrolls the store column to the item first, for shopping,
+  Krumblor's egg and cursors and the achievement purchases before an
+  ascension (AUTO-9; `storeScrollTarget()`, `storeScrollJob()`;
+  `ScrollIntoViewAction` takes a `container`). Unit tests in
+  `tests/unit/store-dom.test.ts`.
 
 - **5.6.12** Fixed: the committed ascension (ASC-12) could still wait past
   its level. Only the whole block of levels holding the 7s had to last
