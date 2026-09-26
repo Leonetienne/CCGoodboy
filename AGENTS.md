@@ -338,9 +338,13 @@ See [§7 State machine](#7-state-machine) for how this maps onto code.
 
 - **PAW-1** Drawn on a full-screen overlay canvas above the game;
   pointer-events none, so the real mouse is never blocked.
-- **PAW-2** Two embedded, mirrored (left-facing) SVG sprites: open paw, and
-  a closed fist that replaces it for the whole click pulse. If a sprite
-  cannot load, a small drawn paw is used. Click point = middle claw tip.
+- **PAW-2** Three embedded, upright SVG sprites sharing one frame (the arm
+  stays put when the pose changes): open paw; a closed fist that replaces
+  it for the whole click pulse; and a peace sign shown while the paw does
+  a happy dance (DANCE-\*, IDLE-7; `runtime.pawPeace`, the fist still wins
+  during a click pulse). If a sprite cannot load, a small drawn paw (or,
+  for the fist/peace sign, the open paw) is used. Click point = the open
+  paw's middle claw tip.
 - **PAW-3** Look: pink halo + dark drop shadow for contrast on any
   background. Lean: tilts into horizontal movement (up to ~0.22rad,
   smoothed). Click pulse: scale to 0.92 and back within ~80ms (25 down, 55
@@ -1914,8 +1918,8 @@ file.**
 
 Three layers, each catching a different class of bug:
 
-1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 585 tests
-   across 51 files. Pure functions (route planner, `autoDecide`, the chart
+1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 588 tests
+   across 52 files. Pure functions (route planner, `autoDecide`, the chart
    engine, `normalizeSetting`) are tested directly with plain data; the
    cursor queue/actions have their own fake mover/timing tests. Classes
    that depend on the game are tested against `FakeGameAdapter`
@@ -2105,6 +2109,12 @@ mouse while the bot runs and confirm the "+N" number follows your cursor,
 not the paw's).
 
 ## 12. Changelog
+
+- **5.8.15** New paw sprites (PAW-2): open paw, fist and a new peace
+  sign, drawn upright (no longer mirrored) in one shared 684x1010 frame at
+  68px tall; the click point moved to the new middle claw tip. The paw
+  shows the peace sign while it does a happy dance (`runtime.pawPeace`,
+  set by `DanceAction`). Unit tests in `tests/unit/dance.test.ts`.
 
 - **5.8.14** Dragonflight is treated like Click Frenzy (CF-8):
   `clickFrenzyActive()` is true for either buff, so the paw hammers it at

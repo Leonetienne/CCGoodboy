@@ -1,16 +1,18 @@
 import { clamp } from '../core/constants';
 
 /** On-screen sprite geometry, kept in one place so containment and centre math match the
- * renderer. The sprite is mirrored (paw faces left) and drawn at 60px tall. */
-export const PAW_SPRITE_W = 892;
-export const PAW_SPRITE_H = 1247;
-export const PAW_SPRITE_HX = 257; // click point (middle claw tip), after mirroring
-export const PAW_SPRITE_HY = 4;
-export const PAW_SPRITE_DRAW_H = 60;
+ * renderer. All three sprites (open, closed, peace) share one 684x1010 frame, so the arm
+ * stays put when the pose changes; drawn upright at 68px tall. */
+export const PAW_SPRITE_W = 684;
+export const PAW_SPRITE_H = 1010;
+export const PAW_SPRITE_HX = 290; // click point (the open paw's middle claw tip)
+export const PAW_SPRITE_HY = 135;
+export const PAW_SPRITE_DRAW_H = 68;
 
 /** Keeps the whole paw sprite inside the viewport, not just its click point. The sprite is
  * drawn around the click point and can tilt while dancing/leaning, so this margin is the
- * largest distance from the click point to a sprite corner (~68px for the 60px-tall sprite).
+ * largest distance from the click point to a sprite corner (~65px for the 68px-tall sprite,
+ * rounded up).
  * Idle/ponder/dance motion uses this; real game clicks still use the normal game targets so
  * a golden cookie near the screen edge stays clickable. */
 export const PAW_CONTAIN_MARGIN_PX = 68;

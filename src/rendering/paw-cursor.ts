@@ -1,6 +1,7 @@
 import { sayOops } from '../core/console-voice';
 import pawOpenSvg from '../assets/paw-open.svg';
 import pawClosedSvg from '../assets/paw-closed.svg';
+import pawPeaceSvg from '../assets/paw-peace.svg';
 import type { RuntimeState } from '../core/runtime-state';
 import { PAW_SPRITE_DRAW_H, PAW_SPRITE_H, PAW_SPRITE_HX, PAW_SPRITE_HY, PAW_SPRITE_W } from '../input/paw-bounds';
 
@@ -30,18 +31,18 @@ export function clickPulseScale(pulseAt: number, now: number): number {
   return 1 - (1 - CLICK_PULSE.scale) * k;
 }
 
-/** The virtual paw cursor: rasterizes the open/closed SVG sprites once, leans into horizontal
- * movement, squishes on click, and falls back to a small hand-drawn paw until (or if) the
+/** The virtual paw cursor: rasterizes the open/closed/peace SVG sprites once, leans into
+ * horizontal movement, squishes on click, shows the peace sign while dancing, and falls back to a small hand-drawn paw until (or if) the
  * sprites are ready. */
 export class PawCursor {
   private canvas: HTMLCanvasElement | null = null;
   private closedCanvas: HTMLCanvasElement | null = null;
+  private peaceCanvas: HTMLCanvasElement | null = null;
   private loading = false;
 
   constructor(private readonly runtime: RuntimeState) {}
 
-  /** Draws an SVG once into an offscreen canvas, mirrored so the paw faces left, and hands the
-   * canvas to done(). */
+  /** Draws an SVG once into an offscreen canvas and hands the canvas to done(). */
   private rasterize(svg: string, done: (c: HTMLCanvasElement) => void): void {
     try {
       const img = new Image();
@@ -58,9 +59,6 @@ export class PawCursor {
 
           const g = c.getContext('2d')!;
 
-          // mirror: the paw faces left
-          g.translate(pw, 0);
-          g.scale(-1, 1);
           g.drawImage(img, 0, 0, pw, ph);
 
           done(c);
@@ -79,7 +77,7 @@ export class PawCursor {
     }
   }
 
-  /** Rasterizes both paw sprites (open + closed) once at start. */
+  /** Rasterizes the paw sprites (open, closed, peace) once at start. */
   load(): void {
     if (this.loading) return;
     this.loading = true;
@@ -90,6 +88,10 @@ export class PawCursor {
 
     this.rasterize(pawClosedSvg, (c) => {
       this.closedCanvas = c;
+    });
+
+    this.rasterize(pawPeaceSvg, (c) => {
+      this.peaceCanvas = c;
     });
   }
 
@@ -120,7 +122,7 @@ export class PawCursor {
 
   /** Draws the paw at (x, y) = its click point: translate, rotate (lean + dance tilt), scale
    * (click pulse), then the sprite twice (pink halo pass, dark drop-shadow pass). Uses the
-   * fist while the click pulse runs. Falls back to a hand-drawn paw if the sprite isn't ready. */
+   * fist while the click pulse runs, else the peace sign while dancing. Falls back to a hand-drawn paw if the sprite isn't ready. */
   draw(ctx: CanvasRenderingContext2D, x: number, y: number): void {
     if (!this.canvas) {
       this.drawFallback(ctx, x, y);
@@ -152,8 +154,14 @@ export class PawCursor {
       ctx.scale(pulse, pulse);
     }
 
-    // the fist while the click pulse is running
-    const sprite = clickPulseActive(this.runtime.pulseAt, performance.now()) && this.closedCanvas ? this.closedCanvas : this.canvas;
+    // the fist while the click pulse is running, the peace sign while dancing
+    let sprite = this.canvas;
+
+    if (clickPulseActive(this.runtime.pulseAt, performance.now()) && this.closedCanvas) {
+      sprite = this.closedCanvas;
+    } else if (this.runtime.pawPeace && this.peaceCanvas) {
+      sprite = this.peaceCanvas;
+    }
 
     // 1) strong pink halo: lifts the dark paw off dark backgrounds
     ctx.shadowColor = 'rgba(255,150,215,.95)';

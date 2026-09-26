@@ -77,6 +77,8 @@ export class DanceAction implements CursorAction {
     const hop = randBetween(12, 18) * scale; // px
     const startTs = performance.now();
 
+    runtime.pawPeace = true;
+
     return new Promise<void>((resolve) => {
       const frame = (ts: number) => {
         if (
@@ -88,6 +90,7 @@ export class DanceAction implements CursorAction {
           this.pendingPriorityWork()
         ) {
           runtime.cursorTilt = 0;
+          runtime.pawPeace = false;
           resolve();
           return;
         }
@@ -97,6 +100,7 @@ export class DanceAction implements CursorAction {
         if (t >= ms) {
           ctx.cursor.setPosition(cx0, cy0);
           runtime.cursorTilt = 0;
+          runtime.pawPeace = false;
           resolve();
           return;
         }

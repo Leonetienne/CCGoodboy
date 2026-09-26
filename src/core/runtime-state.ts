@@ -144,6 +144,8 @@ export class RuntimeState {
 
   // ---- paw animation ----
   cursorTilt = 0;
+  /** PAW-2: the paw shows the peace sign (set by the happy dance while it runs). */
+  pawPeace = false;
   lean = 0;
   leanState: { x: number; t: number } | null = null;
   pulseAt = 0;
