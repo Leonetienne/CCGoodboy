@@ -1,3 +1,4 @@
+import type { ButterTopUp } from '../autoplay/butter-biscuit-strategy';
 import type { AutoPlan } from '../autoplay/shopping';
 import type { Decision } from '../autoplay/strategy';
 import type { WrinklerPopPlan } from '../autoplay/wrinkler-strategy';
@@ -121,6 +122,10 @@ export class RuntimeState {
   santaBlockUntil = 0;
   santaMenuOurs = false;
   santaStuckSince = 0;
+  /** Butter biscuits (BUTTER-*): a pause after a failure, and the Wizard tower top-up still to
+   * be sold back (null: none). */
+  butterBlockUntil = 0;
+  butterTopUp: ButterTopUp | null = null;
   /** Automatic ascension (ASC-10): whether the bot started the ascension on screen (it only
    * ever finishes its own) and when, a pause after a failure, since when a step's element
    * can't be found, heavenly upgrades it gave up on, failed purchases and tree drags per
@@ -204,6 +209,7 @@ export class RuntimeState {
     this.krumblorStuckSince = 0;
     this.santaMenuOurs = false;
     this.santaStuckSince = 0;
+    this.butterTopUp = null;
     this.autoHammerState = freshAutoHammerState();
 
     this.ascendOurs = false;

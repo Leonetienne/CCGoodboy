@@ -23,6 +23,7 @@ import type { GrimoireView } from '../../src/hunting/grimoire-view';
 import type { WrinklerPopper } from '../../src/autoplay/wrinkler-popper';
 import type { KrumblorTrainer } from '../../src/autoplay/krumblor';
 import type { SantaTrainer } from '../../src/autoplay/santa';
+import type { ButterBiscuitHunter } from '../../src/autoplay/butter-biscuit';
 
 function makeDeps(overrides: Partial<PriorityDeps> = {}): PriorityDeps {
   const runtime = overrides.runtime ?? new RuntimeState();
@@ -100,6 +101,7 @@ function makeDeps(overrides: Partial<PriorityDeps> = {}): PriorityDeps {
     farmUnlock: { pending: () => false } as unknown as FarmUnlocker,
     krumblor,
     santa: { pending: () => false } as unknown as SantaTrainer,
+    butterBiscuit: { pending: () => false } as unknown as ButterBiscuitHunter,
     stockTrader: { pending: () => false } as unknown as StockTrader,
     gardener: { pending: () => false } as unknown as Gardener,
     autoPlay,
@@ -319,6 +321,24 @@ describe('selectJobRequest', () => {
       job: vi.fn().mockReturnValue({ action: { label: 'krumblor' }, priority: JOB_PRIORITY.AUTO_SHOP, key: 'krumblor:train' }),
     } as unknown as KrumblorTrainer;
     expect(selectJobRequest(makeDeps({ krumblor, santa }))?.key).toBe('krumblor:train');
+  });
+
+  it('tops Wizard towers up for a butter biscuit after Santa, before a stock trade and auto-shop', () => {
+    const butterBiscuit = {
+      pending: () => true,
+      job: vi.fn().mockReturnValue({ action: { label: 'butter' }, priority: JOB_PRIORITY.AUTO_SHOP, key: 'butter:buy-towers' }),
+    } as unknown as ButterBiscuitHunter;
+    const stockTrader = { pending: () => true, job: vi.fn() } as unknown as StockTrader;
+    const autoPlay = { shopReady: () => true, shopJob: vi.fn() } as unknown as AutoPlayEngine;
+
+    expect(selectJobRequest(makeDeps({ butterBiscuit, stockTrader, autoPlay }))?.key).toBe('butter:buy-towers');
+    expect(stockTrader.job).not.toHaveBeenCalled();
+
+    const santa = {
+      pending: () => true,
+      job: vi.fn().mockReturnValue({ action: { label: 'santa' }, priority: JOB_PRIORITY.AUTO_SHOP, key: 'santa:evolve' }),
+    } as unknown as SantaTrainer;
+    expect(selectJobRequest(makeDeps({ santa, butterBiscuit }))?.key).toBe('santa:evolve');
   });
 
   it('falls through to auto-shop when the wrinkler popper has no job to hand out', () => {

@@ -57,6 +57,10 @@ default and remembers your choice.
   from cursors to shipments (selling the extras first and buying them back
   after, which is much cheaper) and puts on the **Dragonflight** aura. It never swaps out an aura you picked
   yourself. Switch it off with **Auto: train Krumblor**.
+- Unlocks the butter biscuits (+10% CpS each). You get one for owning 100 (then 150, 200, ...)
+  of **every** building at once, and Wizard towers are held at 57, so it buys them up to
+  the milestone for a moment and sells them back once the biscuit is unlocked. It only does this
+  when the towers cost less than 1% of your bank.
 - At Christmas it catches reindeer like golden cookies, buys the festive
   hat, Santa's gifts and the reindeer biscuits, and evolves Santa all the way to **Final Claus**.
 

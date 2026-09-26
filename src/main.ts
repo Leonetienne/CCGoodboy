@@ -7,6 +7,7 @@ import { GrimoireUnlocker } from './autoplay/grimoire-unlock';
 import { IncomeTracker } from './autoplay/income-tracker';
 import { KrumblorTrainer } from './autoplay/krumblor';
 import { SantaTrainer } from './autoplay/santa';
+import { ButterBiscuitHunter } from './autoplay/butter-biscuit';
 import { AutoPlayEngine } from './autoplay/shopping';
 import { WrinklerPopper } from './autoplay/wrinkler-popper';
 import { PersistedData } from './core/persisted-data';
@@ -101,6 +102,7 @@ const gardener = Gardener.create(runtime, data, game, log, stats, buildingsView,
 const farmUnlock = new FarmUnlocker(runtime, data, game, log, gardener.view, () => autoPlay.shoppingInterrupted());
 const krumblor = new KrumblorTrainer(runtime, data, game, log, () => autoPlay.shoppingInterrupted());
 const santa = new SantaTrainer(runtime, data, game, log, () => autoPlay.shoppingInterrupted());
+const butterBiscuit = new ButterBiscuitHunter(runtime, data, game, log, () => autoPlay.shoppingInterrupted());
 const ascension = new AscensionPlanner(data, game);
 const wrinklerPopper = new WrinklerPopper(runtime, data, game, log, stats, autoPlay);
 const ascensionRunner = new AscensionRunner(runtime, data, game, log, stats, ascension, () => autoPlay.shoppingInterrupted(), stockTrader);
@@ -112,7 +114,7 @@ ascension.leadSec = () => ascensionRunner.leadSec();
 autoPlay.onKickUpgrade = () => autoHammer.startKick();
 // Anything at the auto-shop tier that wants to run right now (the buildings-view recipe or a
 // debug goal, an ascension, the Grimoire, stock market or garden unlock, a Krumblor or Santa
-// step, a stock trade, a garden step, a wrinkler pop, a due purchase): it interrupts
+// step, a butter biscuit top-up, a stock trade, a garden step, a wrinkler pop, a due purchase): it interrupts
 // hammering and idle play at once (AUTO-8), except during the kick-off, which outranks all
 // but the buildings-view recipe.
 const autoShopReady = () =>
@@ -124,6 +126,7 @@ const autoShopReady = () =>
       farmUnlock.pending() ||
       krumblor.pending() ||
       santa.pending() ||
+      butterBiscuit.pending() ||
       stockTrader.pending() ||
       gardener.pending() ||
       wrinklerPopper.pending() ||
@@ -171,6 +174,7 @@ const scheduler = new Scheduler(runtime, game, log, buffLock, goldenCookieModel,
   farmUnlock,
   krumblor,
   santa,
+  butterBiscuit,
   stockTrader,
   gardener,
   autoPlay,

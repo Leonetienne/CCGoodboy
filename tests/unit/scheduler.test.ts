@@ -23,6 +23,7 @@ import type { Gardener } from '../../src/garden/gardener';
 import type { KrumblorTrainer } from '../../src/autoplay/krumblor';
 import type { StockTrader } from '../../src/market/stock-trader';
 import type { SantaTrainer } from '../../src/autoplay/santa';
+import type { ButterBiscuitHunter } from '../../src/autoplay/butter-biscuit';
 import { JOB_PRIORITY, type CursorAction, type CursorJob, type EnqueueOpts } from '../../src/cursor/types';
 import { Scheduler, type SchedulerDeps } from '../../src/scheduler/scheduler';
 import { LogStore } from '../../src/stats/log';
@@ -75,6 +76,7 @@ function makeScheduler(game: FakeGameAdapter, overrides: Partial<SchedulerDeps> 
     gardener: { pending: () => false, track: () => {} } as unknown as Gardener,
     krumblor: { pending: () => false } as unknown as KrumblorTrainer,
     santa: { pending: () => false } as unknown as SantaTrainer,
+    butterBiscuit: { pending: () => false } as unknown as ButterBiscuitHunter,
     ascension: { pending: () => false, committed: () => false } as unknown as AscensionRunner,
     autoPlay: { shopReady: () => false } as unknown as AutoPlayEngine,
     wrinklerPopper: { pending: () => false } as unknown as WrinklerPopper,

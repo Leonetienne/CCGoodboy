@@ -63,7 +63,9 @@ the Wizard tower's "lvl" button (AUTO-13), the Bank's "lvl" button
 popup and aura picker (KRUMB-3) and Santa's tab, "Evolve" button and popup
 "x" (XMAS-4), and with "Auto: ascend" the Legacy button, the "Ascend" /
 "Reincarnate" prompts, heavenly upgrade crates and the Reincarnate button
-(ASC-10) (the paw only "visits" store items, AUTO-9).
+(ASC-10) (the paw only "visits" store items, AUTO-9; auto play also sells
+Wizard towers it bought for a butter biscuit back through the game's `sell()`,
+BUTTER-\*).
 
 ## 2. Terms
 
@@ -281,7 +283,7 @@ refactor) which `tests/visual/scenarios.mjs` scenario exercises it.
      ascension screen (ASC-10), then the Grimoire unlock (AUTO-13), then the
      stock market unlock (AUTO-16), then the garden unlock (AUTO-17),
      then a Krumblor step (KRUMB-\*), then a Santa step (XMAS-4), then a
-     stock market trade (STOCK-\*, its own setting, with or without auto
+     butter biscuit top-up (BUTTER-\*), then a stock market trade (STOCK-\*, its own setting, with or without auto
      play), then a garden step (GARDEN-\*, likewise), then popping a wrinkler for a purchase (WRINK-3), then shopping
      (only when a purchase is due, AUTO-8)
   6. hammer mode (manual button, or the auto hammer, AUTO-11)
@@ -585,7 +587,9 @@ action log (UI-6); nothing here is stored.
   ^w^"` and, after reincarnating, `"Back in the mortal world, time to bake
   again :3"` (ASC-10); a stock sold for a profit says `"Sold CRL for a
   profit, stonks ^w^"` (STOCK-6); a harvest that unlocks a seed says
-  `"Found a new seed: Thumbcorn!! ^w^"` (GARDEN-8).
+  `"Found a new seed: Thumbcorn!! ^w^"` (GARDEN-8); a butter biscuit top-up
+  that worked says `"Unlocked the Milk chocolate butter biscuit, +10% CpS
+  ^w^"` (BUTTER-2).
 - **CON-2** "Wanted to ..., but ..." lines (`console.log`) whenever the bot
   wants to do something and can't. Conditions re-checked every scheduler
   tick go through `sayCantWhile(wish, reasonCode, msg)`, which says each
@@ -655,7 +659,9 @@ action log (UI-6); nothing here is stored.
   (Wrinkler ambergris, Dragon scale, the eggs, ...); golden cookie upgrades (Lucky day, Serendipity, Get lucky,
   Lasting fortune, Lucky digit, Lucky number, Lucky payout, Green yeast
   digestives) — but never more Wizard towers than the configured target
-  (`autoWizardTowerTarget`, default 57 — the ideal mana count for FTHOF);
+  (`autoWizardTowerTarget`, default 57 — the ideal mana count for FTHOF;
+  the only exceptions are Krumblor's sacrifice, KRUMB-2, and a butter
+  biscuit top-up, BUTTER-\*, which sells them back);
   cursor and CLICKING upgrades: the "mouse and
   cursors twice as efficient" upgrades, the Thousand/Million/Billion/...
   fingers series and the mouse upgrades ("Clicking gains +1% of your
@@ -1445,6 +1451,39 @@ ascend", on by default) the bot also ascends by itself (ASC-10). Pure logic in `
   minDigit)`): a target like 1,177,xxx, whose whole block of 10^p levels
   keeps the 7s (`AscensionPlan.luckyDigit`; `luckyEnd` is the block's end).
 
+### 3.21a Butter biscuits (auto play)
+
+The butter biscuits (+10% CpS each) unlock once EVERY building is owned at
+least N times at once: 100 (Milk chocolate), 150 (Dark chocolate), 200,
+250, ... 650 (Everybutter); the game checks every 5s (`minAmount` in
+`main.js` 2.058) and the unlock stays when the count drops again. Auto play
+holds Wizard towers at `autoWizardTowerTarget` (57), so they are the one
+building short. Pure logic in `src/autoplay/butter-biscuit-strategy.ts`,
+the module in `src/autoplay/butter-biscuit.ts` (`ButterBiscuitHunter`).
+
+- **BUTTER-1** With auto play on (no separate switch), once every building
+  other than Wizard towers is at a milestone whose biscuit is still locked,
+  the tower target is below it and fewer towers are owned, the paw buys
+  Wizard towers up to it in one go, but only when they cost less than 1% of
+  the bank (`BUTTER_MAX_BANK_SHARE`) and leave the reserve (AUTO-6) alone.
+  It takes the highest such milestone
+  that passes both guards (one top-up to 200 also unlocks the 100 and 150
+  biscuits); else it waits.
+- **BUTTER-2** Then it waits for the game's unlock (up to 12s,
+  `BUTTER_UNLOCK_WAIT_MS`) and sells the extra towers back down to the
+  target (or to the count it had before, if higher) (`runtime.butterTopUp`,
+  per run, not persisted). A top-up that didn't unlock its biscuit pauses
+  the module 10 minutes, so it never loops buying and selling at a loss.
+  A purchase that got fewer towers than asked is sold back at once. The
+  biscuit itself is bought by the normal shopping (a +10% biscuit, AUTO-2).
+- **BUTTER-3** Both are store actions through the game's `buy()`/`sell()`
+  with the paw visiting the Wizard tower row (scrolled into view first) and
+  pulsing (NFR-8 b, `DragonStoreAction`); never in the store's sell mode.
+  Same gates as AUTO-7; dry run only logs "would buy/sell". Not while
+  Krumblor needs the towers (dragon level 12 or its tower rebuy, KRUMB-2).
+  Priority: tier 5 after a Santa step, before a stock trade. Logged as
+  `"butter biscuit"`; an unlock says so in the console (CON-1).
+
 ### 3.22 Update check
 
 - **UPD-1** Once per start-up (`Bootstrap.start()`), the bot asks GitHub
@@ -1842,7 +1881,7 @@ gainLumps) — still guarded, still the only path to those `Game.*` calls.
 | Routing | `src/routing/route-planner.ts` | `exactRoute` (Held-Karp DP, <= 11 cookies), `heuristicRoute` (nearest-neighbor + 2-opt/Or-opt + restarts), `planRoute` (GC-5) |
 | Idle | `src/idle/` | `idle-behavior.ts` (IdleBehavior module: `idleJob` → IdleWanderAction), `pending-work.ts` (conditions + queue state via `CursorManager.hasJobsAbove` — the shared "is anything more important pending?" predicate) |
 | Input synthesis | `src/input/` | `dispatch.ts` (dispatchMouse/dispatchMove — MOUSE-\*), `human-click.ts` (ClickTiming: delays, waitUntil, humanClick), `cursor-controller.ts` (CursorController: low-level PAW-4 arc/spline/warp travel, moveCursorTo/glideCursor — the only file that writes `runtime.cursor.x/y`), `background-clock.ts` (BackgroundClock: BG-1/BG-2 worker timer), `keep-alive.ts` (BG-3) |
-| Auto play | `src/autoplay/` | `valuation-tables.ts` (AUTO_BLOCKED_\*, AUTO_GOLDEN_UPGRADES, AUTO_KITTEN_POWER, AUTO_FINGER_STEPS, AUTO_BUILDING_CAPS — AUTO-2 data), `building-valuation.ts` + `upgrade-classifier.ts` (AUTO-3 gain math per candidate type), `collector.ts` (`autoCollect`: gathers candidates + ctx, AUTO-7 safety gates), `strategy.ts` (`autoDecide`: the pure insignificant/good/postpone/save decision, AUTO-4 — flagship unit-test target), `buy-streak.ts` (pure: whether the paw buys one more of the same building in its streak, AUTO-14), `achievement-milestones.ts` (pure: a building's value on its way to a count achievement, AUTO-15), `shopping.ts` (`AutoPlayEngine`: evaluate/shopJob/statusText, AUTO-1/8/9/10/12), `auto-hammer.ts` (AUTO-11), `grimoire-unlock.ts` (`GrimoireUnlocker`: AUTO-13 gating, steps from GrimoireView), `minigame-unlock.ts` (`MinigameUnlocker`: a minigame's level 1 unlock, gating and steps from its MinigameView), `bank-unlock.ts` (`BankUnlocker`: AUTO-16), `farm-unlock.ts` (`FarmUnlocker`: AUTO-17), `wrinkler-strategy.ts` (pure: respawn time, maturity, fewest-fattest pick — WRINK-2/3), `grandmapocalypse-valuation.ts` (pure: stage 1 gain, delay, chain-step dCps — WRINK-1), `wrinkler-popper.ts` (`WrinklerPopper`: WRINK-3/4 gating, plan, job, HUD text), `krumblor-strategy.ts` (pure: next Krumblor step — KRUMB-1/2/5), `krumblor.ts` (`KrumblorTrainer`: KRUMB-\* gating, state, jobs, the cursor sale/rebuy), `easter-eggs.ts` (pure-ish: egg values and order — EGG-\*), `christmas.ts` (pure-ish: Christmas upgrade values — XMAS-1..3), `santa-strategy.ts` (pure: next Santa step — XMAS-4), `santa.ts` (`SantaTrainer`: XMAS-4/5 gating, jobs), `ascension-strategy.ts` (pure: pending level, stagnation, boost gate, verdict — ASC-1..4/8), `heavenly-shopping.ts` (pure: the heavenly priority list, lucky 7s, the shopping list and the level it needs — ASC-9), `ascension-steps.ts` (pure: the next step of an automatic ascension — ASC-10), `achievement-dump.ts` (pure: the cheapest-first achievement plan for the bank before an ascension — ASC-13), `ascension-runner.ts` (`AscensionRunner`: ASC-10 gating, steps, jobs, the per-run reset), `ascension.ts` (`AscensionPlanner`: measured income, cached plan, HUD text — ASC-2/5), `ascension-overlay.ts` (Legacy button and heavenly tree boxes — ASC-6/7), `income-tracker.ts` (smoothed clicking income for AUTO-3's `income`), `buy-value-overlay.ts` (BUY-\*) |
+| Auto play | `src/autoplay/` | `valuation-tables.ts` (AUTO_BLOCKED_\*, AUTO_GOLDEN_UPGRADES, AUTO_KITTEN_POWER, AUTO_FINGER_STEPS, AUTO_BUILDING_CAPS — AUTO-2 data), `building-valuation.ts` + `upgrade-classifier.ts` (AUTO-3 gain math per candidate type), `collector.ts` (`autoCollect`: gathers candidates + ctx, AUTO-7 safety gates), `strategy.ts` (`autoDecide`: the pure insignificant/good/postpone/save decision, AUTO-4 — flagship unit-test target), `buy-streak.ts` (pure: whether the paw buys one more of the same building in its streak, AUTO-14), `achievement-milestones.ts` (pure: a building's value on its way to a count achievement, AUTO-15), `shopping.ts` (`AutoPlayEngine`: evaluate/shopJob/statusText, AUTO-1/8/9/10/12), `auto-hammer.ts` (AUTO-11), `grimoire-unlock.ts` (`GrimoireUnlocker`: AUTO-13 gating, steps from GrimoireView), `minigame-unlock.ts` (`MinigameUnlocker`: a minigame's level 1 unlock, gating and steps from its MinigameView), `bank-unlock.ts` (`BankUnlocker`: AUTO-16), `farm-unlock.ts` (`FarmUnlocker`: AUTO-17), `wrinkler-strategy.ts` (pure: respawn time, maturity, fewest-fattest pick — WRINK-2/3), `grandmapocalypse-valuation.ts` (pure: stage 1 gain, delay, chain-step dCps — WRINK-1), `wrinkler-popper.ts` (`WrinklerPopper`: WRINK-3/4 gating, plan, job, HUD text), `krumblor-strategy.ts` (pure: next Krumblor step — KRUMB-1/2/5), `krumblor.ts` (`KrumblorTrainer`: KRUMB-\* gating, state, jobs, the cursor sale/rebuy), `easter-eggs.ts` (pure-ish: egg values and order — EGG-\*), `christmas.ts` (pure-ish: Christmas upgrade values — XMAS-1..3), `santa-strategy.ts` (pure: next Santa step — XMAS-4), `santa.ts` (`SantaTrainer`: XMAS-4/5 gating, jobs), `butter-biscuit-strategy.ts` (pure: the next Wizard tower top-up / sell-back — BUTTER-\*), `butter-biscuit.ts` (`ButterBiscuitHunter`: BUTTER-\* gating, jobs), `ascension-strategy.ts` (pure: pending level, stagnation, boost gate, verdict — ASC-1..4/8), `heavenly-shopping.ts` (pure: the heavenly priority list, lucky 7s, the shopping list and the level it needs — ASC-9), `ascension-steps.ts` (pure: the next step of an automatic ascension — ASC-10), `achievement-dump.ts` (pure: the cheapest-first achievement plan for the bank before an ascension — ASC-13), `ascension-runner.ts` (`AscensionRunner`: ASC-10 gating, steps, jobs, the per-run reset), `ascension.ts` (`AscensionPlanner`: measured income, cached plan, HUD text — ASC-2/5), `ascension-overlay.ts` (Legacy button and heavenly tree boxes — ASC-6/7), `income-tracker.ts` (smoothed clicking income for AUTO-3's `income`), `buy-value-overlay.ts` (BUY-\*) |
 | Stock market | `src/market/` | `market-strategy.ts` (pure: thresholds, trailing stop, budget, brokers, the next trade — STOCK-2..4), `stock-trader.ts` (`StockTrader`: STOCK-\* gating, peaks, jobs, HUD text; the Bank's `MinigameView`) |
 | Garden | `src/garden/` | `garden-strategy.ts` (pure: the crop, pests, payout crops, soil, the next step — GARDEN-2..6), `gardener.ts` (`Gardener`: GARDEN-\* gating, jobs, HUD text; the Farm's `MinigameView`) |
 | Scheduler | `src/scheduler/` | `priority.ts` (`selectJobRequest`: the SCHED-1 cascade as pure data), `scheduler.ts` (`Scheduler.tick()`: wrath logging, queue build, enqueues ONE job via CursorManager), `overlay-loop.ts` (`OverlayLoop`: the requestAnimationFrame draw loop — hunting show, hitboxes, buy-value overlay, ascension overlay, paw) |
@@ -1903,6 +1942,7 @@ target)`) instead of scattering direct field writes across every task.
 | `wrinkler-pop` | poking a mature wrinkler until it bursts (WRINK-5) | `WrinklerPopAction` |
 | `krumblor` | buying the crumbly egg, clicking Krumblor's tab/popup/aura picker, selling/buying buildings for the sacrifices (KRUMB-\*) | `DragonClickAction` / `DragonStoreAction` |
 | `santa` | clicking Santa's tab, "Evolve" button and popup "x" (XMAS-4) | `DragonClickAction` (from `SantaTrainer`) |
+| `butter-biscuit` | buying Wizard towers up to a butter biscuit milestone and selling them back (BUTTER-\*) | `DragonStoreAction` (from `ButterBiscuitHunter`) |
 | `ascend` | getting ready for a committed ascension (ASC-12: selling, buying for achievements, holding at Legacy), clicking Legacy/"Ascend", waiting out the animation, dragging the heavenly tree, buying heavenly upgrades, Reincarnate/"Yes" (ASC-10) | `DragonClickAction` / `WaitWhileAction` / `DragTreeAction` (from `AscensionRunner`; the pops show `wrinkler-pop`) |
 | `auto-shop` | scrolling the store column to an item, visiting/buying it (AUTO-9) | auto-shop `CursorAction` from `AutoPlayEngine.shopJob()` |
 | `happy-dance` | post-catch celebration (DANCE-\*) | `DanceAction` |
@@ -1926,8 +1966,8 @@ file.**
 
 Three layers, each catching a different class of bug:
 
-1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 588 tests
-   across 52 files. Pure functions (route planner, `autoDecide`, the chart
+1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 600 tests
+   across 53 files. Pure functions (route planner, `autoDecide`, the chart
    engine, `normalizeSetting`) are tested directly with plain data; the
    cursor queue/actions have their own fake mover/timing tests. Classes
    that depend on the game are tested against `FakeGameAdapter`
@@ -2118,6 +2158,20 @@ mouse while the bot runs and confirm the "+N" number follows your cursor,
 not the paw's).
 
 ## 12. Changelog
+
+- **5.8.18** The butter biscuit top-up (BUTTER-1) is guarded by the bank
+  instead of the CpS: the Wizard towers must cost less than 1% of the bank
+  (`BUTTER_MAX_BANK_SHARE`, was at most 10 minutes of CpS). Unit tests in
+  `tests/unit/butter-biscuit.test.ts`.
+
+- **5.8.17** Butter biscuits (BUTTER-\*): once every other building reaches
+  100 (150, 200, ...) of everything, auto play buys Wizard towers past
+  their target up to that milestone, waits for the game to unlock the
+  biscuit (+10% CpS) and sells them back down. Only when the towers cost at
+  most 10 minutes of CpS and the bank pays for them. New
+  `ButterBiscuitHunter`, `nextButterStep()`, mood `butter-biscuit`,
+  `runtime.butterTopUp`; `GameUpgrade` gains `unlocked`. Unit tests in
+  `tests/unit/butter-biscuit.test.ts` and `tests/unit/priority.test.ts`.
 
 - **5.8.16** Krumblor trains up to Dragonflight instead of Dragon Cursor
   (KRUMB-\*): levels 5-13 each sacrifice 100 of one building (cursors to

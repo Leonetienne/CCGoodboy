@@ -65,6 +65,8 @@ export interface GameUpgrade {
   name: string;
   desc?: string;
   bought?: boolean | number;
+  /** Unlocked into the store (Game.Unlock; stays until bought or an ascension). */
+  unlocked?: boolean | number;
   pool?: string;
   /** +power% CpS of a cookie upgrade; a function for a few (heart biscuits: 2, 3 with Starlove). */
   power?: number | ((up: GameUpgrade) => number);

@@ -7,6 +7,7 @@ import type { AscensionRunner } from '../autoplay/ascension-runner';
 import type { GrimoireUnlocker } from '../autoplay/grimoire-unlock';
 import type { KrumblorTrainer } from '../autoplay/krumblor';
 import type { SantaTrainer } from '../autoplay/santa';
+import type { ButterBiscuitHunter } from '../autoplay/butter-biscuit';
 import type { BankUnlocker } from '../autoplay/bank-unlock';
 import type { FarmUnlocker } from '../autoplay/farm-unlock';
 import type { AutoPlayEngine } from '../autoplay/shopping';
@@ -40,6 +41,7 @@ export interface PriorityDeps {
   farmUnlock: FarmUnlocker;
   krumblor: KrumblorTrainer;
   santa: SantaTrainer;
+  butterBiscuit: ButterBiscuitHunter;
   stockTrader: StockTrader;
   gardener: Gardener;
   autoPlay: AutoPlayEngine;
@@ -63,7 +65,7 @@ export interface PriorityDeps {
  *   5 a started buildings-view recipe / "Show grimoire" debug goal, then the auto hammer's
  *     kick-off after the Heavenly key (AUTO-19: HammerAction), then auto play: ascend
  *     (ASC-10), unlock the Grimoire, unlock the stock market, unlock the garden, train
- *     Krumblor, evolve Santa; then a stock market trade (STOCK-*) and a garden step
+ *     Krumblor, evolve Santa, top Wizard towers up for a butter biscuit (BUTTER-*); then a stock market trade (STOCK-*) and a garden step
  *     (GARDEN-*), both not tied to auto play; then auto play again: pop
  *     a wrinkler for a purchase, then shopping
  *                            -> MenuButtonAction / ScrollIntoViewAction / MinigameButtonAction /
@@ -80,7 +82,7 @@ export interface PriorityDeps {
  * still falls through to lump harvest/auto-shop/hammer/dance/idle below it, exactly as the
  * original did. */
 export function selectJobRequest(deps: PriorityDeps): JobRequest | null {
-  const { queue, buffs, runtime, data, game, clickGolden, clickBigCookie, fthof, lumpHarvest, grimoireView, ascension, grimoireUnlock, bankUnlock, farmUnlock, krumblor, santa, stockTrader, gardener, autoPlay, wrinklerPopper, happyDance, idleBehavior, hammerActive, hammerKick } = deps;
+  const { queue, buffs, runtime, data, game, clickGolden, clickBigCookie, fthof, lumpHarvest, grimoireView, ascension, grimoireUnlock, bankUnlock, farmUnlock, krumblor, santa, butterBiscuit, stockTrader, gardener, autoPlay, wrinklerPopper, happyDance, idleBehavior, hammerActive, hammerKick } = deps;
 
   let job: JobRequest | null = null;
 
@@ -179,6 +181,12 @@ export function selectJobRequest(deps: PriorityDeps): JobRequest | null {
   // Auto play: evolve Santa up to Final Claus (XMAS-*).
   if (!job && !kick && santa.pending()) {
     job = santa.job();
+  }
+
+  // Auto play: Wizard towers up to the next "N of everything" milestone and back down, for
+  // its butter biscuit (BUTTER-*).
+  if (!job && !kick && butterBiscuit.pending()) {
+    job = butterBiscuit.job();
   }
 
   // The stock market: sell what peaked, hire a broker, buy what is low (STOCK-*). Its own
