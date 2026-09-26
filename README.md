@@ -45,6 +45,9 @@ default and remembers your choice.
 - Favours golden cookie upgrades and Wizard towers.
 - Unlocks the Grimoire as soon as it can (that costs a sugar lump, so not
   with **Spend sugar lumps** off).
+- Gambles your cookies away at the stock market (jk it tries to make a profit)
+- Tends for your garden (wheat only)
+- Ascends and buys heavenly upgrades for you
 - Clicks the big cookie for you while that's still worth it.
 - Takes the Grandmapocalypse to stage 1 for wrinklers **if you want to**, and **never** further.
   It pops fat wrinklers when it needs their cookies for a purchase. Shiny
@@ -66,18 +69,6 @@ Even with auto play off, every building and upgrade in the store gets a
 coloured box and a score from 0 to 100. Green is the best deal on offer right
 now, red is the worst. Handy if you'd rather do the buying yourself and just
 want a second opinion.
-
-### When there's nothing to do
-
-The paw doesn't just freeze. It doodles slow figure-eights, wanders over to
-look at your buildings, reads the news ticker, occasionally pokes the big
-cookie out of boredom. It does a little happy dance after a catch. Some days
-it's shy and runs off if your mouse gets too close; other days it doesn't care.
-Click near it when it's in a good mood and see what happens.
-
-None of this gets in your way. You can keep using your own mouse as normal.
-
----
 
 ## Installing
 
@@ -110,7 +101,9 @@ The panel can be dragged by its title bar and minimised. From there:
 |---|---|
 | **Pause / Resume** | Stops and starts everything. |
 | **Hammer cookie** | Click the big cookie nonstop, frenzy or not. Resets on reload. |
-| **Auto play** | The shopping mode described above. |
+| **Auto play** | Toggles full automatic play. |
+| **Pause investments** | Stop throwing more cookies at the stock market |
+| **Cash stock market wins** | Cash out any cookies from the stock market, which are currently in profit |
 | **Settings** | What the paw does and shows on screen, and how auto play shops. The fine-tuning (timings, speeds, auto play's numbers) sits under **Advanced**. Nothing changes until you hit **Save**. |
 | **More...** | Opens a second row with the buttons below. |
 | **Graphs** | Golden cookies caught per hour, by effect, plus Grimoire activity. |
@@ -133,9 +126,6 @@ right cookie to show up.
 
 ## Good to know
 
-- **What it doesn't do:** seasons, the pantheon, the stock market's offices
-  and loans, breeding new garden seeds on purpose, or anything beyond
-  Grandmapocalypse stage 1.
 - **The garden.** With "Tend the garden" on (the default), the paw keeps the
   Farm's garden full of Baker's wheat (+1% CpS each), harvests plants before
   they wither, weeds out pests and uses clay once you have 100 farms. It
@@ -150,7 +140,7 @@ right cookie to show up.
   up for it, but if you'd rather not, switch off
   "Auto: grandmapocalypse stage 1" before turning auto play on. The bot can't
   undo stage 1 once it's reached.
-- **Auto play is good, not perfect.** Try dry run first if you're unsure.
+- **Auto play is good, not perfect.** But it for sure outplays me, personally.
 - Your settings and stats stay in your browser. Nothing is sent anywhere.
 
 ---
