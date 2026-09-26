@@ -1,9 +1,7 @@
-/** Names the auto player must NEVER buy, whatever the settings: everything that leads the
- * Grandmapocalypse past stage 1 (Exotic nuts starts the research of Communal brainsweep =
- * stage 2, Elder Pact = stage 3) and the pledge/covenant switches. autoBuy() refuses them too,
- * as a second guard (WRINK-1). */
+/** Names the auto player must NEVER buy, whatever the settings: everything that pushes the
+ * Grandmapocalypse past stage 1 (Communal brainsweep = stage 2, Elder Pact = stage 3) and the
+ * pledge/covenant switches. autoBuy() refuses them too, as a second guard (WRINK-1). */
 export const AUTO_ESCALATION_NAMES = new Set([
-  'Exotic nuts',
   'Communal brainsweep',
   'Elder Pact',
   'Elder Pledge',
@@ -12,17 +10,18 @@ export const AUTO_ESCALATION_NAMES = new Set([
 ]);
 
 /** Name pattern of the grandma research center (covers spelling variants). Only bought as
- * part of AUTO_RESEARCH, i.e. only with `autoGrandmapocalypse` on. */
+ * part of AUTO_RESEARCH. */
 export const AUTO_BLOCKED_RE = /bingo center|research (center|centre|facility)/i;
 
 /** Gain model of one research upgrade: `grandma` multiplies Grandma CpS by `x`, `cps` adds
  * `pct`% to all production, `oneMind` gives every grandma +0.02 base CpS per grandma. */
 export type ResearchGain = { kind: 'grandma'; x: number } | { kind: 'cps'; pct: number } | { kind: 'oneMind' };
 
-/** The grandma research chain up to Grandmapocalypse stage 1 (WRINK-1), in the order the game
- * unlocks it (one every 30 min of research). Only bought with `autoGrandmapocalypse` on; One
- * mind starts stage 1 (wrinklers) and is the end of it: Exotic nuts, the step after it, leads
- * on to stage 2 and is never bought (AUTO_ESCALATION_NAMES). */
+/** Every research upgrade that doesn't push the Grandmapocalypse past stage 1 (WRINK-1), in
+ * the order the game unlocks it (one every 30 min of research). One mind starts stage 1
+ * (wrinklers) and is only bought with `autoGrandmapocalypse` on (AUTO_STAGE1_NAME); Exotic
+ * nuts, the step after it, only starts the research of Communal brainsweep (stage 2, never
+ * bought: AUTO_ESCALATION_NAMES), and Arcane sugar comes only after that. */
 export const AUTO_RESEARCH: Record<string, ResearchGain> = {
   'Bingo center/Research facility': { kind: 'grandma', x: 4 },
   'Specialized chocolate chips': { kind: 'cps', pct: 1 },
@@ -30,7 +29,11 @@ export const AUTO_RESEARCH: Record<string, ResearchGain> = {
   'Ritual rolling pins': { kind: 'grandma', x: 2 },
   'Underworld ovens': { kind: 'cps', pct: 3 },
   'One mind': { kind: 'oneMind' },
+  'Exotic nuts': { kind: 'cps', pct: 4 },
 };
+
+/** The research step that starts stage 1: only with `autoGrandmapocalypse` on. */
+export const AUTO_STAGE1_NAME = 'One mind';
 
 /** The steps to stage 1, in order. Up to One mind a step is valued as part of the whole
  * project (grandmapocalypse-valuation.ts). */
@@ -119,6 +122,10 @@ export const AUTO_TRIVIAL_BANK_SHARE = 0.01;
  * research chain, and every minute it waits pushes the ~8h until the wrinklers pay out back by
  * a minute), then Wizard towers below their target (bought for mana, not CpS payback). */
 export const AUTO_PREF_WIZARD = 1;
+/** Wizard towers are only preferred once this share of their target is owned, or while the
+ * next one costs next to nothing (insignificant, AUTO-4 A); before that they compete on
+ * payback like any building, so the target can't hold back the next building tier. */
+export const AUTO_WIZARD_PREF_SHARE = 0.93;
 export const AUTO_PREF_BINGO = 2;
 export const AUTO_PREF_GOLDEN = 3;
 /** Upgrade types preferred like golden cookie upgrades (AUTO-4 B): the click power ones

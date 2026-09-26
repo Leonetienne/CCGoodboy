@@ -111,8 +111,9 @@ describe('junk spree (AUTO-18)', () => {
     const ups = [upgrade('Junk', 50, 1), upgrade('Big', 5000, 100)];
     // Big is the pick (payback 50s), then Junk; Big itself is only the first buy
     expect(spree(ups, ctx({ bank: 1e6 }))).toEqual(['Big', 'Junk']);
-    // Junk first (it is the pick on a tight bank), Big isn't junk: the visit ends
-    expect(spree([upgrade('Junk', 50, 10), upgrade('Big', 5000, 100)], ctx({ bank: 6000 }))).toEqual(['Junk']);
+    // tight bank: Big first (the biggest CpS gain); Junk (50 of the 1000 left) isn't junk any
+    // more, so the visit ends
+    expect(spree([upgrade('Junk', 50, 10), upgrade('Big', 5000, 100)], ctx({ bank: 6000 }))).toEqual(['Big']);
   });
 
   it('skips junk the paw cannot reach and junk that would leave too little for the pick', () => {
@@ -145,13 +146,11 @@ describe('buy order on a flush bank (AUTO-4)', () => {
     expect(autoDecide(cands(), ctx({ bank: 1e15 })).buy?.name).toBe('Factory');
   });
 
-  it('still buys the best payback first when the bank is tight', () => {
-    // floor 20: Grandma 100s beats Farm 137.5s and Cursor 150s
-    expect(autoDecide(cands(), ctx({ bank: 2000 })).buy?.name).toBe('Grandma');
-  });
-
-  it('ranks buildings costing a real share of the bank by payback, ahead of pocket money', () => {
-    // floor 10000: Mine 12000/47 = 255 beats Factory 500, Farm 10000/8 = 1250, Cursor 100000
-    expect(autoDecide(cands(), ctx({ bank: 1e6 })).buy?.name).toBe('Mine');
+  it('buys the biggest CpS gain first among what pays back before the target, on a tight bank too', () => {
+    // 2000 banked: Mine (pp 1000s wait + 255s) is the target; Cursor, Grandma and Farm all pay
+    // back sooner, so the Farm goes first, then the Grandma and the Cursor
+    const d = autoDecide(cands(), ctx({ bank: 2000 }));
+    expect(d.buy?.name).toBe('Farm');
+    expect(d.buyable?.map((r) => r.c.name)).toEqual(['Farm', 'Grandma', 'Cursor']);
   });
 });

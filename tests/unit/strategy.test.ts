@@ -131,17 +131,16 @@ describe('autoDecide', () => {
     expect(d.buyable?.map((r) => r.c.name)).toEqual(['Bank']);
   });
 
-  it('saves for a kitten upgrade over a closer building deal, buying the fast buildings on the way', () => {
-    const kitten = { ...candidate('Kitten workers', 9_000_000, 3_000), type: 'kitten', kind: 'upgrade' as const, pref: AUTO_PREF_GOLDEN };
-    // kitten: wait 800s. A closer good-deal target (Mine: wait 10s, pp 560 <= 1.2 x 500) would
-    // have held back the Bank; only the target actually saved for decides now.
-    const closer = candidate('Mine', 1_100_000, 2_000); // wait 10s, payback 550s
-    const temple = candidate('Temple', 800_000, 1_000); // payback 800s >= 800s: only delays it
-    const bank = candidate('Bank', 700_000, 1_400); // payback 500s < 800s: bought on the way
-    const d = autoDecide([kitten, closer, temple, bank], ctx({ cps: 10_000, income: 10_000, bank: 1_000_000 }));
+  it('does not stop buying better deals just because a preferred upgrade is the next target', () => {
+    // Iron mouse-like: 5M, bank 300K, income 6K -> wait ~780s, valued with Click Frenzies at
+    // +56% CpS -> payback ~1,590s, pp ~2,370s. A Factory paying back in 870s is the better deal
+    // even though it pays back after the mouse's wait.
+    const mouse = { ...candidate('Iron mouse', 5_000_000, 3_140), type: 'click', kind: 'upgrade' as const, pref: AUTO_PREF_GOLDEN };
+    const factory = candidate('Factory', 227_000, 261); // payback ~870s
+    const d = autoDecide([mouse, factory], ctx({ cps: 5_600, income: 6_000, bank: 300_000 }));
 
-    expect(d.save?.name).toBe('Kitten workers');
-    expect(d.buyable?.map((r) => r.c.name)).toEqual(['Bank']);
+    expect(d.buy?.name).toBe('Factory');
+    expect(d.save?.name).toBe('Iron mouse');
   });
 
   it('buys a preferred upgrade the moment it is affordable, before any building', () => {
@@ -188,9 +187,9 @@ describe('autoDecide', () => {
     expect(d.buy?.name).toBe('Golden upgrade');
   });
 
-  it('buys an affordable wizard tower even with a nominally terrible payback', () => {
+  it('buys an affordable wizard tower near its target even with a nominally terrible payback', () => {
     const ordinary = candidate('Fast payback building', 100, 10); // payback 10
-    const wizard = candidate('Wizard tower', 100, 0.001, AUTO_PREF_WIZARD); // payback 100,000s
+    const wizard = { ...candidate('Wizard tower', 100, 0.001, AUTO_PREF_WIZARD), nearTarget: true }; // payback 100,000s
 
     const d = autoDecide([ordinary, wizard], ctx({ bank: 1000, income: 10 }));
 
@@ -198,7 +197,22 @@ describe('autoDecide', () => {
     expect(d.why).toBe('wizard target');
   });
 
-  it('keeps buying Wizard towers while a far-off golden upgrade waits, and only saves for it in reach', () => {
+  it('prefers Wizard towers far below their target only while the next one is insignificant', () => {
+    const ordinary = candidate('Fast payback building', 100, 10); // payback 10
+    const wizard = { ...candidate('Wizard tower', 100, 0.001, AUTO_PREF_WIZARD), nearTarget: false };
+
+    // 100 of a 1000 bank: not insignificant, so it competes on payback and loses
+    const d = autoDecide([ordinary, wizard], ctx({ bank: 1000, income: 10 }));
+    expect(d.buy?.name).toBe('Fast payback building');
+    expect(d.rows.find((r) => r.c === wizard)?.pref).toBe(0);
+
+    // 100 of a 1e6 bank: insignificant (<= 0.1%), preferred again
+    const rich = autoDecide([ordinary, wizard], ctx({ bank: 1e6, income: 10 }));
+    expect(rich.buy?.name).toBe('Wizard tower');
+    expect(rich.why).toBe('wizard target');
+  });
+
+  it('keeps buying Wizard towers (worth it here) while a far-off golden upgrade waits, and only saves for it in reach', () => {
     // a quadrillion golden upgrade, years away at 1e6/s, and a Wizard tower costing billions
     const golden = candidate('Golden upgrade', 1e15, 1e5, AUTO_PREF_GOLDEN);
     const wizard = candidate('Wizard tower', 2e9, 1, AUTO_PREF_WIZARD);
@@ -225,14 +239,14 @@ describe('autoDecide', () => {
     expect(d.note).toBe('nothing in reach');
   });
 
-  it('saves for a preferred candidate first when nothing is affordable', () => {
-    const ordinary = candidate('Big building', 10000, 100); // pp 100
-    const wizard = candidate('Wizard tower', 5000, 25, AUTO_PREF_WIZARD); // pp 200
+  it('saves for the lowest pp when nothing is affordable, preferred or not', () => {
+    const ordinary = candidate('Big building', 10000, 100); // pp 100 + 100
+    const wizard = candidate('Wizard tower', 5000, 25, AUTO_PREF_WIZARD); // pp 50 + 200
 
     const d = autoDecide([ordinary, wizard], ctx({ bank: 0, income: 100, reserve: 0 }));
 
     expect(d.buy).toBeNull();
-    expect(d.save?.name).toBe('Wizard tower');
+    expect(d.save?.name).toBe('Big building');
   });
 
   it('reports a save target alongside an unrelated buy happening the same tick', () => {

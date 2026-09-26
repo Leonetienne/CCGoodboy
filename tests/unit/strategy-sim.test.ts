@@ -34,6 +34,12 @@ const CURSOR_UPS: [string, number, number][] = [
   ['Ambidextrous', 10000, 10],
 ];
 const CLICKS_PER_SEC = 8;
+/** "Clicking gains +1% of your CpS", valued like the bot does: x7 for the Click Frenzies. */
+const MICE: [string, number][] = [
+  ['Plastic mouse', 50000],
+  ['Iron mouse', 5e6],
+  ['Titanium mouse', 5e8],
+];
 
 interface Sim {
   t: number;
@@ -41,6 +47,7 @@ interface Sim {
   owned: number[];
   tiers: number[]; // doublers bought per building
   cursorUps: number;
+  mice: number;
 }
 
 function perBuilding(s: Sim, i: number): number {
@@ -50,7 +57,7 @@ function cps(s: Sim): number {
   return BUILDINGS.reduce((sum, _b, i) => sum + s.owned[i]! * perBuilding(s, i), 0);
 }
 function clickIncome(s: Sim): number {
-  return CLICKS_PER_SEC * 2 ** s.cursorUps;
+  return CLICKS_PER_SEC * (2 ** s.cursorUps + 0.01 * s.mice * cps(s));
 }
 function price(s: Sim, i: number): number {
   return Math.ceil(BUILDINGS[i]![1] * 1.15 ** s.owned[i]!);
@@ -77,6 +84,14 @@ function options(s: Sim): Buy[] {
       });
     }
   });
+
+  const mo = MICE[s.mice];
+  if (mo) {
+    out.push({
+      c: { kind: 'upgrade', type: 'click', name: mo[0], obj: obj(mo[0]), cost: mo[1], dCps: cps(s) * 0.01 * CLICKS_PER_SEC * 7, pref: AUTO_PREF_GOLDEN },
+      apply: () => s.mice++,
+    });
+  }
 
   const cu = CURSOR_UPS[s.cursorUps];
   if (cu && s.owned[0]! >= cu[2]) {
@@ -124,8 +139,8 @@ const cheapest: Strategy = (opts, s) => opts.filter((o) => o.c.cost <= s.bank).s
 
 /** Runs from 0 cookies until every CpS goal is reached (or maxT), one second per step, as many
  * purchases per second as the strategy makes. Returns the second each goal was reached. */
-function run(strategy: Strategy, goals: number[], maxT = 30 * 3600, log?: string[]): number[] {
-  const s: Sim = { t: 0, bank: 0, owned: BUILDINGS.map(() => 0), tiers: BUILDINGS.map(() => 0), cursorUps: 0 };
+function run(strategy: Strategy, goals: number[], maxT = 30 * 3600, log?: string[], times?: number[]): number[] {
+  const s: Sim = { t: 0, bank: 0, owned: BUILDINGS.map(() => 0), tiers: BUILDINGS.map(() => 0), cursorUps: 0, mice: 0 };
   const reached: number[] = goals.map(() => Infinity);
 
   while (s.t < maxT && reached.some((r) => r === Infinity)) {
@@ -135,6 +150,7 @@ function run(strategy: Strategy, goals: number[], maxT = 30 * 3600, log?: string
       s.bank -= b.c.cost;
       b.apply();
       log?.push(b.c.name);
+      times?.push(s.t);
     }
 
     s.bank += cps(s) + clickIncome(s);
@@ -182,6 +198,18 @@ describe('autoDecide in a simulated run (AUTO-4: the highest CpS in the shortest
 
     expect(fourthGrandma).toBeGreaterThan(-1);
     expect(log.slice(0, fourthGrandma).filter((n) => n === 'Cursor').length).toBeLessThanOrEqual(11);
+  });
+
+  it('never stops buying for long while saving for a click upgrade', () => {
+    // the gap before Iron mouse (5M) was ~14 min of nothing while a Factory paid back almost as
+    // fast as the mouse would arrive; it now keeps buying what beats the mouse's pp
+    const times: number[] = [];
+    const log: string[] = [];
+    run(pawStrategy, [1e5], 30 * 3600, log, times);
+    const i = log.indexOf('Iron mouse');
+
+    expect(i).toBeGreaterThan(0);
+    expect(times[i]! - times[i - 1]!).toBeLessThanOrEqual(420);
   });
 
   it('buys the cursor upgrade as soon as it can pay for it', () => {

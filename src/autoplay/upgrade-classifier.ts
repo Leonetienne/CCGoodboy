@@ -211,18 +211,17 @@ export function autoResearchSec(game: IGameAdapter): number {
   return game.hasUpgrade('Persistent memory') ? 180 : 1800;
 }
 
-/** dCps the auto player gives a research candidate. Up to One mind (while stage 1 isn't
- * reached) that is the payback of finishing the whole chain from this step — every step still
- * to buy, against the wrinklers of stage 1 plus their own gains, delayed until the wrinklers
- * pay out (grandmapocalypse-valuation.ts). A step bought after One mind counts only its own
- * gain. */
-export function autoResearchCandidateGain(game: IGameAdapter, up: GameUpgrade, ctx: Pick<UpgradeClassifyCtx, 'cps' | 'mult'>, maturity: number): number | null {
+/** dCps the auto player gives a research candidate: its own gain, or, up to One mind (while
+ * stage 1 isn't reached and `stage1` is wanted), the payback of finishing the whole chain from
+ * this step if that is better — every step still to buy, against the wrinklers of stage 1 plus
+ * their own gains, delayed until the wrinklers pay out (grandmapocalypse-valuation.ts). */
+export function autoResearchCandidateGain(game: IGameAdapter, up: GameUpgrade, ctx: Pick<UpgradeClassifyCtx, 'cps' | 'mult'>, maturity: number, stage1 = true): number | null {
   const name = up.name;
   const own = autoResearchGain(game, name, ctx);
   if (own == null) return null;
 
   const at = AUTO_STAGE1_CHAIN.indexOf(name);
-  if (at < 0 || game.hasUpgrade('One mind')) return own;
+  if (!stage1 || at < 0 || game.hasUpgrade('One mind')) return own;
 
   let remainingCost = 0;
   let ownGain = 0;
@@ -237,7 +236,7 @@ export function autoResearchCandidateGain(game: IGameAdapter, up: GameUpgrade, c
     steps++;
   }
 
-  return chainStepGain({
+  const chain = chainStepGain({
     cps: ctx.cps,
     wrinklersMax: game.getWrinklersMax(),
     popMult: game.getWrinklerPopMult(false),
@@ -249,4 +248,7 @@ export function autoResearchCandidateGain(game: IGameAdapter, up: GameUpgrade, c
     researchesLeft: Math.max(0, steps - 1),
     researchSec: autoResearchSec(game),
   });
+
+  // a step is worth at least its own effect (Designer cocoa beans' +2% pays even without the wrinklers)
+  return Math.max(own, chain);
 }

@@ -1,17 +1,17 @@
 import type { AutoCollectCtx, PurchaseCandidate } from './collector';
-import { AUTO_PREF_BINGO, AUTO_PREF_WIZARD, AUTO_TRIVIAL_BANK_SHARE } from './valuation-tables';
+import { AUTO_PREF_BINGO, AUTO_PREF_WIZARD } from './valuation-tables';
 
 export interface DecisionRow {
   c: PurchaseCandidate;
   payback: number;
-  /** Buy order among affordable options, lower first (AUTO-4): the payback with the cost
-   * floored at AUTO_TRIVIAL_BANK_SHARE of the spendable bank. */
-  order: number;
   pp: number;
   impact: number;
   wait: number;
   affordable: boolean;
   insignificant: boolean;
+  /** How preferred it is this tick (AUTO-4 B): the candidate's `pref`, except Wizard towers,
+   * which are only preferred near their target or while insignificant. */
+  pref: number;
 }
 
 export interface Decision {
@@ -32,26 +32,26 @@ export interface Decision {
  *   payback = cost / dCps      seconds until it has paid for itself
  *   wait    = time to afford it at the current income (CpS + clicking), after the reserve
  *   pp      = wait + payback   seconds from NOW until it has paid for itself
- * Always going for the lowest pp is the greedy rule for growing CpS as fast as possible: a big
+ * Saving for the lowest pp is the greedy rule for growing CpS as fast as possible: a big
  * building or upgrade waits until the income it needs is there (its wait shrinks as smaller,
  * quicker purchases raise the income), and anything that pays for itself before the target
- * would even be affordable has the lower pp, so it is bought on the way (it gets the bank
- * there sooner: with the bank covering it, the target is reached after
- * (T - bank + cost)/(income + dCps) instead of (T - bank)/income, sooner exactly when
- * payback < the target's wait).
+ * would even be affordable is bought on the way, since it gets the bank there sooner: with the
+ * bank covering it, the target is reached after (T - bank + cost)/(income + dCps) instead of
+ * (T - bank)/income, sooner exactly when payback < the target's wait. Anything else that pays
+ * for itself before the target would (payback < the target's pp) is a better deal than the
+ * target and goes first too.
  * Decision, each tick:
  *   1) Preferred candidates (golden, cursor/click and kitten upgrades, the Bingo center,
- *      Wizard towers below their target; AUTO-4 B) are bought the moment they are affordable.
- *   2) The target to save for: the preferred candidate in reach (highest tier, then soonest
- *      affordable), else the not-yet-affordable option with the lowest pp. An achievement
- *      top-off (AUTO-15) is never a target.
- *   3) An ordinary affordable purchase is bought when nothing not yet affordable pays back
- *      sooner, counting its wait (payback < the lowest pp among them), and, while saving for
- *      a preferred target (worth having as soon as possible, whatever its own payback), when
- *      it pays back before that target arrives (payback < its wait). Everything else waits.
- *   Among everything bought this tick: preferred first, then by payback, except that every
- *   cost at or below 1% of the spendable bank counts as that 1%: cookies are no constraint
- *   for such pocket money, the paw's time is, so a flush bank buys the biggest CpS gain first.
+ *      Wizard towers below their target once >= 93% of it is owned or while insignificant;
+ *      AUTO-4 B) are bought the moment they are affordable.
+ *   2) The target to save for: the not-yet-affordable option with the lowest pp. The click
+ *      upgrades get there on their value, which counts the Click Frenzies (AUTO-3, x7 and
+ *      more) and grows with the CpS, so the buildings bought meanwhile make them the target
+ *      soon enough. An achievement top-off (AUTO-15) is never a target.
+ *   3) An ordinary affordable purchase is bought on the way when it pays for itself before
+ *      the target would (payback < the target's pp); with nothing to save for, everything
+ *      affordable is. Everything else waits.
+ *   Among everything bought this tick: preferred first, then the biggest CpS gain first.
  *   One purchase per task (AUTO-7), so later ticks work down the same ranking. */
 export function autoDecide(cands: PurchaseCandidate[], ctx: AutoCollectCtx): Decision {
   const cfg = ctx.cfg;
@@ -68,33 +68,35 @@ export function autoDecide(cands: PurchaseCandidate[], ctx: AutoCollectCtx): Dec
     // an achievement top-off is judged as the whole top-off, not one cheap copy (AUTO-15)
     const whole = c.projectCost != null && c.projectCost > c.cost ? c.projectCost : c.cost;
 
+    const insignificant = whole <= cfg.insignificantShare * Math.max(0, avail);
+    const pref = c.pref === AUTO_PREF_WIZARD && !c.nearTarget && !insignificant ? 0 : c.pref ?? 0;
+
     rows.push({
       c,
       payback,
-      order: (Math.max(whole, AUTO_TRIVIAL_BANK_SHARE * avail) * payback) / whole,
       pp: wait + payback,
       impact: c.dCps / cpsEff,
       wait,
       affordable: wait === 0,
-      insignificant: whole <= cfg.insignificantShare * Math.max(0, avail),
+      insignificant,
+      pref,
     });
   }
 
   if (!rows.length) return { buy: null, save: null, note: 'nothing in reach', rows };
 
-  const prefOf = (r: DecisionRow) => r.c.pref ?? 0;
+  const prefOf = (r: DecisionRow) => r.pref;
   const prefWhy = (r: DecisionRow) => (prefOf(r) === AUTO_PREF_BINGO ? 'starts the research' : prefOf(r) === AUTO_PREF_WIZARD ? 'wizard target' : 'preferred');
 
-  // 2) the target
+  // 2) the target: the lowest pp among what isn't affordable yet
   const later = rows.filter((r) => !r.affordable && r.c.milestone == null);
-  const prefTarget = later.filter((r) => prefOf(r) > 0 && r.wait <= cfg.reachSec).sort((a, b) => prefOf(b) - prefOf(a) || a.wait - b.wait)[0];
-  const bestLater = [...later].sort((a, b) => a.pp - b.pp)[0] || null;
-  const target = prefTarget || bestLater;
-  // An affordable purchase must beat everything not affordable yet (counting its wait): else a
-  // stream of cheap, slower ones (the next cursor, every few seconds) eats the bank before the
-  // better one a few seconds off (the next grandma) is ever affordable. For a preferred target
-  // it must also pay back before that target arrives.
-  const bar = Math.min(prefTarget ? prefTarget.wait : Infinity, bestLater ? bestLater.pp : Infinity);
+  const target = [...later].sort((a, b) => a.pp - b.pp || prefOf(b) - prefOf(a))[0] || null;
+  // 3) on the way, whatever pays for itself before the target would (its pp: its wait + its
+  // payback). Only the target's wait would block the best deal overall whenever it happens to
+  // be affordable already (the target is picked among what isn't): 2.6x slower to 1M CpS in the
+  // simulation. A cheap, slower one (the next cursor) still can't eat the bank while the better
+  // one a few seconds off (the next grandma) waits.
+  const bar = target ? target.pp : Infinity;
   // It is only reported as saved for (the HUD, the stock trader's smaller budget, STOCK-4)
   // while it is in reach; a far-off one still sets the bar.
   const save = target && target.wait <= cfg.reachSec ? target : null;
@@ -102,7 +104,7 @@ export function autoDecide(cands: PurchaseCandidate[], ctx: AutoCollectCtx): Dec
   // 1) + 3) what goes out now
   const buyable = rows
     .filter((r) => r.affordable && (prefOf(r) > 0 || r.payback < bar))
-    .sort((a, b) => prefOf(b) - prefOf(a) || a.order - b.order);
+    .sort((a, b) => prefOf(b) - prefOf(a) || b.c.dCps - a.c.dCps);
 
   if (buyable.length) {
     const p = buyable[0]!;

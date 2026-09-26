@@ -5,7 +5,7 @@ import type { DecisionRow } from '../../src/autoplay/strategy';
 
 function row(name: string, payback: number, pref = 0): DecisionRow {
   const c: PurchaseCandidate = { kind: 'upgrade', type: 'cookie', name, obj: { name, buy: () => {} } as never, cost: payback, dCps: 1, pref };
-  return { c, payback, order: payback, pp: payback, impact: 0, wait: 0, affordable: true, insignificant: false };
+  return { c, payback, pp: payback, impact: 0, wait: 0, affordable: true, insignificant: false, pref };
 }
 
 describe('"how good is a buy" ranks (BUY-2)', () => {

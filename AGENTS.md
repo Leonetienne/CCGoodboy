@@ -667,8 +667,9 @@ action log (UI-6); nothing here is stored.
   fingers series and the mouse upgrades ("Clicking gains +1% of your
   CpS"); the heavenly potential unlocks (Heavenly chip secret, Heavenly
   cookie stand, Heavenly bakery, Heavenly confectionery, Heavenly key),
-  valued as the prestige CpS bonus each one unlocks; and, with "Auto: grandmapocalypse stage 1" on (the default), the
-  grandma research chain up to stage 1 (WRINK-1). It NEVER buys Exotic nuts, Communal
+  valued as the prestige CpS bonus each one unlocks; and every grandma research
+  upgrade that doesn't push the Grandmapocalypse past stage 1 (up to Exotic nuts; One mind,
+  which starts stage 1, only with "Auto: grandmapocalypse stage 1" on, the default; WRINK-1). It NEVER buys Communal
   brainsweep, Elder Pact, Elder Pledge/Covenant or anything else that pushes
   the Grandmapocalypse past stage 1, and nothing it cannot classify.
 - **AUTO-3** Value model per option: cost; approximate CpS gain `dCps`
@@ -715,29 +716,34 @@ action log (UI-6); nothing here is stored.
   Iron/... mouse series —, the kitten upgrades (`AUTO_PREF_TYPES`) and
   Wizard towers below `autoWizardTowerTarget` — are bought the moment they
   are affordable, in tier order (golden, click power and kitten upgrades
-  first, then the Bingo center, then Wizard towers).
-  (C) The target to save for: the preferred candidate in reach (AUTO-5;
-  highest tier, then the soonest affordable), else the not-yet-affordable
-  option with the lowest pp, however far off. An achievement top-off
-  (AUTO-15) is never a target. An ordinary affordable purchase is bought
-  when nothing not yet affordable pays back sooner, counting its wait
-  (payback < the lowest pp among them: else a stream of cheap, slower ones,
-  the next cursor every few seconds, eats the bank before the better one a
-  few seconds off, the next grandma, is ever affordable), and, while saving
-  for a preferred target (wanted as soon as possible whatever its own
-  payback), when it pays back before that target arrives (payback < its
-  wait). Everything else waits.
-  Among everything bought this tick: preferred first, then by payback,
-  except that a cost at or below 1% of the spendable bank
-  (`AUTO_TRIVIAL_BANK_SHARE`) counts as that 1%: cookies are no constraint
-  for such pocket money, the paw's time is, so a flush bank buys the
-  biggest CpS gain first. One purchase per task (AUTO-7), so later ticks
-  work down the same ranking. The target is reported ("saving for X",
-  which also lowers the stock trader's budget, STOCK-4) only while it is in
-  reach; a far-off one still decides what is held back. Checked in a
-  simulated run from 0 cookies to 10M CpS (`tests/unit/strategy-sim.test.ts`):
-  every CpS goal is reached at least as fast as by buying the best payback
-  at once or the cheapest thing (1M CpS in ~4.5h instead of ~22h).
+  first, then the Bingo center, then Wizard towers). Wizard towers are only
+  preferred once at least 93% of the target is owned
+  (`AUTO_WIZARD_PREF_SHARE`, 53 of 57) or while the next one is
+  insignificant (A); before that they compete on payback like any other
+  building, so the target can't hold back the next building tier.
+  (C) The target to save for: the not-yet-affordable option with the
+  lowest pp, however far off. The click upgrades get there on their value,
+  which counts the Click Frenzies (AUTO-3, ×7 and more) and grows with the
+  CpS. An achievement top-off (AUTO-15) is never a target. An ordinary
+  affordable purchase is bought when it pays for itself before the target
+  would (payback < the target's pp): that covers everything that pays back
+  before the target is even affordable (it gets the bank there sooner) and
+  every deal that is simply better than the target. A cheap, slower one (the
+  next cursor, affordable every few seconds) can't eat the bank while the
+  better one a few seconds off (the next grandma) waits. With nothing to save
+  for, everything affordable is bought. Everything else waits.
+  Among everything bought this tick: preferred first, then the biggest CpS
+  gain first. One purchase per task (AUTO-7), so later ticks work down the
+  same ranking. The target is reported ("saving for X", which also lowers
+  the stock trader's budget, STOCK-4) only while it is in reach; a far-off
+  one still decides what is held back. Checked in a simulated run from 0
+  cookies to 10M CpS (`tests/unit/strategy-sim.test.ts`, with the cursor
+  and mouse upgrades valued ×7): every CpS goal is reached at least as fast
+  as by buying the best payback at once or the cheapest thing (1M CpS in
+  ~4.3h instead of ~20h). Every other greedy variant tried (payback order,
+  buying only the lowest pp, preferred not first) lands within 0.3% of it;
+  a one-step lookahead (the next purchase that doubles the CpS soonest) and
+  a limit of "pays back before the target is affordable" were slower.
 - **AUTO-5** "In reach" = affordable within 1800s (`autoReachSec`) at the
   income — purely a time-window check, not a profitability one: a
   candidate outside it is just too far off to reason about yet, not "too
@@ -955,7 +961,7 @@ action log (UI-6); nothing here is stored.
   the best, amber in between, so it re-ranks as the store changes. It
   follows what the bot wants to buy: the tick's pick and every preferred
   option (AUTO-4 B: the Bingo center, golden, click power and kitten
-  upgrades, Wizard towers below their target) score 100 whatever their payback, and
+  upgrades, Wizard towers while they are preferred) score 100 whatever their payback, and
   are left out of the others' scale (`buyValueRanks()`,
   `src/autoplay/buy-value-overlay.ts`). Uses the same scoring as
   `autoDecide()` (AUTO-3/AUTO-4), refreshed at most twice a second.
@@ -973,7 +979,9 @@ action log (UI-6); nothing here is stored.
   research chain as candidates (AUTO-2): Bingo center/Research facility
   (grandmas ×4), Specialized chocolate chips (+1%), Designer cocoa beans
   (+2%), Ritual rolling pins (grandmas ×2), Underworld ovens (+3%), One mind
-  (each grandma +0.02 base CpS per grandma; starts stage 1). Nobody buys
+  (each grandma +0.02 base CpS per grandma; starts stage 1), and after it
+  Exotic nuts (+4%; it only starts the research of Communal brainsweep, which
+  is never bought, so it can't lead to stage 2). Nobody buys
   the Bingo center for "grandmas ×4": up to One mind a step is valued as
   part of ONE project, finishing the chain, and competes on payback like
   anything else (not preferred), except the Bingo center itself: it starts
@@ -982,25 +990,26 @@ action log (UI-6); nothing here is stored.
   golden, click power and kitten upgrades, above Wizard towers), "starts
   the research" in the log; nothing else is held back for it. Payback =
   (cost of every step still to buy) / (stage 1 gain + the steps' own gains) + the delay until the
-  wrinklers pay out; the step gets `dCps = its cost / that payback`. Stage 1
+  wrinklers pay out; the step gets `dCps = its cost / that payback`, or its
+  own gain if that is higher (Designer cocoa beans' +2% pays on its own). Stage 1
   gain = CpS × ((1 − 0.05n) + popMult × 0.05n² × m/(m+1) − 1 − 0.2/3)
   (n wrinkler slots, m = maturity, WRINK-2; minus the 1 in 3 golden
   cookies that turn wrath, golden cookies assumed worth 20% of CpS like
   Lucky day's valuation): about +400% with 10 wrinklers. Delay = the
   research still ahead (30 min each, 3 min with Persistent memory) + one
   respawn time (a slot filling) + m respawn times (digesting to maturity):
-  ~8h from the Bingo center with the defaults. After One mind, a step
-  bought late counts only its own gain
+  ~8h from the Bingo center with the defaults. After One mind (and with the
+  setting off), a step counts only its own gain
   (`src/autoplay/grandmapocalypse-valuation.ts`,
   `autoResearchCandidateGain()`). One mind's "are you
   sure?" prompt is confirmed like its own "Yes" button (buy with bypass).
-  Exotic nuts (it starts the research of stage 2), Communal brainsweep
-  (stage 2), Elder Pact (stage 3), Elder Pledge, Elder Covenant and Revoke
+  Communal brainsweep (stage 2), Elder Pact (stage 3), Elder Pledge, Elder Covenant and Revoke
   Elder Covenant are NEVER bought, whatever the
   settings: `autoCollect()` skips them and `autoBuy()` refuses them as a
   second guard. The game itself never escalates past what was bought (its
   random stage shifts are capped by the owned upgrades). Setting it off
-  stops buying the chain; it does not undo a stage already reached (Elder
+  only stops buying One mind (the Bingo center is then no longer preferred;
+  the other research is bought for its own gain); it does not undo a stage already reached (Elder
   Pledge only unlocks with Elder Pact, so there is no way back from stage 1
   short of stage 3 + Elder Covenant). Golden cookie rules are unchanged: the
   1 in 3 wrath cookies of stage 1 are ignored (GC-1).
@@ -2170,6 +2179,36 @@ mouse while the bot runs and confirm the "+N" number follows your cursor,
 not the paw's).
 
 ## 12. Changelog
+
+- **5.8.27** Fixed: auto play bought Wizard towers for billions each
+  (24 of them at 7.7M CpS) and never got to the next building tier, since
+  every tower below the target (57) was preferred whatever it cost. They
+  are now only preferred once 93% of the target is owned
+  (`AUTO_WIZARD_PREF_SHARE`) or while the next one is insignificant; below
+  that they compete on payback (AUTO-4 B, `PurchaseCandidate.nearTarget`,
+  `DecisionRow.pref`; the "how good is a buy" overlay follows, BUY-2). Unit
+  tests in `tests/unit/strategy.test.ts`.
+
+- **5.8.26** Fixed: auto play stopped buying for minutes while it saved for
+  a preferred upgrade (e.g. ~14 min before Iron mouse, with a Factory paying
+  back almost as fast), since it only let through what paid back before
+  that upgrade arrived. The preferred saving rule is gone: the target is
+  the lowest pp, preferred or not (the click upgrades' ×7 value makes them
+  the target soon enough), and everything paying for itself before the
+  target would is bought on the way, biggest CpS gain first (AUTO-4 C; the
+  1%-of-the-bank buy order is gone). Checked in the simulation against the
+  alternatives (AUTO-4). Unit tests in `tests/unit/strategy-sim.test.ts`,
+  `tests/unit/strategy.test.ts`, `tests/unit/buy-streak.test.ts` and
+  `tests/unit/achievement-milestones.test.ts`.
+
+- **5.8.25** Auto play buys every research upgrade that can't lead to
+  Grandmapocalypse stage 2 (WRINK-1): Exotic nuts (+4%) is no longer
+  blocked (it only starts the research of Communal brainsweep, which stays
+  blocked), every research step is worth at least its own gain (Designer
+  cocoa beans' +2% no longer waits for the wrinklers' payoff), and with
+  "Auto: grandmapocalypse stage 1" off only One mind is skipped, the rest
+  of the research is bought for its own gain. `AUTO_STAGE1_NAME`; unit
+  tests in `tests/unit/wrinklers.test.ts`.
 
 - **5.8.24** Fixed: while saving for a preferred upgrade, auto play bought
   every purchase that paid back before the upgrade arrived, so cheap

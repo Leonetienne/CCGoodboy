@@ -98,11 +98,11 @@ describe('auto play tops buildings off to an achievement (AUTO-15)', () => {
     expect(autoDecide(g.cands, g.ctx).buy?.name).toBe('Farm');
   });
 
-  it('tops the cursors off to 100 first when the achievement is two copies away', () => {
+  it('tops the cursors off to 100 in the same round when the achievement is two copies away', () => {
     const g = setup(true);
     const d = autoDecide(g.cands, g.ctx);
-    expect(d.buy?.name).toBe('Cursor');
-    expect(d.buy?.milestone).toBe(100);
+    const cursor = d.buyable?.find((r) => r.c.name === 'Cursor');
+    expect(cursor?.c.milestone).toBe(100);
   });
 });
 

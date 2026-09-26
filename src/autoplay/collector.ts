@@ -20,7 +20,9 @@ import {
   AUTO_PREF_GOLDEN,
   AUTO_PREF_TYPES,
   AUTO_PREF_WIZARD,
+  AUTO_WIZARD_PREF_SHARE,
   AUTO_RESEARCH,
+  AUTO_STAGE1_NAME,
   autoStripHtml,
 } from './valuation-tables';
 
@@ -63,6 +65,9 @@ export interface PurchaseCandidate {
   /** > 0 for candidates the bot should buy before ordinary ones (golden upgrades, Wizard
    * towers below their target). Higher = more preferred; Wizard towers use the top tier. */
   pref?: number;
+  /** Wizard towers: at least AUTO_WIZARD_PREF_SHARE of their target owned, so they are
+   * preferred whatever they cost (else only while insignificant, AUTO-4 B). */
+  nearTarget?: boolean;
 }
 
 export type CollectResult = { skip: string } | { cands: PurchaseCandidate[]; ctx: AutoCollectCtx };
@@ -211,13 +216,15 @@ export function autoCollect(game: IGameAdapter, data: PersistedData, runtime: Ru
           cost,
           dCps: v.dCps,
           pref: me.name === 'Wizard tower' ? AUTO_PREF_WIZARD : 0,
+          ...(me.name === 'Wizard tower' && cap != null ? { nearTarget: amount >= AUTO_WIZARD_PREF_SHARE * cap } : {}),
           ...(v.milestone != null ? { milestone: v.milestone, projectCost } : {}),
         });
       }
     }
   }
 
-  // Grandmapocalypse stage 1 (WRINK-1): the research chain up to One mind, on by default.
+  // Grandmapocalypse stage 1 (WRINK-1): One mind, on by default. The rest of the research is
+  // bought either way (none of it starts a stage).
   const grandmapocalypse = data.config.autoGrandmapocalypse !== false;
   const maturity = Math.max(1, num(data.config.autoWrinklerMaturity, 5));
 
@@ -228,14 +235,14 @@ export function autoCollect(game: IGameAdapter, data: PersistedData, runtime: Ru
     if (AUTO_ESCALATION_NAMES.has(up.name)) continue;
 
     if (Object.prototype.hasOwnProperty.call(AUTO_RESEARCH, up.name)) {
-      if (!grandmapocalypse) continue;
+      if (!grandmapocalypse && up.name === AUTO_STAGE1_NAME) continue;
 
-      const gain = autoResearchCandidateGain(game, up, ctx, maturity);
+      const gain = autoResearchCandidateGain(game, up, ctx, maturity, grandmapocalypse);
       const cost = autoPrice(up);
 
       if (gain != null && gain > 0 && cost > 0) {
         // the Bingo center starts the research: the sooner, the sooner stage 1 (WRINK-1)
-        const pref = up.name === AUTO_BINGO_CENTER ? AUTO_PREF_BINGO : 0;
+        const pref = grandmapocalypse && up.name === AUTO_BINGO_CENTER ? AUTO_PREF_BINGO : 0;
         cands.push({ kind: 'upgrade', type: 'research', name: up.name, obj: up, cost, dCps: gain, pref });
       }
 

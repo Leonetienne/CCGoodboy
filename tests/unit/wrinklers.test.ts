@@ -210,14 +210,23 @@ describe('autoCollect: Grandmapocalypse research', () => {
 
   const chain = ['Bingo center/Research facility', 'Underworld ovens', 'One mind', 'Exotic nuts', 'Communal brainsweep', 'Elder Pact', 'Elder Pledge'];
 
-  it('offers the chain up to stage 1 by default (only the Bingo center preferred), and never exotic nuts/brainsweep/pact/pledge', () => {
+  it('offers the research up to exotic nuts by default (only the Bingo center preferred), and never brainsweep/pact/pledge', () => {
     const game = grandmaGame();
     store(game, chain);
 
     const cands = collect(game).cands.filter((c) => c.kind === 'upgrade');
 
-    expect(cands.map((c) => c.name)).toEqual(['Bingo center/Research facility', 'Underworld ovens', 'One mind']);
-    expect(cands.map((c) => c.pref)).toEqual([AUTO_PREF_BINGO, 0, 0]);
+    expect(cands.map((c) => c.name)).toEqual(['Bingo center/Research facility', 'Underworld ovens', 'One mind', 'Exotic nuts']);
+    expect(cands.map((c) => c.pref)).toEqual([AUTO_PREF_BINGO, 0, 0, 0]);
+  });
+
+  it('values a research step at least by its own gain', () => {
+    const game = grandmaGame();
+    store(game, ['Designer cocoa beans']);
+
+    const r = collect(game);
+    const beans = r.cands.find((c) => c.name === 'Designer cocoa beans')!;
+    expect(beans.dCps).toBeGreaterThanOrEqual(r.ctx.cps * 0.02);
   });
 
   it('buys the Bingo center after golden/click/kitten upgrades, before Wizard towers and everything else, however it rates', () => {
@@ -241,14 +250,16 @@ describe('autoCollect: Grandmapocalypse research', () => {
     expect(e.buyable!.map((x) => x.c.name).slice(0, 3)).toEqual(['Lucky day', 'Bingo center/Research facility', 'Wizard tower']);
   });
 
-  it('buys none of it with the grandmapocalypse setting off', () => {
+  it('with the grandmapocalypse setting off buys the research for its own gain, but not One mind', () => {
     const game = grandmaGame();
     store(game, chain);
 
     const data = new PersistedData();
     data.config.autoGrandmapocalypse = false;
 
-    expect(collect(game, data).cands.filter((c) => c.kind === 'upgrade')).toEqual([]);
+    const cands = collect(game, data).cands.filter((c) => c.kind === 'upgrade');
+    expect(cands.map((c) => c.name)).toEqual(['Bingo center/Research facility', 'Underworld ovens', 'Exotic nuts']);
+    expect(cands.map((c) => c.pref)).toEqual([0, 0, 0]);
   });
 
   it('counts the withered CpS out of the saving-up income', () => {
@@ -280,7 +291,7 @@ describe('autoBuy guards', () => {
     const game = new FakeGameAdapter();
     game.cookies = 100;
 
-    for (const name of ['Exotic nuts', 'Communal brainsweep', 'Elder Pact']) {
+    for (const name of ['Communal brainsweep', 'Elder Pact']) {
       const up: GameUpgrade = { name, bought: false, buy: vi.fn() };
       expect(autoBuy(game, cand(name, up))).toBe(false);
       expect(up.buy).not.toHaveBeenCalled();
