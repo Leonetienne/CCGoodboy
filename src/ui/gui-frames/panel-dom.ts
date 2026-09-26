@@ -237,9 +237,9 @@ function panelBodyHtml(version: string): string {
                 <input id="ccsb-auto-pop-wrinklers" type="checkbox">
                 Auto: pop wrinklers for purchases :3
             </label>
-            <label style="display:flex;gap:6px;align-items:center;margin-top:5px" title="Buys the crumbly egg, trains Krumblor with cookies (only insignificant amounts), sacrifices 100 cursors (selling the ones above 100 first and buying them back after) and puts on the Dragon Cursor aura (switching an aura sacrifices 1 of your highest building)">
+            <label style="display:flex;gap:6px;align-items:center;margin-top:5px" title="Buys the crumbly egg, trains Krumblor with cookies (only insignificant amounts), sacrifices 100 of each building from cursors to shipments (selling the ones above 100 first and buying them back after) and puts on the Dragonflight aura (switching an aura sacrifices 1 of your highest building)">
                 <input id="ccsb-auto-krumblor" type="checkbox">
-                Auto: train Krumblor (Dragon Cursor) ^w^
+                Auto: train Krumblor (Dragonflight) ^w^
             </label>
             <label style="display:flex;gap:6px;align-items:center;margin-top:5px" title="Ascends by itself when the Ascension row says it's time: pops every wrinkler, clicks Legacy, buys the heavenly shopping list and reincarnates. There is no undo for an ascension.">
                 <input id="ccsb-auto-ascend" type="checkbox">

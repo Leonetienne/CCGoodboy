@@ -91,7 +91,7 @@ popup and aura picker (KRUMB-3) and Santa's tab, "Evolve" button and popup
 | stage | `Game.elderWrath`, the Grandmapocalypse stage: 0 calm, 1 awoken (One mind), 2 displeased (Communal brainsweep), 3 angered (Elder Pact). Stage 1 turns 1 in 3 golden cookies into wrath cookies and lets wrinklers spawn. |
 | wrinkler | a creature attached to the big cookie from stage 1 on (max 10, 12 with Elder spice). n attached wrinklers each digest n × 5% of CpS (n² × 5% together) while the bank only gets CpS × (1 − n × 5%); popping one returns what it digested × 1.1 (more with upgrades, × 3 for a shiny one). 10 wrinklers ≈ 6× the income, but only once popped. |
 | respawn time | how long an emptied wrinkler slot takes to digest again: `1 / (spawn chance per frame × fps) + 10s` crawl (~56 min at stage 1: 0.00001 per frame). |
-| Krumblor | the cookie dragon, unlocked by the upgrade "A crumbly egg" (in the store once the heavenly upgrade "How to bake your dragon" is owned and 1M cookies are baked). `Game.dragonLevel` 0-4 are egg levels paid in cookies (1M × 2^level), level 5 → 6 ("Train Dragon Cursor") sacrifices 100 cursors; aura `id` is known from level `id + 4`. |
+| Krumblor | the cookie dragon, unlocked by the upgrade "A crumbly egg" (in the store once the heavenly upgrade "How to bake your dragon" is owned and 1M cookies are baked). `Game.dragonLevel` 0-4 are egg levels paid in cookies (1M × 2^level), training from each level 5-13 sacrifices 100 of one building (`Game.ObjectsById[level − 5]`: cursors for Dragon Cursor, grandmas, farms, mines, factories, banks, temples, wizard towers, shipments for Dragonflight); aura `id` is known from level `id + 4`. |
 | Santa | the Christmas special, unlocked by the upgrade "A festive hat" (in the store during Christmas season once 25 cookies are baked). `Game.santaLevel` 0 (Festive test tube) to 14 (Final Claus); evolving from level `l` costs `(l+1)^(l+1)` cookies and unlocks one Santa gift (`Game.santaDrops`), which costs `2525 × 3^santaLevel`. |
 | prestige level | `Game.prestige`; each level is +1% CpS (at full heavenly potential) and one heavenly chip. Ascending sets it to `floor(((cookiesReset + cookiesEarned) / 1e12)^(1/3))`, the game's `Game.HowMuchPrestige` (`Game.HCfactor` = 3). |
 | pending level | the prestige level ascending right now would give; pending − current = the levels (and chips) gained. |
@@ -577,7 +577,7 @@ action log (UI-6); nothing here is stored.
 - **CON-1** Happy lines (`sayYay`, `console.log`): GC-8's catch message,
   one short, personal greeting when the bot starts (`Bootstrap.start()`),
   `"Popped a stinky wrinkler! Yuckies!"` after each successful pop
-  (WRINK-6), `"Krumblor wears Dragon Cursor now, clicky clicky ^w^"`
+  (WRINK-6), `"Krumblor wears Dragonflight now, zoomy clicky ^w^"`
   once the aura is on (KRUMB-5), and `"Santa is Final Claus now, ho ho ho
   ^w^"` once Santa reaches his last level (XMAS-4); a caught reindeer
   says `"Caught a reindeer!! Ho ho ho, gewd boy :3"` (XMAS-6); an
@@ -758,7 +758,7 @@ action log (UI-6); nothing here is stored.
   the store column as its container); the visit follows on a later tick. A
   scroll that doesn't bring the item into view isn't retried for 10s
   (`runtime.storeScrollGiveUp`). The same applies to Krumblor's egg and
-  cursors (KRUMB-3) and the achievement purchases before an ascension
+  buildings (KRUMB-3) and the achievement purchases before an ascension
   (ASC-13). The purchase is decided again once the paw is there (things
   change on the way: hammering stops, the bank moves) and BEFORE the press:
   the paw buys what it stands on when it is still the tick's pick, or still
@@ -1023,22 +1023,29 @@ action log (UI-6); nothing here is stored.
 
 ### 3.18 Krumblor, the cookie dragon (auto play)
 
-- **KRUMB-1** With auto play and "Auto: train Krumblor (Dragon Cursor)"
+- **KRUMB-1** With auto play and "Auto: train Krumblor (Dragonflight)"
   (`config.autoKrumblor`, DEFAULT ON) on, the bot raises Krumblor up to
-  the Dragon Cursor aura and no further: it buys "A crumbly egg" once it
+  the Dragonflight aura and no further: it buys "A crumbly egg" once it
   is in the store, pays the egg levels (1M, 2M, 4M, 8M, 16M cookies:
-  "Chip it" ×3, "Hatch it", "Train Breath of Milk"), trains Dragon Cursor
-  (level 5 → 6, sacrifices 100 cursors) and puts it on. Nothing without
+  "Chip it" ×3, "Hatch it", "Train Breath of Milk"), trains levels 5 → 14
+  (Dragon Cursor ... Dragonflight), each sacrificing 100 of one building
+  in `Game.ObjectsById` order (cursors, grandmas, farms, mines,
+  factories, banks, temples, wizard towers, shipments;
+  `DRAGON_SACRIFICE_BUILDINGS`), and puts Dragonflight on. No aura is put
+  on along the way. Nothing without
   the egg (it needs the heavenly upgrade "How to bake your dragon").
-- **KRUMB-2** Cookie costs (the egg, each egg level, cursors bought to
+- **KRUMB-2** Cookie costs (the egg, each egg level, buildings bought to
   reach 100) are only paid when they are insignificant (AUTO-4 A: <=
   `autoInsignificantSec` × CpS) and leave the reserve (AUTO-6) alone, so
-  the dragon never competes with real purchases. Right before the
-  sacrifice every cursor above 100 is sold (the 25% given back for the
-  priciest ones pays for far more than rebuying the cheapest ones), and
-  after it the sold ones are bought back (`runtime.krumblorRebuy`, as many
-  as the bank pays; the rest is left to shopping). Fewer than 100 cursors:
-  the missing ones are bought first. Buying never happens while the store
+  the dragon never competes with real purchases. Every building is
+  treated alike: right before its sacrifice every copy above 100 is sold
+  (the 25% given back for the priciest ones pays for far more than
+  rebuying the cheapest ones), and after it the sold ones are bought back
+  before the next level (`runtime.krumblorRebuy`/`krumblorRebuyId`, as
+  many as the bank pays; the rest is left to shopping). Fewer than 100:
+  the missing ones are bought first (Wizard towers too, past
+  `autoWizardTowerTarget`; after the sacrifice shopping rebuys them up to
+  the target). Buying never happens while the store
   is in sell mode (the game's `buy()` sells then).
 - **KRUMB-3** Like a human, one step per scheduler tick, re-derived from
   the live game each time (`nextKrumblorStep()`,
@@ -1047,9 +1054,9 @@ action log (UI-6); nothing here is stored.
   which the game draws on `#backgroundLeftCanvas` and hit-tests itself
   (`Game.UpdateSpecial`: x 24, y canvas height − 24 − 48 × tab count + 48 ×
   tab index, ±24px), clicks the popup's train button, the aura slot, the
-  Dragon Cursor crate and "Confirm" in the "Set your dragon's aura" prompt,
+  Dragonflight crate and "Confirm" in the "Set your dragon's aura" prompt,
   and finally the popup's "x" — real synthetic clicks (NFR-8 a). The egg
-  purchase and the cursor sale/rebuy go through the game's API with the paw
+  purchase and the building sale/rebuy go through the game's API with the paw
   visiting the store item and pulsing (NFR-8 b, like AUTO-9). The paw only
   closes a popup it opened and only answers an aura picker it opened
   (30s); it also closes its popup while waiting for cookies.
@@ -1060,8 +1067,9 @@ action log (UI-6); nothing here is stored.
   run only logs "would do". Priority: tier 5, after the Grimoire unlock,
   before wrinkler pops and shopping; a due step interrupts hammering and
   idle play like a due purchase (AUTO-8).
-- **KRUMB-5** The aura goes into slot 0 only while slot 0 is "No aura":
-  an aura the player picked is never replaced. Switching costs 1 of the
+- **KRUMB-5** The aura goes into slot 0 only while slot 0 is "No aura"
+  or Dragon Cursor (what versions before 5.8.16 put on): any other aura
+  the player picked is never replaced. Switching costs 1 of the
   highest building owned (the game's rule). Every step is logged
   (`"krumblor"`). Debug: DBG-15.
 
@@ -1769,7 +1777,7 @@ saved (see `normalizeSetting()` in
 | `autoWrinklerMaturity` | Auto: pop a wrinkler after (x its respawn time) | 5 | 1-50 |
 | `autoGrandmapocalypse` | Auto: grandmapocalypse stage 1 (wrinklers) [checkbox] | true | – |
 | `autoPopWrinklers` | Auto: pop wrinklers for purchases [checkbox] | true | – |
-| `autoKrumblor` | Auto: train Krumblor (Dragon Cursor) [checkbox] | true | – |
+| `autoKrumblor` | Auto: train Krumblor (Dragonflight) [checkbox] | true | – |
 | `autoAscend` | Auto: ascend (and buy heavenly upgrades) [checkbox] (ASC-10) | true | – |
 | `ascendDumpBank` | Auto: spend the bank on achievements before ascending [checkbox] (ASC-13) | true | – |
 
@@ -1893,7 +1901,7 @@ target)`) instead of scattering direct field writes across every task.
 | `garden` | clicking a garden tile, seed or soil (GARDEN-\*) | `GardenClickAction` |
 | `stock-market` | clicking a stock market buy/sell button or "Hire" (STOCK-\*) | `MarketClickAction` |
 | `wrinkler-pop` | poking a mature wrinkler until it bursts (WRINK-5) | `WrinklerPopAction` |
-| `krumblor` | buying the crumbly egg, clicking Krumblor's tab/popup/aura picker, selling/buying cursors for the sacrifice (KRUMB-\*) | `DragonClickAction` / `DragonStoreAction` |
+| `krumblor` | buying the crumbly egg, clicking Krumblor's tab/popup/aura picker, selling/buying buildings for the sacrifices (KRUMB-\*) | `DragonClickAction` / `DragonStoreAction` |
 | `santa` | clicking Santa's tab, "Evolve" button and popup "x" (XMAS-4) | `DragonClickAction` (from `SantaTrainer`) |
 | `ascend` | getting ready for a committed ascension (ASC-12: selling, buying for achievements, holding at Legacy), clicking Legacy/"Ascend", waiting out the animation, dragging the heavenly tree, buying heavenly upgrades, Reincarnate/"Yes" (ASC-10) | `DragonClickAction` / `WaitWhileAction` / `DragTreeAction` (from `AscensionRunner`; the pops show `wrinkler-pop`) |
 | `auto-shop` | scrolling the store column to an item, visiting/buying it (AUTO-9) | auto-shop `CursorAction` from `AutoPlayEngine.shopJob()` |
@@ -2073,10 +2081,11 @@ lump" then watch the paw harvest it), wrinkler popping (WRINK-\*: auto
 play on, "Spawn fed wrinklers", then make the next purchase need them —
 e.g. spend the bank down; watch the paw poke one wrinkler 3 times and the
 purchase follow; a Frenzy must hold it back), Krumblor (KRUMB-\*: on
-a test save with > 100 cursors and some CpS, auto play on, "Unlock
-crumblor"; watch the egg bought, the tab clicked, 5 trainings, the cursors sold
-to 100, the sacrifice, the rebuy, the aura picked and confirmed, the popup
-closed), Christmas (XMAS-\*: on a test save with some CpS, auto play on,
+a test save with > 100 of each building up to shipments and some CpS,
+auto play on, "Unlock crumblor"; watch the egg bought, the tab clicked, 5
+trainings, then for each building from cursors to shipments the extras
+sold to 100, the sacrifice and the rebuy, then Dragonflight picked and
+confirmed, the popup closed), Christmas (XMAS-\*: on a test save with some CpS, auto play on,
 "Unlock all christmas upgrades"; watch the hat and gifts bought, Santa's tab
 clicked, "Evolve" clicked once per level with each new gift bought before
 the next one, the popup closed), stock market (STOCK-\*/AUTO-16: on a
@@ -2109,6 +2118,15 @@ mouse while the bot runs and confirm the "+N" number follows your cursor,
 not the paw's).
 
 ## 12. Changelog
+
+- **5.8.16** Krumblor trains up to Dragonflight instead of Dragon Cursor
+  (KRUMB-\*): levels 5-13 each sacrifice 100 of one building (cursors to
+  shipments), every one handled like the cursors were (the copies above
+  100 sold first and bought back after, missing ones bought when cheap).
+  Dragon Cursor put on by an earlier version is swapped for Dragonflight.
+  Steps `sell-buildings`/`buy-buildings` replace `sell-cursors`/
+  `buy-cursors`; new `runtime.krumblorRebuyId`, `DRAGONFLIGHT_AURA`,
+  `DRAGON_SACRIFICE_BUILDINGS`. Unit tests in `tests/unit/krumblor.test.ts`.
 
 - **5.8.15** New paw sprites (PAW-2): open paw, fist and a new peace
   sign, drawn upright (no longer mirrored) in one shared 684x1010 frame at

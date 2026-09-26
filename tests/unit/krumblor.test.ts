@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { KrumblorTrainer } from '../../src/autoplay/krumblor';
-import { dragonCookieCost, nextKrumblorStep, type KrumblorState } from '../../src/autoplay/krumblor-strategy';
+import { DRAGON_SACRIFICE_BUILDINGS, DRAGONFLIGHT_LEVEL, dragonCookieCost, dragonSacrificeIndex, nextKrumblorStep, type KrumblorState } from '../../src/autoplay/krumblor-strategy';
 import { DragonClickAction, DragonStoreAction } from '../../src/actions/krumblor';
 import { PersistedData } from '../../src/core/persisted-data';
 import { RuntimeState } from '../../src/core/runtime-state';
@@ -21,9 +21,8 @@ function state(over: Partial<KrumblorState> = {}): KrumblorState {
     menuOpen: false,
     menuOurs: false,
     pickerOurs: false,
-    cursors: 150,
-    cursorBuyUpCost: 0,
-    rebuy: 0,
+    sacrifice: null,
+    rebuy: null,
     spendable: 1e12,
     insignificant: 1e12,
     ...over,
@@ -51,28 +50,52 @@ describe('nextKrumblorStep', () => {
     expect(nextKrumblorStep(state({ dragonLevel: 4, spendable: 15e6, menuOpen: true })).kind).toBe('wait');
   });
 
-  it('sells the cursors above 100 right before the sacrifice, then trains', () => {
-    expect(nextKrumblorStep(state({ dragonLevel: 5, cursors: 180 })).kind).toBe('open-menu');
-    expect(nextKrumblorStep(state({ dragonLevel: 5, cursors: 180, menuOpen: true }))).toEqual({ kind: 'sell-cursors', n: 80 });
-    expect(nextKrumblorStep(state({ dragonLevel: 5, cursors: 100, menuOpen: true, rebuy: 80 }))).toEqual({ kind: 'train', level: 5 });
+  it('sells the buildings above 100 right before the sacrifice, then trains', () => {
+    const cursors = (owned: number) => ({ id: 0, owned, buyUpCost: 0 });
+    expect(nextKrumblorStep(state({ dragonLevel: 5, sacrifice: cursors(180) })).kind).toBe('open-menu');
+    expect(nextKrumblorStep(state({ dragonLevel: 5, sacrifice: cursors(180), menuOpen: true }))).toEqual({ kind: 'sell-buildings', id: 0, n: 80 });
+    expect(nextKrumblorStep(state({ dragonLevel: 5, sacrifice: cursors(100), menuOpen: true, rebuy: { building: cursors(100), n: 80 } }))).toEqual({ kind: 'train', level: 5 });
   });
 
-  it('buys the cursors back after the sacrifice', () => {
-    expect(nextKrumblorStep(state({ dragonLevel: 6, cursors: 0, rebuy: 80, menuOpen: true }))).toEqual({ kind: 'buy-cursors', n: 80, restore: true });
+  it('buys the buildings back after the sacrifice, before the next one', () => {
+    const cursors = { id: 0, owned: 0, buyUpCost: 0 };
+    const grandmas = { id: 1, owned: 300, buyUpCost: 0 };
+    expect(nextKrumblorStep(state({ dragonLevel: 6, sacrifice: grandmas, rebuy: { building: cursors, n: 80 }, menuOpen: true }))).toEqual({
+      kind: 'buy-buildings',
+      id: 0,
+      n: 80,
+      restore: true,
+    });
+    expect(nextKrumblorStep(state({ dragonLevel: 6, sacrifice: grandmas, menuOpen: true }))).toEqual({ kind: 'sell-buildings', id: 1, n: 200 });
   });
 
-  it('buys missing cursors up to 100 when that is cheap, else waits', () => {
-    expect(nextKrumblorStep(state({ dragonLevel: 5, cursors: 60, cursorBuyUpCost: 5e6, menuOpen: true }))).toEqual({ kind: 'buy-cursors', n: 40, restore: false });
-    expect(nextKrumblorStep(state({ dragonLevel: 5, cursors: 60, cursorBuyUpCost: 5e6, insignificant: 1e6 })).kind).toBe('wait');
+  it('sacrifices every building from cursors to shipments, in Game.ObjectsById order', () => {
+    expect([5, 6, 12, 13, 14].map(dragonSacrificeIndex)).toEqual([0, 1, 7, 8, -1]);
+    expect(DRAGON_SACRIFICE_BUILDINGS[dragonSacrificeIndex(13)]).toBe('Shipment');
+    expect(DRAGONFLIGHT_LEVEL).toBe(14);
+    const shipments = { id: 8, owned: 100, buyUpCost: 0 };
+    expect(nextKrumblorStep(state({ dragonLevel: 13, sacrifice: shipments, menuOpen: true }))).toEqual({ kind: 'train', level: 13 });
   });
 
-  it('puts on Dragon Cursor: slot, pick, confirm, then closes its popup', () => {
-    expect(nextKrumblorStep(state({ dragonLevel: 6 })).kind).toBe('open-menu');
-    expect(nextKrumblorStep(state({ dragonLevel: 6, menuOpen: true, menuOurs: true })).kind).toBe('open-aura');
-    expect(nextKrumblorStep(state({ dragonLevel: 6, menuOpen: true, pickerOurs: true, selectingAura: 0 })).kind).toBe('pick-aura');
-    expect(nextKrumblorStep(state({ dragonLevel: 6, menuOpen: true, pickerOurs: true, selectingAura: 2 })).kind).toBe('confirm-aura');
-    expect(nextKrumblorStep(state({ dragonLevel: 6, auras: [2, 0], menuOpen: true, menuOurs: true })).kind).toBe('close-menu');
-    expect(nextKrumblorStep(state({ dragonLevel: 6, auras: [2, 0] })).kind).toBe('done');
+  it('buys missing buildings up to 100 when that is cheap, else waits', () => {
+    const towers = { id: 7, owned: 57, buyUpCost: 5e6 };
+    expect(nextKrumblorStep(state({ dragonLevel: 12, sacrifice: towers, menuOpen: true }))).toEqual({ kind: 'buy-buildings', id: 7, n: 43, restore: false });
+    expect(nextKrumblorStep(state({ dragonLevel: 12, sacrifice: towers, insignificant: 1e6 })).kind).toBe('wait');
+    expect(nextKrumblorStep(state({ dragonLevel: 12, sacrifice: null })).kind).toBe('wait');
+  });
+
+  it('puts on Dragonflight: slot, pick, confirm, then closes its popup', () => {
+    expect(nextKrumblorStep(state({ dragonLevel: 14 })).kind).toBe('open-menu');
+    expect(nextKrumblorStep(state({ dragonLevel: 14, menuOpen: true, menuOurs: true })).kind).toBe('open-aura');
+    expect(nextKrumblorStep(state({ dragonLevel: 14, menuOpen: true, pickerOurs: true, selectingAura: 0 })).kind).toBe('pick-aura');
+    expect(nextKrumblorStep(state({ dragonLevel: 14, menuOpen: true, pickerOurs: true, selectingAura: 10 })).kind).toBe('confirm-aura');
+    expect(nextKrumblorStep(state({ dragonLevel: 14, auras: [10, 0], menuOpen: true, menuOurs: true })).kind).toBe('close-menu');
+    expect(nextKrumblorStep(state({ dragonLevel: 14, auras: [10, 0] })).kind).toBe('done');
+  });
+
+  it('keeps training past Dragon Cursor and swaps it for Dragonflight', () => {
+    expect(nextKrumblorStep(state({ dragonLevel: 6, auras: [2, 0], sacrifice: { id: 1, owned: 100, buyUpCost: 0 }, menuOpen: true })).kind).toBe('train');
+    expect(nextKrumblorStep(state({ dragonLevel: 14, auras: [2, 0], menuOpen: true })).kind).toBe('open-aura');
   });
 
   it('never overrides an aura the player picked', () => {
@@ -187,7 +210,7 @@ describe('KrumblorTrainer', () => {
 
     const req = trainer.job()!;
     expect(req.priority).toBe(JOB_PRIORITY.AUTO_SHOP);
-    expect(req.key).toBe('krumblor:sell-cursors');
+    expect(req.key).toBe('krumblor:sell-buildings');
     expect(req.action).toBeInstanceOf(DragonStoreAction);
 
     const sleep = vi.fn().mockResolvedValue(undefined);
@@ -195,17 +218,33 @@ describe('KrumblorTrainer', () => {
 
     expect(cursor.amount).toBe(100);
     expect(runtime.krumblorRebuy).toBe(80);
+    expect(runtime.krumblorRebuyId).toBe(0);
     expect(runtime.pulseAt).toBeGreaterThan(0);
 
     // after the sacrifice (level 6, 0 cursors) they are bought back
     cursor.amount = 0;
     game.dragonLevel = 6;
-    game.dragonAuras = [2, 0];
     const back = trainer.job()!;
-    expect(back.key).toBe('krumblor:buy-cursors');
+    expect(back.key).toBe('krumblor:buy-buildings');
     await back.action.cursor_at_position({ runtime, clock: { sleep } } as never);
     expect(cursor.amount).toBe(80);
     expect(runtime.krumblorRebuy).toBe(0);
+  });
+
+  it('sells the grandmas above 100 before the Elder Battalion sacrifice', async () => {
+    const { runtime, game, trainer } = setup();
+    const grandma = { name: 'Grandma', id: 1, plural: 'grandmas', amount: 130, buy() {}, sell(n: number) { this.amount = (this.amount || 0) - n; } } as GameBuilding;
+    game.buildingsByName.Grandma = grandma;
+    game.dragonLevel = 6;
+    game.specialTab = 'dragon';
+
+    const req = trainer.job()!;
+    expect(req.key).toBe('krumblor:sell-buildings');
+    await req.action.cursor_at_position({ runtime, clock: { sleep: vi.fn().mockResolvedValue(undefined) } } as never);
+
+    expect(grandma.amount).toBe(100);
+    expect(runtime.krumblorRebuy).toBe(30);
+    expect(runtime.krumblorRebuyId).toBe(1);
   });
 
   it('never buys back through buy() while the store is in sell mode', async () => {

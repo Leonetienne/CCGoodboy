@@ -7,6 +7,8 @@ import { getWrinklerCanvas } from './wrinkler-dom';
 /** Aura id of "Dragon Cursor" (Game.dragonAuras[2]); the dragon knows aura `id` from
  * dragonLevel `id + 4` on. */
 export const DRAGON_CURSOR_AURA = 2;
+/** Aura id of "Dragonflight" (Game.dragonAuras[10]), known from dragonLevel 14 on. */
+export const DRAGONFLIGHT_AURA = 10;
 
 /** Canvas point of a special tab: Game.UpdateSpecial stacks the tabs at x 24, from
  * y = canvas height - 24 - 48 x tab count, 48px apart, and hit-tests +-24px around that

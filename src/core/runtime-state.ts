@@ -107,11 +107,12 @@ export class RuntimeState {
   wrinklerBlockUntil = 0;
   /** Debug tool "Pop a wrinkler": force one pop through the normal pipeline until then. */
   wrinklerForcePopUntil = 0;
-  /** Krumblor (KRUMB-*): a pause after a failure, cursors sold before the sacrifice that are
-   * still to be bought back, whether the paw opened the dragon's popup / aura picker (it only
+  /** Krumblor (KRUMB-*): a pause after a failure, buildings sold before a sacrifice that are
+   * still to be bought back (how many, and which: DRAGON_SACRIFICE_BUILDINGS index), whether the paw opened the dragon's popup / aura picker (it only
    * closes / answers its own), and since when a step's element can't be found. */
   krumblorBlockUntil = 0;
   krumblorRebuy = 0;
+  krumblorRebuyId = 0;
   krumblorMenuOurs = false;
   krumblorPickerAt = 0;
   krumblorStuckSince = 0;
@@ -197,6 +198,7 @@ export class RuntimeState {
     this.marketCashOutUntil = 0;
     this.wrinklerNextEvalAt = 0;
     this.krumblorRebuy = 0;
+    this.krumblorRebuyId = 0;
     this.krumblorMenuOurs = false;
     this.krumblorPickerAt = 0;
     this.krumblorStuckSince = 0;

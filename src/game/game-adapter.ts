@@ -93,7 +93,7 @@ export interface IGameAdapter {
   getWrinklerPopMult(shiny: boolean): number;
 
   // ---- Krumblor, the cookie dragon (KRUMB-*) ----
-  /** Game.dragonLevel: 0-4 egg (cookie costs), 5 knows Breath of Milk, 6 knows Dragon Cursor... */
+  /** Game.dragonLevel: 0-4 egg (cookie costs), 5 knows Breath of Milk, 6 knows Dragon Cursor ... 14 knows Dragonflight */
   getDragonLevel(): number;
   /** Game.dragonAura / Game.dragonAura2: the aura ids in slot 0 and slot 1 (0 = No aura). */
   getDragonAuras(): [number, number];

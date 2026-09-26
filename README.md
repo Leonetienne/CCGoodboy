@@ -49,9 +49,9 @@ default and remembers your choice.
   It pops fat wrinklers when it needs their cookies for a purchase. Shiny
   wrinklers are yours; it won't touch them.
 - Raises Krumblor, the cookie dragon, once you have the crumbly egg: it pays
-  the egg levels when they're pocket change, sacrifices 100 cursors (selling
-  the extras first and buying them back after, which is much cheaper) and puts
-  on the **Dragon Cursor** aura. It never swaps out an aura you picked
+  the egg levels when they're pocket change, sacrifices 100 of each building
+  from cursors to shipments (selling the extras first and buying them back
+  after, which is much cheaper) and puts on the **Dragonflight** aura. It never swaps out an aura you picked
   yourself. Switch it off with **Auto: train Krumblor**.
 - At Christmas it catches reindeer like golden cookies, buys the festive
   hat, Santa's gifts and the reindeer biscuits, and evolves Santa all the way to **Final Claus**.

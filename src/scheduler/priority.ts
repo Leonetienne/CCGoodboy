@@ -171,7 +171,7 @@ export function selectJobRequest(deps: PriorityDeps): JobRequest | null {
     job = farmUnlock.job();
   }
 
-  // Auto play: train Krumblor up to the Dragon Cursor aura (KRUMB-*).
+  // Auto play: train Krumblor up to the Dragonflight aura (KRUMB-*).
   if (!job && !kick && krumblor.pending()) {
     job = krumblor.job();
   }

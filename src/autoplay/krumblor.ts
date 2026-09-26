@@ -7,7 +7,7 @@ import { storeScrollJob } from '../actions/store-visit';
 import { visibleRect } from '../game/dom-geometry';
 import { storeApproachPoint } from '../game/store-dom';
 import {
-  DRAGON_CURSOR_AURA,
+  DRAGONFLIGHT_AURA,
   getAuraPicker,
   getAuraPickerConfirm,
   getAuraPickerCrate,
@@ -22,7 +22,7 @@ import type { GameBuilding, GameUpgrade } from '../game/types';
 import { getWrinklerCanvas } from '../game/wrinkler-dom';
 import type { LogStore } from '../stats/log';
 import { autoUnbuffedCps } from './building-valuation';
-import { nextKrumblorStep, type KrumblorState, type KrumblorStep } from './krumblor-strategy';
+import { DRAGON_SACRIFICE, DRAGON_SACRIFICE_BUILDINGS, dragonSacrificeIndex, nextKrumblorStep, type KrumblorBuilding, type KrumblorState, type KrumblorStep } from './krumblor-strategy';
 import { autoBuy } from './shopping';
 
 const EGG = 'A crumbly egg';
@@ -31,11 +31,11 @@ const PICKER_OURS_MS = 30000;
 /** A step whose element doesn't show up for this long pauses the module. */
 const STUCK_MS = 5000;
 
-/** Auto play: trains Krumblor, the cookie dragon, up to the Dragon Cursor aura (KRUMB-*):
+/** Auto play: trains Krumblor, the cookie dragon, up to the Dragonflight aura (KRUMB-*):
  * buys "A crumbly egg", opens the dragon's popup through its tab on the left canvas, pays the
- * egg levels in cookies, sacrifices 100 cursors (selling the ones above 100 first and buying
- * them back after), then picks Dragon Cursor in the aura picker, confirms and closes the
- * popup. One step per scheduler tick, re-derived from the live game each time
+ * egg levels in cookies, sacrifices 100 of each building from cursors to shipments (selling
+ * the ones above 100 first and buying them back after), then picks Dragonflight in the aura
+ * picker, confirms and closes the popup. One step per scheduler tick, re-derived from the live game each time
  * (nextKrumblorStep), so a preempted step is simply picked up again. */
 export class KrumblorTrainer {
   constructor(
@@ -62,15 +62,28 @@ export class KrumblorTrainer {
     return !this.shoppingInterrupted();
   }
 
-  private cursorBuilding(): GameBuilding | null {
-    return this.game.getBuildingByName('Cursor');
+  /** The sacrifice building with index `id` (DRAGON_SACRIFICE_BUILDINGS). */
+  private building(id: number): GameBuilding | null {
+    const name = DRAGON_SACRIFICE_BUILDINGS[id];
+    return name ? this.game.getBuildingByName(name) : null;
+  }
+
+  private buildingState(id: number): KrumblorBuilding | null {
+    const b = this.building(id);
+    if (!b) return null;
+
+    const owned = Number(b.amount) || 0;
+    const missing = DRAGON_SACRIFICE - owned;
+
+    return { id, owned, buyUpCost: missing <= 0 ? 0 : b.getSumPrice ? Number(b.getSumPrice(missing)) : Infinity };
   }
 
   /** The live game as nextKrumblorStep() sees it. */
   state(): KrumblorState {
     const egg = this.game.getUpgradeByName(EGG);
-    const cursor = this.cursorBuilding();
-    const cursors = Number(cursor && cursor.amount) || 0;
+    const dragonLevel = this.game.getDragonLevel();
+    const sacrificeId = dragonSacrificeIndex(dragonLevel);
+    const rebuyBuilding = this.runtime.krumblorRebuy > 0 ? this.buildingState(this.runtime.krumblorRebuyId) : null;
     const cps = autoUnbuffedCps(this.game) || 0;
     const menuOpen = this.game.getSpecialTab() === 'dragon';
 
@@ -80,15 +93,14 @@ export class KrumblorTrainer {
       eggBought: !!(egg && egg.bought),
       eggInStore: !!egg && this.game.getUpgradesInStore().includes(egg),
       eggCost: egg ? upgradeCost(egg) : Infinity,
-      dragonLevel: this.game.getDragonLevel(),
+      dragonLevel,
       auras: this.game.getDragonAuras(),
       selectingAura: this.game.getSelectingDragonAura(),
       menuOpen,
       menuOurs: this.runtime.krumblorMenuOurs,
       pickerOurs: this.pickerOurs(),
-      cursors,
-      cursorBuyUpCost: cursor && cursors < 100 && cursor.getSumPrice ? Number(cursor.getSumPrice(100 - cursors)) : cursors >= 100 ? 0 : Infinity,
-      rebuy: this.runtime.krumblorRebuy,
+      sacrifice: sacrificeId >= 0 ? this.buildingState(sacrificeId) : null,
+      rebuy: rebuyBuilding ? { building: rebuyBuilding, n: this.runtime.krumblorRebuy } : null,
       spendable: this.game.getCookies() - Math.max(0, Number(this.data.config.autoReserveSec) || 0) * cps,
       insignificant: Math.max(0, Number(this.data.config.autoInsignificantSec) || 0) * cps,
     };
@@ -216,27 +228,28 @@ export class KrumblorTrainer {
           `Krumblor level ${before + 1}`,
           getDragonTrainButton,
           () => this.game.getDragonLevel() > before,
-          () => this.log.log('krumblor', `trained to level ${this.game.getDragonLevel()}`, { cursors: Number(this.cursorBuilding()?.amount) || 0 }),
+          () => this.log.log('krumblor', `trained to level ${this.game.getDragonLevel()}`),
           'training Krumblor did not work',
         );
       }
 
-      case 'sell-cursors':
-      case 'buy-cursors': {
-        const cursor = this.cursorBuilding();
-        if (!cursor) return null;
+      case 'sell-buildings':
+      case 'buy-buildings': {
+        const b = this.building(s.id);
+        if (!b) return null;
 
-        const selling = s.kind === 'sell-cursors';
-        const scroll = scrollTo(() => document.getElementById('product0'), 'the cursors');
+        const what = `${s.n} ${plural(b)}`;
+        const selling = s.kind === 'sell-buildings';
+        const scroll = scrollTo(() => document.getElementById(`product${s.id}`), `the ${plural(b)}`);
         if (scroll) return scroll;
 
         return req(
           new DragonStoreAction({
-            label: `${selling ? 'sell' : 'buy'} ${s.n} cursors`,
-            target: `${selling ? 'selling' : 'buying'} ${s.n} cursors for Krumblor`,
-            point: storePoint('product0'),
+            label: `${selling ? 'sell' : 'buy'} ${what}`,
+            target: `${selling ? 'selling' : 'buying'} ${what} for Krumblor`,
+            point: storePoint(`product${s.id}`),
             stillWanted,
-            run: () => this.tradeCursors(cursor, s),
+            run: () => this.tradeBuildings(b, s),
           }),
         );
       }
@@ -255,12 +268,12 @@ export class KrumblorTrainer {
 
       case 'pick-aura':
         return click(
-          'pick Dragon Cursor',
-          'the Dragon Cursor aura',
-          () => getAuraPickerCrate(DRAGON_CURSOR_AURA),
-          () => this.game.getSelectingDragonAura() === DRAGON_CURSOR_AURA,
+          'pick Dragonflight',
+          'the Dragonflight aura',
+          () => getAuraPickerCrate(DRAGONFLIGHT_AURA),
+          () => this.game.getSelectingDragonAura() === DRAGONFLIGHT_AURA,
           () => {},
-          'Dragon Cursor did not get selected',
+          'Dragonflight did not get selected',
         );
 
       case 'confirm-aura':
@@ -268,11 +281,11 @@ export class KrumblorTrainer {
           'confirm aura',
           'Confirm',
           getAuraPickerConfirm,
-          () => this.game.getDragonAuras()[0] === DRAGON_CURSOR_AURA,
+          () => this.game.getDragonAuras()[0] === DRAGONFLIGHT_AURA,
           () => {
             this.runtime.krumblorPickerAt = 0;
-            this.log.log('krumblor', 'aura: Dragon Cursor');
-            sayYay('Krumblor wears Dragon Cursor now, clicky clicky ^w^');
+            this.log.log('krumblor', 'aura: Dragonflight');
+            sayYay('Krumblor wears Dragonflight now, zoomy clicky ^w^');
           },
           'the aura did not change',
         );
@@ -293,24 +306,28 @@ export class KrumblorTrainer {
     return null;
   }
 
-  /** Sells the cursors above 100 (remembering them for the rebuy), buys the missing ones up
+  /** Sells the copies above 100 (remembering them for the rebuy), buys the missing ones up
    * to 100, or buys the sold ones back. The game's buy(n) stops at what the bank can pay. */
-  private tradeCursors(cursor: GameBuilding, s: { kind: 'sell-cursors' | 'buy-cursors'; n: number; restore?: boolean }): void {
-    const before = Number(cursor.amount) || 0;
+  private tradeBuildings(b: GameBuilding, s: { kind: 'sell-buildings' | 'buy-buildings'; id: number; n: number; restore?: boolean }): void {
+    const before = Number(b.amount) || 0;
+    const selling = s.kind === 'sell-buildings';
 
-    if (s.kind === 'sell-cursors') {
-      if (cursor.sell) cursor.sell(s.n, 1);
+    if (selling) {
+      if (b.sell) b.sell(s.n, 1);
     } else if (this.game.getBuyMode() === -1) {
       // buy() sells while the store is in sell mode (AUTO-7)
       this.block(3000, 'the store is in sell mode');
       return;
     } else {
-      cursor.buy(s.n);
+      b.buy(s.n);
     }
 
-    const moved = Math.abs((Number(cursor.amount) || 0) - before);
+    const moved = Math.abs((Number(b.amount) || 0) - before);
 
-    if (s.kind === 'sell-cursors') {
+    if (selling) {
+      // a rebuy of another building still pending is left to the normal shopping
+      if (this.runtime.krumblorRebuyId !== s.id) this.runtime.krumblorRebuy = 0;
+      this.runtime.krumblorRebuyId = s.id;
       this.runtime.krumblorRebuy += moved;
     } else if (s.restore) {
       // Whatever the bank couldn't pay for now is left to the normal shopping.
@@ -319,11 +336,12 @@ export class KrumblorTrainer {
 
     if (moved > 0) {
       this.runtime.lastAutoBuyAt = Date.now();
-      this.log.log('krumblor', `${s.kind === 'sell-cursors' ? 'sold' : 'bought'} ${moved} cursors${s.kind === 'sell-cursors' ? ' before the sacrifice' : s.restore ? ' back' : ' for the sacrifice'}`, {
-        cursors: Number(cursor.amount) || 0,
+      this.log.log('krumblor', `${selling ? 'sold' : 'bought'} ${moved} ${plural(b)}${selling ? ' before the sacrifice' : s.restore ? ' back' : ' for the sacrifice'}`, {
+        building: b.name,
+        amount: Number(b.amount) || 0,
       });
     } else {
-      this.block(3000, `the shop would not ${s.kind === 'sell-cursors' ? 'take' : 'give me'} cursors`);
+      this.block(3000, `the shop would not ${selling ? 'take' : 'give me'} ${plural(b)}`);
     }
   }
 
@@ -332,6 +350,10 @@ export class KrumblorTrainer {
     this.log.log('krumblor', `paused: ${why}`);
     sayCant(`Wanted to train Krumblor, but ${why}, trying again in ${Math.round(ms / 1000)}s :c`);
   }
+}
+
+function plural(b: GameBuilding): string {
+  return (b.plural || `${b.name}s`).toLowerCase();
 }
 
 function upgradeCost(up: GameUpgrade): number {
