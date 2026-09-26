@@ -1,4 +1,4 @@
-![The paw catching a golden cookie and celebrating afterwards](https://raw.githubusercontent.com/Leonetienne/CCGoodboy/refs/heads/master/github-assets/peace.png)
+![The paw catching a golden cookie and celebrating afterwards](https://raw.githubusercontent.com/Leonetienne/CCGoodboy/refs/heads/master/github-assets/peace.gif)
 
 # CC Good Boy
 
