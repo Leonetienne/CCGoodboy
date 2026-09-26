@@ -687,8 +687,11 @@ action log (UI-6); nothing here is stored.
   so a slow payback still beats 0% return from letting cookies sit idle —
   payback only ever decides ORDER and what is worth deliberately saving
   for, never whether an affordable purchase gets refused outright.
-  (A) insignificant cost (<= `autoInsignificantSec` x CpS, default 60s —
-  "worthless junk") -> buy at once, always, exempt from postponement.
+  (A) insignificant cost (<= `autoInsignificantShare` × the spendable
+  bank, default 0.1% — "worthless junk") -> buy at once, exempt from the
+  impact postponement (C), but not from a save target that pays back
+  sooner even counting its wait (a steady stream of cheap purchases would
+  otherwise eat the whole income).
   (B) preferred candidates — the Bingo center (WRINK-1), golden cookie
   upgrades, the click power upgrades — "mouse and cursors twice as
   efficient", the Thousand/Million/... fingers series and the Plastic/
@@ -813,8 +816,8 @@ action log (UI-6); nothing here is stored.
   own click pulse, NFR-8), at ~10 buys per second (±30ms jitter) with the
   press point wandering a few px around the row's centre (±8/±5px, capped
   to a quarter of the row). While 10 copies together are still pocket money
-  (their sum price <= `autoInsignificantSec` × CpS or <= 1% of the spendable
-  bank) and leave enough for the tick's pick, one press buys a stack of 10
+  (their sum price <= 1% of the spendable bank, or `autoInsignificantShare`
+  of it if higher) and leave enough for the tick's pick, one press buys a stack of 10
   (`buy(10)`, `AUTO_STACK`, `autoStackSize()`); never for Wizard towers. Each further buy is re-planned from the live
   game (`autoCollect()` + `autoDecide()`) and happens only while that
   building is still the very purchase this tick would make
@@ -831,8 +834,8 @@ action log (UI-6); nothing here is stored.
 - **AUTO-18** Junk spree: after a shopping visit's purchase (and its
   streak), the paw doesn't walk away either while cheap junk is left. It
   hops straight to the next of this tick's purchases (AUTO-4's buy order,
-  never one held back) that is insignificant (<= `autoInsignificantSec` ×
-  CpS, default 60s) and on screen in the store, opens its section (AUTO-9),
+  never one held back) that is insignificant (<= `autoInsignificantShare` ×
+  the spendable bank, default 0.1%) and on screen in the store, opens its section (AUTO-9),
   pulses and buys it, at the streak's ~10 per second, re-planned from the
   live game before every buy (`autoSpreeNext()`,
   `src/autoplay/buy-streak.ts`; `AutoPlayEngine.buySpree()`). A junk item
@@ -1042,7 +1045,7 @@ action log (UI-6); nothing here is stored.
   the egg (it needs the heavenly upgrade "How to bake your dragon").
 - **KRUMB-2** Cookie costs (the egg, each egg level, buildings bought to
   reach 100) are only paid when they are insignificant (AUTO-4 A: <=
-  `autoInsignificantSec` × CpS) and leave the reserve (AUTO-6) alone, so
+  `autoInsignificantShare` × the spendable bank) and leave the reserve (AUTO-6) alone, so
   the dragon never competes with real purchases. Every building is
   treated alike: right before its sacrifice every copy above 100 is sold
   (the 25% given back for the priciest ones pays for far more than
@@ -1803,7 +1806,7 @@ saved (see `normalizeSetting()` in
 | `garden` | Tend the garden [checkbox] (GARDEN-1) | true | – |
 | `autoPlay` | (Auto play button, stored) | false | – |
 | `autoDryRun` | Auto play dry run (log only) [checkbox] | false | – |
-| `autoInsignificantSec` | Auto: insignificant cost (s of CpS) | 60 | 0-3600 |
+| `autoInsignificantShare` | Auto: insignificant cost (share of bank) | 0.001 | 0-1 |
 | `autoGoodFactor` | Auto: good deal (× best payback) | 1.2 | 1-10 |
 | `autoBiggerImpact` | Auto: much bigger impact (×) | 3 | 1-100 |
 | `autoReachSec` | Auto: in reach within (s) | 1800 | 0-86400 |
@@ -2158,6 +2161,22 @@ mouse while the bot runs and confirm the "+N" number follows your cursor,
 not the paw's).
 
 ## 12. Changelog
+
+- **5.8.20** "Insignificant" (AUTO-4 A) now means at most 0.1% of the
+  spendable bank instead of 60s of CpS: the setting "Auto: insignificant
+  cost (s of CpS)" (`autoInsignificantSec`) is replaced by "Auto:
+  insignificant cost (share of bank)" (`autoInsignificantShare`, 0.001,
+  0-1). The same threshold applies to the junk spree (AUTO-18), the
+  stacks of 10 (AUTO-14), Krumblor's cookie costs (KRUMB-2) and Santa's
+  evolutions (XMAS-4). Unit tests in `tests/unit/strategy.test.ts`,
+  `tests/unit/buy-streak.test.ts` and `tests/unit/krumblor.test.ts`.
+
+- **5.8.19** Fixed: early in a run auto play spent its whole income on
+  cheap buildings (each next copy ~55s of CpS, so "insignificant") and
+  never reached the Bank or the upgrade it was saving for. An insignificant
+  purchase is now held back when a save target pays back sooner even
+  counting the wait (AUTO-4 A); it stays exempt from the impact rule. Unit
+  tests in `tests/unit/strategy.test.ts`.
 
 - **5.8.18** The butter biscuit top-up (BUTTER-1) is guarded by the bank
   instead of the CpS: the Wizard towers must cost less than 1% of the bank

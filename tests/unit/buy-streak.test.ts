@@ -15,7 +15,7 @@ function ctx(overrides: Partial<AutoCollectCtx> = {}): AutoCollectCtx {
     income: 10,
     bank: 1000,
     reserve: 0,
-    cfg: { insignificantSec: 60, goodFactor: 1.2, biggerImpact: 3, reachSec: 1800 },
+    cfg: { insignificantShare: 0.001, goodFactor: 1.2, biggerImpact: 3, reachSec: 1800 },
     biscuitBase: null,
     cursor: null,
     nonCursor: 0,
@@ -53,12 +53,13 @@ function spree(cands: PurchaseCandidate[], x: AutoCollectCtx, reachable: (c: Pur
 
 describe('buying streak (AUTO-14)', () => {
   it('continues only while the building is the pick this tick', () => {
-    const cursor = building('Cursor', 15, 1);
-    const farm = building('Farm', 1100, 8);
-    // tight bank, nothing insignificant (cps 0.1 -> 6 cookies): Cursor stays the pick
-    expect(autoSpreeNext(autoDecide([cursor, farm], ctx({ cps: 0.1 })), cursor, 1000, anywhere)).toBe(cursor);
-    // pocket money: the Farm is the pick now, and it isn't junk (cps 0.1): the visit ends
-    expect(autoSpreeNext(autoDecide([cursor, farm], ctx({ cps: 0.1, bank: 1e15 })), cursor, 1e15, anywhere)).toBeNull();
+    const cursor = building('Cursor', 500, 10);
+    const farm = building('Farm', 1100, 20);
+    // tight bank, nothing insignificant (0.1% of 1000 = 1 cookie): Cursor stays the pick
+    expect(autoSpreeNext(autoDecide([cursor, farm], ctx()), cursor, 1000, anywhere)).toBe(cursor);
+    // pocket money (1% of the bank covers both): the Farm is the pick now, and neither is junk
+    // (0.1% of 2e5 = 200): the visit ends
+    expect(autoSpreeNext(autoDecide([cursor, farm], ctx({ bank: 2e5 })), cursor, 2e5, anywhere)).toBeNull();
   });
 
   it('streaks 100 cursors on a flush bank once nothing bigger is left', () => {
@@ -80,7 +81,7 @@ describe('stacks of 10 (AUTO-14)', () => {
   it('buys one at a time once the stack is a real share of the bank, or would eat the pick', () => {
     const cursor = building('Cursor', 15, 0.1);
     const farm = building('Farm', 1100, 8);
-    // stack 5000 > 600 (60s of 10 CpS) and > 1% of 1e5
+    // stack 5000 > 1% of 1e5
     const x = ctx({ bank: 1e5 });
     expect(autoStackSize(autoDecide([cursor], x), cursor, 5000, x)).toBe(1);
     // stack 500 is junk, but only 1400 in the bank and the Farm (1100) is the pick
@@ -101,7 +102,7 @@ describe('stacks of 10 (AUTO-14)', () => {
 
 describe('junk spree (AUTO-18)', () => {
   it('buys every insignificant upgrade in one visit', () => {
-    // cps 10 -> insignificant up to 600
+    // 0.1% of 1e6 -> insignificant up to 1000
     const ups = [upgrade('A', 50, 1), upgrade('B', 100, 1), upgrade('C', 200, 1)];
     expect(spree(ups, ctx({ bank: 1e6 })).sort()).toEqual(['A', 'B', 'C']);
   });
@@ -115,14 +116,16 @@ describe('junk spree (AUTO-18)', () => {
   });
 
   it('skips junk the paw cannot reach and junk that would leave too little for the pick', () => {
-    const d = autoDecide([upgrade('Far', 50, 1), upgrade('Near', 60, 1), upgrade('Pick', 900, 100)], ctx({ bank: 940 }));
+    // insignificant up to 10% of the bank here (94), so Far and Near are junk and Pick isn't
+    const cfg = { insignificantShare: 0.1, goodFactor: 1.2, biggerImpact: 3, reachSec: 1800 };
+    const d = autoDecide([upgrade('Far', 50, 1), upgrade('Near', 60, 1), upgrade('Pick', 900, 100)], ctx({ bank: 940, cfg }));
     expect(d.buy?.name).toBe('Pick');
     const last = upgrade('Other', 1, 1);
     // Pick (not junk, left to the next visit) needs 900 of 940: neither 50 nor 60 fits beside it
     expect(autoSpreeNext(d, last, 940, anywhere)).toBeNull();
     expect(autoSpreeNext(d, last, 1000, anywhere)?.name).toBe('Far');
     const far = (c: PurchaseCandidate) => c.name !== 'Far';
-    const d2 = autoDecide([upgrade('Far', 50, 1), upgrade('Near', 60, 1)], ctx({ bank: 1000 }));
+    const d2 = autoDecide([upgrade('Far', 50, 1), upgrade('Near', 60, 1)], ctx({ bank: 1000, cfg }));
     expect(autoSpreeNext(d2, last, 1000, far)?.name).toBe('Near');
     expect(autoSpreeNext(d2, last, 1000, () => false)).toBeNull();
   });

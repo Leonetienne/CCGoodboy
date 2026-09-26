@@ -248,8 +248,8 @@ function panelBodyHtml(version: string): string {
             <details class="ccsb-advanced">
                 <summary>Advanced owo</summary>
                 <div class="ccsb-setting">
-                    <span>Auto: insignificant cost (s of CpS)</span>
-                    <input data-setting="autoInsignificantSec" type="number" min="0" max="3600" step="0.5">
+                    <span>Auto: insignificant cost (share of bank)</span>
+                    <input data-setting="autoInsignificantShare" type="number" min="0" max="1" step="0.0005">
                 </div>
                 <div class="ccsb-setting">
                     <span>Auto: good deal (x best payback)</span>

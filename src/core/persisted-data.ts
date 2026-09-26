@@ -38,7 +38,7 @@ export interface Config {
   ascendDumpBank: boolean;
   autoPlay: boolean;
   autoDryRun: boolean;
-  autoInsignificantSec: number;
+  autoInsignificantShare: number;
   autoGoodFactor: number;
   autoBiggerImpact: number;
   autoReachSec: number;
@@ -155,7 +155,7 @@ export const DEFAULTS: PersistedState = {
     ascendDumpBank: true,
     autoPlay: false,
     autoDryRun: false,
-    autoInsignificantSec: 60,
+    autoInsignificantShare: 0.001,
     autoGoodFactor: 1.2,
     autoBiggerImpact: 3,
     autoReachSec: 1800,

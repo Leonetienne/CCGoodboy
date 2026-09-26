@@ -89,6 +89,8 @@ export class KrumblorTrainer {
 
     if (!menuOpen) this.runtime.krumblorMenuOurs = false;
 
+    const spendable = this.game.getCookies() - Math.max(0, Number(this.data.config.autoReserveSec) || 0) * cps;
+
     return {
       eggBought: !!(egg && egg.bought),
       eggInStore: !!egg && this.game.getUpgradesInStore().includes(egg),
@@ -101,8 +103,8 @@ export class KrumblorTrainer {
       pickerOurs: this.pickerOurs(),
       sacrifice: sacrificeId >= 0 ? this.buildingState(sacrificeId) : null,
       rebuy: rebuyBuilding ? { building: rebuyBuilding, n: this.runtime.krumblorRebuy } : null,
-      spendable: this.game.getCookies() - Math.max(0, Number(this.data.config.autoReserveSec) || 0) * cps,
-      insignificant: Math.max(0, Number(this.data.config.autoInsignificantSec) || 0) * cps,
+      spendable,
+      insignificant: Math.max(0, Number(this.data.config.autoInsignificantShare) || 0) * Math.max(0, spendable),
     };
   }
 

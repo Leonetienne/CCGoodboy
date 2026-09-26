@@ -46,6 +46,8 @@ export class SantaTrainer {
 
     if (!menuOpen) this.runtime.santaMenuOurs = false;
 
+    const spendable = this.game.getCookies() - Math.max(0, Number(this.data.config.autoReserveSec) || 0) * cps;
+
     return {
       hatBought: this.game.hasUpgrade(FESTIVE_HAT),
       santaLevel: this.game.getSantaLevel(),
@@ -54,8 +56,8 @@ export class SantaTrainer {
       menuOpen,
       menuOurs: this.runtime.santaMenuOurs,
       cps,
-      spendable: this.game.getCookies() - Math.max(0, Number(this.data.config.autoReserveSec) || 0) * cps,
-      insignificant: Math.max(0, Number(this.data.config.autoInsignificantSec) || 0) * cps,
+      spendable,
+      insignificant: Math.max(0, Number(this.data.config.autoInsignificantShare) || 0) * Math.max(0, spendable),
     };
   }
 

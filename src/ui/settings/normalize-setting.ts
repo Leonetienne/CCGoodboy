@@ -33,8 +33,8 @@ export function normalizeSetting(key: string, raw: string): number {
     case 'autoProbeSec':
       return Number.isFinite(value) && raw !== '' ? clamp(value, 2, 120) : 10;
 
-    case 'autoInsignificantSec':
-      return Number.isFinite(value) && raw !== '' ? clamp(value, 0, 3600) : 60;
+    case 'autoInsignificantShare':
+      return Number.isFinite(value) && raw !== '' ? clamp(value, 0, 1) : 0.001;
 
     case 'autoGoodFactor':
       return Number.isFinite(value) && raw !== '' ? clamp(value, 1, 10) : 1.2;

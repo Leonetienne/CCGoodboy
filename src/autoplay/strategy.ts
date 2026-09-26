@@ -40,9 +40,10 @@ export interface Decision {
  * "In reach" = affordable within reachSec (AUTO-5); a candidate outside that window is simply
  * too far off to reason about yet, not "too slow a payback" (there is no such thing here).
  * Decision, each tick:
- *   1) Insignificant cost (<= insignificantSec x CpS, "worthless junk" — always worth it) and
- *      preferred candidates (the Bingo center, golden cookie upgrades, Wizard towers below
+ *   1) Preferred candidates (the Bingo center, golden cookie upgrades, Wizard towers below
  *      their target) are bought outright whenever affordable, no other condition.
+ *      Insignificant ones (<= insignificantShare x the spendable bank, "worthless junk") too, unless a save
+ *      target pays back sooner even counting its wait (3a).
  *   2) Otherwise: if nothing is not-yet-affordable and worth deliberately saving up for, buy
  *      every other affordable candidate too — highest score (lowest payback) first. "Worth
  *      saving up for" means in reach, not affordable yet, and a good deal (pp <= goodFactor x
@@ -53,7 +54,8 @@ export interface Decision {
  *      purchase when the target's pp (wait included) beats that purchase's payback, or when the
  *      target has >= biggerImpact x its impact AND it costs more than 10% of the target's cost
  *      (otherwise a stream of worse purchases would keep the bank too low to ever afford the
- *      better one). Insignificant and preferred purchases are exempt.
+ *      better one). Preferred purchases are exempt; insignificant ones only from the impact
+ *      rule, so a stream of cheap, slow ones never starves a target that pays back sooner.
  *   Among everything bought this tick, the single best one goes out (lowest payback, with every
  *   cost below 1% of the spendable bank counted as that 1%, so on a flush bank the biggest CpS
  *   gain goes first); on an
@@ -84,7 +86,7 @@ export function autoDecide(cands: PurchaseCandidate[], ctx: AutoCollectCtx): Dec
       impact: c.dCps / cpsEff,
       wait,
       affordable: wait === 0,
-      insignificant: whole <= cfg.insignificantSec * cpsEff,
+      insignificant: whole <= cfg.insignificantShare * Math.max(0, avail),
     });
   }
 
@@ -116,13 +118,17 @@ export function autoDecide(cands: PurchaseCandidate[], ctx: AutoCollectCtx): Dec
   // them never lets the bank reach it) — this is what protects a research chain step, whose
   // impact is diluted by hours of delay (WRINK-1) and so never passes (b); or (b) the target has
   // much more impact and this one would eat a real share of its price.
+  // An insignificant purchase is only exempt from (b): cheap as each one is, a steady stream of
+  // them would otherwise eat the whole income and never let the bank reach a better deal.
   const postponed = (p: DecisionRow) =>
     targets.some(
-      (q) => q.pp < p.payback || (q.impact >= cfg.biggerImpact * p.impact && (p.c.projectCost ?? p.c.cost) > 0.1 * q.c.cost),
+      (q) =>
+        q.pp < p.payback ||
+        (!p.insignificant && q.impact >= cfg.biggerImpact * p.impact && (p.c.projectCost ?? p.c.cost) > 0.1 * q.c.cost),
     );
 
   // Buy now: every affordable candidate that isn't held back in favor of a save target.
-  // Insignificant and preferred purchases are always exempt from postponement. Nothing else is
+  // Preferred purchases are always exempt from postponement. Nothing else is
   // gated on payback quality at all — it already passed AUTO-2/AUTO-3's classification, so
   // spending idle cash on it beats hoarding. Within a preference tier the best `order` goes
   // first: payback, except that everything costing <= 1% of the spendable bank counts as
@@ -130,7 +136,7 @@ export function autoDecide(cands: PurchaseCandidate[], ctx: AutoCollectCtx): Dec
   // biggest CpS gain first (a flush bank buys the big buildings before 100 cursors), while a
   // tight bank still buys the most CpS per cookie first.
   const buyable = affordable
-    .filter((r) => r.insignificant || prefOf(r) > 0 || !postponed(r))
+    .filter((r) => prefOf(r) > 0 || !postponed(r))
     .sort((a, b) => prefOf(b) - prefOf(a) || a.order - b.order);
 
   // What's next to save for, computed independently of whether something is ALSO buyable this

@@ -267,6 +267,7 @@ describe('KrumblorTrainer', () => {
     const { game, trainer } = setup();
     game.dragonLevel = 3;
     game.specialTabs = ['dragon'];
+    game.cookies = 1e12; // the 8M egg level is insignificant (<= 0.1% of the bank)
 
     document.body.innerHTML = '<canvas id="backgroundLeftCanvas" width="300" height="900"></canvas>';
     const canvas = document.getElementById('backgroundLeftCanvas')!;

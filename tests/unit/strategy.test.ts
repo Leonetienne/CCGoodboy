@@ -15,7 +15,7 @@ function ctx(overrides: Partial<AutoCollectCtx> = {}): AutoCollectCtx {
     bank: 1000,
     reserve: 0,
     cfg: {
-      insignificantSec: 60,
+      insignificantShare: 0.001,
       goodFactor: 1.2,
       biggerImpact: 3,
       reachSec: 1800,
@@ -37,10 +37,9 @@ describe('autoDecide', () => {
   });
 
   it('buys an affordable, insignificantly-cheap item at once', () => {
-    // cost 5 <= insignificantSec(60) * cps(10) = 600: insignificant, bought regardless of
-    // payback quality.
+    // cost 5 <= 0.1% of the bank (10): insignificant, bought regardless of payback quality.
     const cands = [candidate('Cheap trinket', 5, 1)];
-    const d = autoDecide(cands, ctx({ bank: 100 }));
+    const d = autoDecide(cands, ctx({ bank: 10_000 }));
 
     expect(d.buy?.name).toBe('Cheap trinket');
     expect(d.why).toBe('insignificant cost');
@@ -50,7 +49,7 @@ describe('autoDecide', () => {
     // No absolute payback ceiling any more: as the ONLY, hence best-ranked, candidate this is
     // simply the best available option, so it buys even though its payback (100,000s) would
     // have failed the old fixed 24h cap. Cost (1000) is kept above the insignificant threshold
-    // (insignificantSec 60 x cps 10 = 600) so that rule doesn't decide this on its own.
+    // (0.1% of the bank = 100) so that rule doesn't decide this on its own.
     const cands = [candidate('Slow but only option', 1000, 0.01)]; // payback 100,000s
     const d = autoDecide(cands, ctx({ bank: 100_000 }));
 
@@ -82,7 +81,7 @@ describe('autoDecide', () => {
     // reachSec = 10: wait (100s at income 100) is NOT in reach, so there's nothing to buy or
     // save for, even though the candidate's payback would otherwise be perfectly fine.
     const cands = [candidate('Too far off', 10000, 100)]; // payback 100, wait 100s
-    const d = autoDecide(cands, ctx({ bank: 0, income: 100, reserve: 0, cfg: { insignificantSec: 60, goodFactor: 1.2, biggerImpact: 3, reachSec: 10 } }));
+    const d = autoDecide(cands, ctx({ bank: 0, income: 100, reserve: 0, cfg: { insignificantShare: 0.001, goodFactor: 1.2, biggerImpact: 3, reachSec: 10 } }));
 
     expect(d.buy).toBeNull();
     expect(d.save).toBeNull();
@@ -91,8 +90,8 @@ describe('autoDecide', () => {
 
   it('postpones a small affordable purchase in favor of saving for a much bigger, good-deal one', () => {
     // Small: affordable right now (cost == avail), decent but unremarkable payback. Cost is kept
-    // above the insignificant threshold (insignificantSec 60 x cps 10 = 600) so postponement
-    // actually gets a chance to apply — insignificant purchases are always exempt from it.
+    // above the insignificant threshold (0.1% of the bank = 1) so the impact postponement
+    // actually gets a chance to apply — insignificant purchases are exempt from it.
     const small = candidate('Small upgrade', 1000, 100); // payback 10, impact 10
     // Big: not affordable yet, but its pp is close enough to count as a "good deal", with
     // >= 3x the impact of small, and small costs > 10% of big's cost (1000 > 0.1*4000=400).
@@ -120,19 +119,33 @@ describe('autoDecide', () => {
     expect(d.buy?.name).toBe('Tiny upgrade');
   });
 
-  it('an insignificant purchase is exempt from postponement even next to a much bigger save target', () => {
+  it('an insignificant purchase is exempt from the impact postponement next to a much bigger save target', () => {
     // Big target: not affordable (wait 0.85s at income 1000), a good deal (its own bestPP), and
-    // >= 3x the impact of the trinket (30 vs 1.5) — normally enough to postpone the trinket,
+    // >= 3x the impact of the trinket (30 vs 3.75) — normally enough to postpone the trinket,
     // since the trinket also costs > 10% of big's cost (150 > 100). But the trinket is
-    // insignificant (150 <= insignificantSec(60) x cps(10) = 600) and always exempt regardless.
-    const trinket = candidate('Trinket', 150, 15); // payback 10, impact 1.5
+    // insignificant (150 <= the whole bank here, insignificantShare 1) and pays back faster than the
+    // target's pp (4 < 4.18), so it still goes out.
+    const trinket = candidate('Trinket', 150, 37.5); // payback 4, impact 3.75
     const big = candidate('Big upgrade', 1000, 300); // payback 3.33, impact 30
 
-    const d = autoDecide([trinket, big], ctx({ bank: 150, income: 1000, reserve: 0 }));
+    const d = autoDecide([trinket, big], ctx({ bank: 150, income: 1000, reserve: 0, cfg: { insignificantShare: 1, goodFactor: 1.2, biggerImpact: 3, reachSec: 1800 } }));
 
     expect(d.buy?.name).toBe('Trinket');
     expect(d.why).toBe('insignificant cost');
     expect(d.save?.name).toBe('Big upgrade');
+  });
+
+  it('holds back insignificant purchases that pay back slower than a save target (early game)', () => {
+    // Early game: every cheap building's next copy costs ~55s of CpS, so all of them are
+    // "insignificant" and used to eat the whole income; the Bank, far better even counting the
+    // wait, was never reached.
+    const cursor = candidate('Cursor', 535_000, 50); // payback 10,700s
+    const grandma = candidate('Grandma', 504_000, 60); // payback 8,400s
+    const bank = candidate('Bank', 1_400_000, 1_400); // payback 1,000s
+    const d = autoDecide([cursor, grandma, bank], ctx({ cps: 9_505, income: 9_505, bank: 600_000 }));
+
+    expect(d.buy).toBeNull();
+    expect(d.save?.name).toBe('Bank');
   });
 
   it('sorts a preferred candidate above an ordinary one even when its payback is worse', () => {
@@ -187,7 +200,7 @@ describe('autoDecide', () => {
 
     // reachSec = 10: 100s to afford it is NOT in reach, so the bot does not queue it as a
     // save target and buys nothing.
-    const d = autoDecide([wizard], ctx({ bank: 0, income: 100, reserve: 0, cfg: { insignificantSec: 60, goodFactor: 1.2, biggerImpact: 3, reachSec: 10 } }));
+    const d = autoDecide([wizard], ctx({ bank: 0, income: 100, reserve: 0, cfg: { insignificantShare: 0.001, goodFactor: 1.2, biggerImpact: 3, reachSec: 10 } }));
 
     expect(d.buy).toBeNull();
     expect(d.save).toBeNull();

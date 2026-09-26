@@ -25,7 +25,8 @@ import {
 } from './valuation-tables';
 
 export interface AutoConfig {
-  insignificantSec: number;
+  /** AUTO-4 A: a cost at or below this share of the spendable bank is insignificant. */
+  insignificantShare: number;
   goodFactor: number;
   biggerImpact: number;
   reachSec: number;
@@ -107,7 +108,7 @@ export function autoCollect(game: IGameAdapter, data: PersistedData, runtime: Ru
   }
 
   const cfg: AutoConfig = {
-    insignificantSec: Math.max(0, num(data.config.autoInsignificantSec, 60)),
+    insignificantShare: Math.max(0, num(data.config.autoInsignificantShare, 0.001)),
     goodFactor: Math.max(1, num(data.config.autoGoodFactor, 1.2)),
     biggerImpact: Math.max(1, num(data.config.autoBiggerImpact, 3)),
     reachSec: Math.max(0, num(data.config.autoReachSec, 1800)),

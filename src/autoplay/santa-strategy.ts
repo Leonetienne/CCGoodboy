@@ -35,7 +35,7 @@ export interface SantaState {
   cps: number;
   /** Bank minus the auto play reserve (AUTO-6). */
   spendable: number;
-  /** An "insignificant" cost right now (AUTO-4 A: autoInsignificantSec x CpS). */
+  /** An "insignificant" cost right now (AUTO-4 A: autoInsignificantShare x the spendable bank). */
   insignificant: number;
 }
 

@@ -24,7 +24,7 @@ export const AUTO_STREAK_JITTER_Y = 5;
 /** What the paw, having just bought `last`, buys next in the same visit, or null (the visit
  * ends). (1) AUTO-14: the same building again while it is still this tick's pick. (2)
  * AUTO-18: otherwise the first of this tick's purchases (`d.buyable`, buy order) that is
- * insignificant (<= autoInsignificantSec of CpS) and that the paw can reach (`reachable`:
+ * insignificant (<= autoInsignificantShare of the spendable bank) and that the paw can reach (`reachable`:
  * its store element or section on screen), as long as it is the pick itself or leaving it
  * out of the bank still pays for the pick (AUTO-9's `shopPickAt()` rule). So the junk that
  * floods the store after an ascension goes out in one spree instead of one trip each. Pure. */
@@ -49,14 +49,14 @@ export function autoSpreeNext(
 
 /** How many copies of building `c` one press of the streak buys (AUTO-14): a stack of
  * AUTO_STACK while the whole stack (`stackCost`, the game's sum price) is still pocket money,
- * i.e. insignificant (<= autoInsignificantSec of CpS) or at most AUTO_TRIVIAL_BANK_SHARE of
+ * i.e. insignificant (<= autoInsignificantShare of the spendable bank) or at most AUTO_TRIVIAL_BANK_SHARE of
  * the spendable bank, and buying it still leaves enough for the tick's pick; else 1. Never
  * for Wizard towers (their target caps them). Pure. */
 export function autoStackSize(d: Decision, c: PurchaseCandidate, stackCost: number, ctx: AutoCollectCtx): number {
   if (c.kind !== 'building' || c.pref === AUTO_PREF_WIZARD || !(stackCost > 0)) return 1;
 
   const avail = ctx.bank - ctx.reserve;
-  const pocket = Math.max(ctx.cfg.insignificantSec * Math.max(ctx.cps, 0.1), AUTO_TRIVIAL_BANK_SHARE * avail);
+  const pocket = Math.max(ctx.cfg.insignificantShare, AUTO_TRIVIAL_BANK_SHARE) * avail;
   const pick = d.buy && d.buy !== c ? d.buy.cost : 0;
 
   return stackCost <= pocket && avail - stackCost >= pick ? AUTO_STACK : 1;
