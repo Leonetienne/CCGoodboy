@@ -1579,7 +1579,12 @@ was read for every rule below.
   into a still-falling price); SELL, all of it, once the price has been at
   or above 0.7 R (`MARKET_SELL_SHARE`) since the buy and has fallen 5% from
   that peak (`MARKET_TRAILING_STOP`), and never at or below what a unit
-  cost (the game's "last bought at" × today's overhead). In the simulation
+  cost, overhead included (`marketPaid()`): the paw's own units at the
+  average $ it really paid (price × the overhead of each buy, kept in
+  `stats.stockBasis`, STOCK-6; brokers hired since don't lower it), units
+  of unknown cost (bought by hand) at the game's "last bought at" × 1.2,
+  the most overhead there can be (`MARKET_MAX_OVERHEAD`); with both, the
+  dearer, since "All" sells them together. In the simulation
   this earned the most per cookie tied up: ~1-1.6× the invested cookies back
   per hour held, ~2.6 round trips per good per day. The peak since the buy
   is watched every scheduler tick (`runtime.marketPeaks`, also while
@@ -1622,7 +1627,7 @@ was read for every rule below.
   HUD statistics once > 0). What the paw makes or loses is tracked in
   cookies with the game's own formulas (a buy costs price × overhead ×
   highest raw CpS, a sale pays price × highest raw CpS): each buy adds to
-  that good's cost basis (`stats.stockBasis`: units and cookies paid,
+  that good's cost basis (`stats.stockBasis`: units, cookies and $ paid,
   persisted), each sale books its proceeds against the average cost of the
   units sold into `stats.stockProfit` (a loss counts too), shown as "Stock
   market profit" in the HUD statistics (`StatsRecorder.recordStockBuy()` /
@@ -1652,8 +1657,8 @@ was read for every rule below.
   STOCK-2's rules; the button then reads "Investments paused" (active
   style). (b) "Cash stock market wins" (shown while STOCK-1 is on and the
   market is unlocked, auto play or not): the paw sells, one "All" click
-  per good, every good that is not at a loss (price above the game's "last
-  bought at" × today's overhead, like every sale; a good bought this very
+  per good, every good that is not at a loss (price above what a unit
+  cost, overhead included, like every sale, STOCK-2; a good bought this very
   tick can't be sold; `marketCashable()`), before any other trade, then
   stops; a second click stops it early, and it gives up after 2 minutes
   (`runtime.marketCashOutUntil`). Its tooltip names the goods and what they
@@ -2008,8 +2013,8 @@ file.**
 
 Three layers, each catching a different class of bug:
 
-1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 600 tests
-   across 53 files. Pure functions (route planner, `autoDecide`, the chart
+1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 619 tests
+   across 54 files. Pure functions (route planner, `autoDecide`, the chart
    engine, `normalizeSetting`) are tested directly with plain data; the
    cursor queue/actions have their own fake mover/timing tests. Classes
    that depend on the game are tested against `FakeGameAdapter`
@@ -2200,6 +2205,16 @@ mouse while the bot runs and confirm the "+N" number follows your cursor,
 not the paw's).
 
 ## 12. Changelog
+
+- **5.8.31** Fixed: the "never at a loss" check of the stock trader and
+  "Cash stock market wins" (STOCK-2/9) priced a unit at the game's "last
+  bought at" × TODAY's overhead. Brokers hired after a buy lowered it, and
+  after several buys only the last price counted, so a sale could lose the
+  overhead paid. The paw's buys now keep the $ they cost, overhead included
+  (`StockBasis.dollars`, `StatsRecorder.stockCosts()`), and a good is only
+  sold above that average; units of unknown cost count at "last bought at"
+  × 1.2 (`marketPaid()`, `MARKET_MAX_OVERHEAD`). Unit tests in
+  `tests/unit/stock-market.test.ts`.
 
 - **5.8.30** Auto play no longer saves for far-off clicking and kitten
   upgrades while cheaper progress waits (a 50 billion upgrade held back

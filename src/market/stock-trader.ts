@@ -132,13 +132,13 @@ export class StockTrader {
 
   private plan(snap: MarketSnapshot): MarketMove | null {
     if (this.cashingOut()) {
-      const g = marketCashable(snap)[0];
+      const g = marketCashable(snap, this.stats.stockCosts())[0];
       if (g) return { kind: 'sell', good: g, button: '-All', why: 'cashing out the wins (asked)' };
 
       this.endCashOut('done: nothing left to sell without a loss');
     }
 
-    const move = planMarketMove(snap, this.runtime.marketPeaks, this.game.getCookies(), this.maxShare());
+    const move = planMarketMove(snap, this.runtime.marketPeaks, this.game.getCookies(), this.maxShare(), this.stats.stockCosts());
     return move && move.kind !== 'sell' && (this.holdBuys() || !this.investAllowed()) ? null : move;
   }
 
@@ -166,7 +166,8 @@ export class StockTrader {
     const snap = stockMarketEnabled(this.data.config) ? this.game.getMarketSnapshot() : null;
     if (!snap) return { shown: false, goods: [], cookies: 0 };
 
-    return { shown: true, goods: marketCashable(snap).map((g) => g.symbol), cookies: marketCashOutValue(snap) };
+    const costs = this.stats.stockCosts();
+    return { shown: true, goods: marketCashable(snap, costs).map((g) => g.symbol), cookies: marketCashOutValue(snap, costs) };
   }
 
   cashingOut(): boolean {
@@ -330,9 +331,10 @@ export class StockTrader {
 
         const units = after - before;
         const m = now();
-        const cost = g.val * m.overhead * units * m.cookiesPerDollar;
+        const dollars = g.val * m.overhead * units;
+        const cost = dollars * m.cookiesPerDollar;
         this.runtime.marketPeaks.set(g.id, g.val);
-        this.stats.recordStockBuy(g.id, units, cost);
+        this.stats.recordStockBuy(g.id, units, cost, dollars);
         this.log.log('stock buy', `${units}x ${g.symbol} at $${g.val.toFixed(2)}`, {
           units,
           price: g.val,

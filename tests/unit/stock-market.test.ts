@@ -13,6 +13,8 @@ import {
   marketBudget,
   marketBuyButton,
   marketLowAndTurning,
+  marketCashable,
+  marketPaid,
   marketPeakFromHistory,
   marketShouldSell,
   planMarketMove,
@@ -63,11 +65,29 @@ describe('market strategy (STOCK-2..4)', () => {
 
   it('sells after the peak passed the threshold and fell 5%, never at a loss', () => {
     const held = good({ stock: 50, lastBuyVal: 5, val: 15, vals: [15, 16] });
-    expect(marketShouldSell(held, 16, 1.2)).toBe(true);
-    expect(marketShouldSell(held, 15.5, 1.2)).toBe(false); // fell less than 5%
-    expect(marketShouldSell(good({ stock: 50, lastBuyVal: 5, val: 12 }), 13, 1.2)).toBe(false); // peak below $14
-    expect(marketShouldSell(good({ stock: 50, lastBuyVal: 14, val: 15 }), 20, 1.2)).toBe(false); // 15 < 14 x 1.2
-    expect(marketShouldSell(good({ stock: 0, val: 15 }), 20, 1.2)).toBe(false);
+    expect(marketShouldSell(held, 16)).toBe(true);
+    expect(marketShouldSell(held, 15.5)).toBe(false); // fell less than 5%
+    expect(marketShouldSell(good({ stock: 50, lastBuyVal: 5, val: 12 }), 13)).toBe(false); // peak below $14
+    expect(marketShouldSell(good({ stock: 50, lastBuyVal: 14, val: 15 }), 20)).toBe(false); // 15 < 14 x 1.2
+    expect(marketShouldSell(good({ stock: 0, val: 15 }), 20)).toBe(false);
+  });
+
+  it('counts the overhead the paw really paid, not today\'s', () => {
+    // bought 50 at $12.80 with 20% overhead ($15.36 a unit), brokers hired since
+    const held = good({ stock: 50, lastBuyVal: 12.8, val: 15.2, vals: [15.2, 16] });
+    expect(marketPaid(held, { units: 50, dollars: 768 })).toBeCloseTo(15.36);
+    expect(marketShouldSell(held, 16.5, { units: 50, dollars: 768 })).toBe(false); // 15.20 < 15.36
+    expect(marketShouldSell(held, 16.5, { units: 50, dollars: 50 * 12.8 * 1.05 })).toBe(true); // paid 5% overhead
+  });
+
+  it('averages the paw\'s buys and assumes the most overhead for units of unknown cost', () => {
+    // $5 then $3, both at 10% overhead: $4.40 a unit, although the game says "last bought at $3"
+    expect(marketPaid(good({ stock: 100, lastBuyVal: 3 }), { units: 100, dollars: 440 })).toBeCloseTo(4.4);
+    // bought by hand: the game's price x 1.2
+    expect(marketPaid(good({ stock: 100, lastBuyVal: 5 }))).toBeCloseTo(6);
+    // 40 of 100 by hand: the dearer of both
+    expect(marketPaid(good({ stock: 100, lastBuyVal: 5 }), { units: 60, dollars: 60 * 5.5 })).toBeCloseTo(6);
+    expect(marketPaid(good({ stock: 100, lastBuyVal: 5 }), { units: 60, dollars: 60 * 7 })).toBeCloseTo(7);
   });
 
   it('takes the peak since the buy from the graph after a reload', () => {
@@ -284,7 +304,7 @@ describe('StockTrader (STOCK-*)', () => {
 
     await action.cursor_at_position(ctx as never);
     expect(s.data.stats.stockTrades).toBe(1);
-    expect(s.data.stats.stockBasis['0']).toEqual({ units: 100, cookies: 600 }); // 100 x $5 x 1.2
+    expect(s.data.stats.stockBasis['0']).toEqual({ units: 100, cookies: 600, dollars: 600 }); // 100 x $5 x 1.2
     expect(s.log.log).toHaveBeenCalledWith('stock buy', '100x CRL at $5.00', expect.objectContaining({ units: 100, cost: 600 }));
     expect(s.runtime.marketPeaks.get(0)).toBe(5);
 
@@ -412,12 +432,12 @@ describe('stock market profit (STOCK-6)', () => {
 
   it('books each sale against the average cost of the units sold', () => {
     const { data, stats } = books();
-    stats.recordStockBuy(0, 100, 600);
-    stats.recordStockBuy(0, 100, 1000); // average 8 a unit
+    stats.recordStockBuy(0, 100, 600, 600);
+    stats.recordStockBuy(0, 100, 1000, 1000); // average 8 a unit
 
     expect(stats.recordStockSell(0, 50, 1000)).toBe(600); // 1000 - 50 x 8
     expect(data.stats.stockProfit).toBe(600);
-    expect(data.stats.stockBasis['0']).toEqual({ units: 150, cookies: 1200 });
+    expect(data.stats.stockBasis['0']).toEqual({ units: 150, cookies: 1200, dollars: 1200 });
 
     expect(stats.recordStockSell(0, 150, 900)).toBe(-300); // a loss counts too
     expect(data.stats.stockProfit).toBe(300);
@@ -427,26 +447,44 @@ describe('stock market profit (STOCK-6)', () => {
 
   it('counts only the bot\'s own units of a sale', () => {
     const { data, stats } = books();
-    stats.recordStockBuy(1, 10, 100);
+    stats.recordStockBuy(1, 10, 100, 100);
 
     expect(stats.recordStockSell(1, 40, 800)).toBe(100); // 10 of the 40 were the bot's: 200 - 100
     expect(stats.recordStockSell(2, 5, 50)).toBeNull(); // bought by hand
     expect(data.stats.stockProfit).toBe(100);
   });
 
+  it('keeps a basis saved without $ unknown until it is sold off', () => {
+    const { data, stats } = books();
+    data.stats.stockBasis['0'] = { units: 100, cookies: 600 }; // saved before 5.8.31
+    stats.recordStockBuy(0, 10, 50, 50);
+    expect(data.stats.stockBasis['0']).toEqual({ units: 110, cookies: 650 });
+    expect(stats.stockCosts().has(0)).toBe(false);
+
+    stats.recordStockSell(0, 110, 1000);
+    stats.recordStockBuy(0, 10, 50, 50);
+    expect(stats.stockCosts().get(0)).toEqual({ units: 10, dollars: 50 });
+  });
+
+  it('cashes out only goods above what the paw paid, overhead included', () => {
+    const goods = [good({ id: 0, stock: 50, lastBuyVal: 10, val: 11 }), good({ id: 1, stock: 50, lastBuyVal: 10, val: 11 })];
+    const costs = new Map([[0, { units: 50, dollars: 50 * 10 * 1.05 }], [1, { units: 50, dollars: 50 * 10 * 1.2 }]]);
+    expect(marketCashable(snap(goods, { overhead: 1.05 }), costs).map((g) => g.id)).toEqual([0]);
+  });
+
   it('drops the cost of units that left without the paw (sold by hand, ascension)', () => {
     const { data, stats } = books();
-    stats.recordStockBuy(0, 100, 600);
-    stats.recordStockBuy(1, 10, 100);
+    stats.recordStockBuy(0, 100, 600, 600);
+    stats.recordStockBuy(1, 10, 100, 100);
 
     stats.reconcileStockBasis(new Map([[0, 40], [1, 0]]));
-    expect(data.stats.stockBasis).toEqual({ '0': { units: 40, cookies: 240 } });
+    expect(data.stats.stockBasis).toEqual({ '0': { units: 40, cookies: 240, dollars: 240 } });
     expect(data.stats.stockProfit).toBe(0);
   });
 
   it('shows what the paw made and what it holds would make now', () => {
     const s = setup();
-    s.stats.recordStockBuy(0, 50, 250); // $5 a unit
+    s.stats.recordStockBuy(0, 50, 250, 250); // $5 a unit
     s.data.stats.stockProfit = 1500;
     s.game.market = snap([good({ stock: 50, val: 8, vals: [8, 9] })]);
 

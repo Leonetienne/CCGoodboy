@@ -1,4 +1,5 @@
 import type { PersistedData, StockBasis } from '../core/persisted-data';
+import type { MarketCost } from '../market/market-strategy';
 
 /** Counts golden cookies, FTHOF casts, refills and auto-buys into lifetime stats and the
  * hourly buckets that feed the charts. */
@@ -34,10 +35,12 @@ export class StatsRecorder {
     this.data.scheduleSave();
   }
 
-  /** A stock purchase by the paw (STOCK-6): adds the units and what they cost (cookies,
-   * overhead included) to that good's cost basis. */
-  recordStockBuy(goodId: number, units: number, cookies: number): void {
+  /** A stock purchase by the paw (STOCK-6): adds the units and what they cost (cookies and $,
+   * overhead included) to that good's cost basis. A basis saved before the $ were kept stays
+   * without them (its $ cost is unknown) until it is sold off. */
+  recordStockBuy(goodId: number, units: number, cookies: number, dollars: number): void {
     const b = this.stockBasis(goodId);
+    if (b.dollars != null || !(b.units > 0)) b.dollars = (b.dollars || 0) + dollars;
     b.units += units;
     b.cookies += cookies;
     this.countStockTrade();
@@ -55,6 +58,7 @@ export class StatsRecorder {
       const cost = (b.cookies * mine) / b.units;
       profit = (cookies * mine) / units - cost;
 
+      if (b.dollars != null) b.dollars -= (b.dollars * mine) / b.units;
       b.units -= mine;
       b.cookies -= cost;
       this.data.stats.stockProfit = (this.data.stats.stockProfit || 0) + profit;
@@ -80,6 +84,7 @@ export class StatsRecorder {
         delete all[key];
       } else {
         b.cookies = (b.cookies * stock) / b.units;
+        if (b.dollars != null) b.dollars = (b.dollars * stock) / b.units;
         b.units = stock;
       }
 
@@ -90,6 +95,18 @@ export class StatsRecorder {
   /** What the paw's held units cost (cookies), per good id. */
   stockBasisOf(goodId: number): StockBasis | null {
     return (this.data.stats.stockBasis || {})[String(goodId)] || null;
+  }
+
+  /** What the paw paid in $ per good id, for the "never at a loss" check (marketPaid);
+   * goods whose $ cost is unknown are left out. */
+  stockCosts(): Map<number, MarketCost> {
+    const costs = new Map<number, MarketCost>();
+
+    for (const [key, b] of Object.entries(this.data.stats.stockBasis || {})) {
+      if (b.dollars != null && b.units > 0) costs.set(Number(key), { units: b.units, dollars: b.dollars });
+    }
+
+    return costs;
   }
 
   private stockBasis(goodId: number): StockBasis {

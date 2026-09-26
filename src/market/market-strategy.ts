@@ -61,19 +61,37 @@ export function marketLowAndTurning(g: MarketGood): boolean {
   return g.val <= marketBuyBelow(g) && g.val > previousVal(g) + MARKET_UPTICK;
 }
 
-/** What one unit cost including the overhead: the last purchase price x the overhead now
- * (the game remembers the price, not what was paid). 0 when unknown. */
-export function marketPaid(g: MarketGood, overhead: number): number {
-  return g.lastBuyVal > 0 ? g.lastBuyVal * overhead : 0;
+/** The most overhead a buy can carry (no brokers): +20%. */
+export const MARKET_MAX_OVERHEAD = 1.2;
+
+/** What the paw paid for the units of one good it still holds: $ per unit at the price and
+ * the overhead of each buy (STOCK-6's cost basis, `stats.stockBasis`). */
+export interface MarketCost {
+  units: number;
+  dollars: number;
+}
+
+/** What one held unit cost, overhead included ($): the paw's own units at the average of
+ * what it really paid (the overhead of each buy, not today's: brokers hired since lower it);
+ * units without a known cost (bought by hand, or before the paw kept the $ basis) at the
+ * game's "last bought at" x the most overhead there can be, since the game remembers the
+ * price, not what was paid. The dearer of both, since "All" sells them together. 0 when
+ * unknown. */
+export function marketPaid(g: MarketGood, cost?: MarketCost | null): number {
+  const known = cost && cost.units > 0 && cost.dollars > 0 ? Math.min(cost.units, g.stock) : 0;
+  const own = known > 0 ? cost!.dollars / cost!.units : 0;
+  const guess = g.stock > known && g.lastBuyVal > 0 ? g.lastBuyVal * MARKET_MAX_OVERHEAD : 0;
+  return Math.max(own, guess);
 }
 
 /** Sell now? The price has peaked at or above the sell threshold since the buy (`peak`),
- * has fallen at least the trailing stop from there, and still beats what it cost. */
-export function marketShouldSell(g: MarketGood, peak: number, overhead: number): boolean {
+ * has fallen at least the trailing stop from there, and still beats what it cost, overhead
+ * included (marketPaid). */
+export function marketShouldSell(g: MarketGood, peak: number, cost?: MarketCost | null): boolean {
   if (!(g.stock > 0)) return false;
 
   const top = Math.max(peak, g.val);
-  return top >= marketSellAbove(g) && g.val <= top * (1 - MARKET_TRAILING_STOP) && g.val > marketPaid(g, overhead);
+  return top >= marketSellAbove(g) && g.val <= top * (1 - MARKET_TRAILING_STOP) && g.val > marketPaid(g, cost);
 }
 
 /** Cookies the trader may still put into stocks: holdings may be at most `maxShare` of the
@@ -120,13 +138,20 @@ export type MarketMove =
  *   3. buy a low good that turned up, best upside first, as much as the budget and the
  *      warehouse allow (Max, else 100/10/1 per click).
  * `peaks` = the highest price seen per good id since the trader saw it held. `bank` and
- * `maxShare` set the budget (marketBudget). Null = nothing to do this tick. */
-export function planMarketMove(snap: MarketSnapshot, peaks: ReadonlyMap<number, number>, bank: number, maxShare: number): MarketMove | null {
+ * `maxShare` set the budget (marketBudget). `costs` = what the paw paid per good id
+ * (marketPaid). Null = nothing to do this tick. */
+export function planMarketMove(
+  snap: MarketSnapshot,
+  peaks: ReadonlyMap<number, number>,
+  bank: number,
+  maxShare: number,
+  costs: ReadonlyMap<number, MarketCost> = new Map(),
+): MarketMove | null {
   const goods = snap.goods.filter((g) => g.active);
 
   for (const g of goods) {
     if (g.last === 1) continue; // bought this tick: the game refuses a sale
-    if (marketShouldSell(g, peaks.get(g.id) ?? g.val, snap.overhead)) {
+    if (marketShouldSell(g, peaks.get(g.id) ?? g.val, costs.get(g.id))) {
       return { kind: 'sell', good: g, button: '-All', why: `$${g.val.toFixed(2)}, fell from its $${Math.max(peaks.get(g.id) ?? 0, g.val).toFixed(2)} peak` };
     }
   }
@@ -185,12 +210,12 @@ export function marketPeakFromHistory(g: MarketGood): number {
 
 /** STOCK-9: the goods "Cash stock market wins" sells: held, on the market, not bought this
  * tick (the game refuses the sale), and not at a loss (the price beats what a unit cost,
- * like every other sale). */
-export function marketCashable(snap: MarketSnapshot): MarketGood[] {
-  return snap.goods.filter((g) => g.active && g.stock > 0 && g.last !== 1 && g.val > marketPaid(g, snap.overhead));
+ * like every other sale, overhead included: marketPaid). */
+export function marketCashable(snap: MarketSnapshot, costs: ReadonlyMap<number, MarketCost> = new Map()): MarketGood[] {
+  return snap.goods.filter((g) => g.active && g.stock > 0 && g.last !== 1 && g.val > marketPaid(g, costs.get(g.id)));
 }
 
 /** What cashing out would bring back right now, in cookies. */
-export function marketCashOutValue(snap: MarketSnapshot): number {
-  return marketCashable(snap).reduce((sum, g) => sum + g.stock * g.val, 0) * snap.cookiesPerDollar;
+export function marketCashOutValue(snap: MarketSnapshot, costs: ReadonlyMap<number, MarketCost> = new Map()): number {
+  return marketCashable(snap, costs).reduce((sum, g) => sum + g.stock * g.val, 0) * snap.cookiesPerDollar;
 }

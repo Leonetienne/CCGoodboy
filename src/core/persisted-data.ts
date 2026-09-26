@@ -66,8 +66,8 @@ export interface Stats {
   /** Cookies the paw made (+) or lost (-) on the stock market: every sale against what the
    * bot paid for the units sold (STOCK-6). */
   stockProfit: number;
-  /** Per good id: units the bot bought and still holds, and what it paid for them (cookies,
-   * overhead included). */
+  /** Per good id: units the bot bought and still holds, and what it paid for them (cookies
+   * and $, overhead included). */
   stockBasis: Record<string, StockBasis>;
   /** Seeds the paw planted and mature plants it harvested in the garden (GARDEN-8). */
   gardenPlants: number;
@@ -80,6 +80,9 @@ export interface Stats {
 export interface StockBasis {
   units: number;
   cookies: number;
+  /** $ paid (price x the overhead of each buy), for the "never at a loss" check (STOCK-2);
+   * missing on a basis saved before 5.8.31. */
+  dollars?: number;
 }
 
 export interface HourlyBucket {
