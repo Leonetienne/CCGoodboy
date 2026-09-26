@@ -103,7 +103,7 @@ The panel can be dragged by its title bar and minimised. From there:
 | **Hammer cookie** | Click the big cookie nonstop, frenzy or not. Resets on reload. |
 | **Auto play** | Toggles full automatic play. |
 | **Pause investments** | Stop throwing more cookies at the stock market |
-| **Cash stock market wins** | Cash out any cookies from the stock market, which are currently in profit |
+| **Cash stock market wins** | Cash out any cookies from the stock market, which are currently in profit. *Hover to see how much you'd get* |
 | **Settings** | What the paw does and shows on screen, and how auto play shops. The fine-tuning (timings, speeds, auto play's numbers) sits under **Advanced**. Nothing changes until you hit **Save**. |
 | **More...** | Opens a second row with the buttons below. |
 | **Graphs** | Golden cookies caught per hour, by effect, plus Grimoire activity. |
