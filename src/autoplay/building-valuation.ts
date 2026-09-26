@@ -1,6 +1,6 @@
 import type { IGameAdapter } from '../game/game-adapter';
 import type { GameBuilding } from '../game/types';
-import { AUTO_FINGER_STEPS } from './valuation-tables';
+import { AUTO_CLICK_FRENZY_CHANCE, AUTO_CLICK_VALUE_MIN, AUTO_FINGER_STEPS, AUTO_GOLDEN_INTERVAL_SEC } from './valuation-tables';
 
 /** Product of all active CpS buff multipliers (Frenzy x7, Clot x0.5, ...); 1 without buffs. */
 export function autoBuffMult(game: IGameAdapter): number {
@@ -154,4 +154,15 @@ export function autoFingerGain(
     gain: cursors * dAdd * ctx.nonCursor * tierMult * ctx.mult + dAdd * ctx.nonCursor * ctx.clickUnit * ctx.clicksPerSec,
     type: 'fingers',
   };
+}
+
+/** How many normal clicks one click is worth once Click Frenzies are counted (AUTO-3): 1 + 776
+ * x the share of time a Click Frenzy runs, at least AUTO_CLICK_VALUE_MIN. */
+export function clickFrenzyFactor(game: IGameAdapter): number {
+  let interval = AUTO_GOLDEN_INTERVAL_SEC;
+  if (game.hasUpgrade('Lucky day')) interval /= 2;
+  if (game.hasUpgrade('Serendipity')) interval /= 2;
+
+  const share = (AUTO_CLICK_FRENZY_CHANCE * (Number(game.estimateClickFrenzySec()) || 13)) / interval;
+  return Math.max(AUTO_CLICK_VALUE_MIN, 1 + 776 * share);
 }

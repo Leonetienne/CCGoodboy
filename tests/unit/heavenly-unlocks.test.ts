@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import { clickFrenzyFactor } from '../../src/autoplay/building-valuation';
 import { autoCollect } from '../../src/autoplay/collector';
 import { IncomeTracker } from '../../src/autoplay/income-tracker';
 import { autoDecide } from '../../src/autoplay/strategy';
@@ -83,5 +84,40 @@ describe('autoCollect: cursor doublers (AUTO-4 B)', () => {
       ['click', AUTO_PREF_GOLDEN],
       ['kitten', AUTO_PREF_GOLDEN],
     ]);
+  });
+});
+
+describe('Click Frenzy value of clicking upgrades (AUTO-3)', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('values a click at least 7x, more with the golden upgrades', () => {
+    const game = heavenlyGame(0, 1e6);
+    expect(clickFrenzyFactor(game)).toBe(7);
+
+    // all golden upgrades: 1 + 776 x 0.04 x 29s / 150s = ~7, where the floor already is
+    for (const n of ['Lucky day', 'Serendipity', 'Get lucky', 'Lasting fortune']) game.upgradeNames.add(n);
+    expect(clickFrenzyFactor(game)).toBeCloseTo(7, 1);
+
+    // longer frenzies (Epoch Manipulator, ...): 1 + 776 x 0.04 x 60s / 150s
+    game.estimateClickFrenzySec = () => 60;
+    expect(clickFrenzyFactor(game)).toBeCloseTo(1 + 776 * 0.04 * 60 / 150);
+  });
+
+  it('boosts the mouse upgrades by it, and the kittens through the mouse upgrades', () => {
+    const plastic = { name: 'Plastic mouse', pool: '', desc: 'Clicking gains <b>+1% of your CpS</b>.', getPrice: () => 100, buy: () => {} } as GameUpgrade;
+    const kitten = { name: 'Kitten helpers', pool: '', desc: 'You gain <b>more CpS</b> the more milk you have.', getPrice: () => 100, buy: () => {} } as GameUpgrade;
+    const game = heavenlyGame(0, 1e6);
+    game.milkProgress = 1;
+    game.upgradesInStore = [plastic, kitten];
+
+    const before = collect(game).cands;
+    // 1000 CpS x 1% x 8 clicks/s x 7
+    expect(before.find((c) => c.name === 'Plastic mouse')!.dCps).toBeCloseTo(1000 * 0.01 * 8 * 7);
+    const kittenPlain = before.find((c) => c.name === 'Kitten helpers')!.dCps;
+
+    // with 10% of the CpS on every click, the kitten's extra CpS also lands on every click
+    game.upgrades = [{ name: 'Mouse x10', bought: 1, desc: 'Clicking gains <b>+10% of your CpS</b>.' } as GameUpgrade];
+    const kittenMouse = collect(game).cands.find((c) => c.name === 'Kitten helpers')!.dCps;
+    expect(kittenMouse).toBeCloseTo(kittenPlain * (1 + 0.1 * 8 * 7));
   });
 });

@@ -14,6 +14,7 @@ export interface UpgradeClassifyCtx {
   nonCursor: number;
   clickUnit: number;
   clicksPerSec: number;
+  mouseShare?: number;
 }
 
 /** Current price of an upgrade. */
@@ -45,7 +46,7 @@ export function biscuitPower(up: GameUpgrade): number {
  *   fingers  Thousand/Million/... fingers (bonus per non-cursor building for cursors/clicks)
  *   click    mouse upgrades ("Clicking gains +1% of your CpS")
  *   heavenly the prestige potential unlocks (Heavenly chip secret ... Heavenly key)
- * Clicking gains are valued at ctx.clicksPerSec (the hammer rate) clicks per second. Anything
+ * Clicking gains are valued at ctx.clicksPerSec (the hammer rate x the Click Frenzy factor). Anything
  * else returns null and is never bought. `ctx.biscuitBase` is filled in lazily (mutated) so it
  * is computed at most once per autoCollect() pass. */
 export function autoUpgradeGain(game: IGameAdapter, up: GameUpgrade, ctx: UpgradeClassifyCtx): { gain: number; type: string } | null {
@@ -105,7 +106,10 @@ export function autoUpgradeGain(game: IGameAdapter, up: GameUpgrade, ctx: Upgrad
     const f = AUTO_KITTEN_POWER[String(name).toLowerCase()] || 0.1;
     const milk = game.getMilkProgress() ?? game.getAchievementsOwned() / 25;
 
-    return { gain: ctx.cps * f * Math.max(0, milk), type: 'kitten' };
+    // and every click gains the mouse upgrades' share of that extra CpS (Click Frenzies included)
+    const more = ctx.cps * f * Math.max(0, milk);
+
+    return { gain: more * (1 + (ctx.mouseShare ?? 0) * ctx.clicksPerSec), type: 'kitten' };
   }
 
   if (up.pool === 'cookie') {

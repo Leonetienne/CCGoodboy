@@ -252,14 +252,6 @@ function panelBodyHtml(version: string): string {
                     <input data-setting="autoInsignificantShare" type="number" min="0" max="1" step="0.0005">
                 </div>
                 <div class="ccsb-setting">
-                    <span>Auto: good deal (x best payback)</span>
-                    <input data-setting="autoGoodFactor" type="number" min="1" max="10" step="0.1">
-                </div>
-                <div class="ccsb-setting">
-                    <span>Auto: much bigger impact (x)</span>
-                    <input data-setting="autoBiggerImpact" type="number" min="1" max="100" step="0.5">
-                </div>
-                <div class="ccsb-setting">
                     <span>Auto: in reach within (s)</span>
                     <input data-setting="autoReachSec" type="number" min="0" max="86400" step="60">
                 </div>

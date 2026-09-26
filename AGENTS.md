@@ -676,57 +676,68 @@ action log (UI-6); nothing here is stored.
   that building's CpS; biscuit: its power % of CpS, evaluated when the game
   gives it as a function, like the heart biscuits' 2%/3% with Starlove; golden upgrades: an
   assumed share of CpS; CLICKING upgrades are valued in cookies/s at the
-  hammer rate: click power × clicks per second, so the cursor doubling
-  upgrades are worth their click gain even with 0 cursors); payback = cost
+  hammer rate × the Click Frenzy factor: click power × clicks per second ×
+  `clickFrenzyFactor()`, so the cursor doubling upgrades are worth their
+  click gain even with 0 cursors. The factor is 1 + 776 × the share of time
+  a Click Frenzy runs (a golden cookie turns into one ~4% of the time,
+  `AUTO_CLICK_FRENZY_CHANCE`, every ~10 min, halved by Lucky day and by
+  Serendipity, for `estimateClickFrenzySec()`), at least ×7
+  (`AUTO_CLICK_VALUE_MIN`: the bot's FTHOF casts add more frenzies), since
+  every Click Frenzy multiplies click power ×777 and the paw hammers each
+  one. It covers the cursor doublers, the fingers series, the mouse
+  upgrades, the Cookie egg and Santa's helpers; the kittens also get the
+  clicks their extra CpS adds through the owned mouse upgrades (their gain ×
+  (1 + mouse share × the weighted click rate)); payback = cost
   / `dCps` ("rentability"); impact = `dCps` / CpS; wait = time to afford it
   at the income (CpS without buffs, minus the share withered by attached
-  wrinklers, + smoothed clicking income) after the reserve.
-- **AUTO-4** Strategy: there is no absolute payback ceiling. Every
-  candidate reaching `autoDecide()` already passed AUTO-2/AUTO-3's
-  classification (never the research center, always a positive `dCps`),
-  so a slow payback still beats 0% return from letting cookies sit idle —
-  payback only ever decides ORDER and what is worth deliberately saving
-  for, never whether an affordable purchase gets refused outright.
+  wrinklers, + the clicking income: the smoothed measurement, or while the
+  hammer is on the hammer rate × the click power if higher, so waits are
+  right from the first second of a run) after the reserve.
+- **AUTO-4** Strategy (`autoDecide()`, `src/autoplay/strategy.ts`). The
+  goal: the highest CpS in the shortest time. Big buildings and upgrades
+  get there, but only once the income they need is there, which the
+  smaller ones build up first. Every option gets payback = cost / `dCps`,
+  wait (AUTO-3) and pp = wait + payback, the seconds from now until it has
+  paid for itself; going for the lowest pp is the greedy rule for growing
+  CpS fastest. A big purchase's wait shrinks as quicker purchases raise the
+  income, and anything that pays for itself before the target would even
+  be affordable has the lower pp, so it is bought on the way (with the bank
+  covering it the target is reached after (T − bank + cost)/(income +
+  dCps) instead of (T − bank)/income, sooner exactly when payback < the
+  target's wait). Each tick:
   (A) insignificant cost (<= `autoInsignificantShare` × the spendable
-  bank, default 0.1% — "worthless junk") -> buy at once, exempt from the
-  impact postponement (C), but not from a save target that pays back
-  sooner even counting its wait (a steady stream of cheap purchases would
-  otherwise eat the whole income).
+  bank, default 0.1%) is only a label now (the "why" in the log, the junk
+  spree AUTO-18, Krumblor's and Santa's cookie costs); it is decided like
+  everything else.
   (B) preferred candidates — the Bingo center (WRINK-1), golden cookie
   upgrades, the click power upgrades — "mouse and cursors twice as
   efficient", the Thousand/Million/... fingers series and the Plastic/
-  Iron/... mouse series (every Click Frenzy multiplies click power ×777,
-  which the plain hammer-rate valuation doesn't see) —, the kitten
-  upgrades (`AUTO_PREF_TYPES`) and Wizard towers below
-  `autoWizardTowerTarget` — are bought
-  while affordable regardless of payback, also exempt from postponement,
-  and sort before ordinary ones (golden, click power and kitten upgrades
-  first, then the Bingo center, then Wizard towers). A preferred option
-  not affordable yet is only saved for while in reach (AUTO-5), and never
-  holds back another preferred one: a quadrillion golden upgrade doesn't
-  stop the Wizard towers. (C) every other affordable candidate is
-  bought too, UNLESS an option that is not affordable yet, in reach and a
-  good deal (payback incl. waiting <= 1.2× the best of ALL options, in
-  reach or not — pp already charges the wait) or preferred
-  either pays back faster even counting the wait (its pp < this one's
-  payback), or has >= 3× the impact and this one costs more than 10% of
-  it: then it is postponed in favor of saving up for the big one (else a stream of small
-  purchases keeps the bank too low to ever afford it). Among everything
-  bought this tick the best BUY ORDER goes first within a preference tier:
-  the payback, except that a cost at or below 1% of the spendable bank
-  (`AUTO_TRIVIAL_BANK_SHARE`) counts as that 1%. Cookies are no constraint
-  for such "pocket money" purchases, the paw's time is, so a flush bank
-  buys the biggest CpS gain first (the big buildings before 100 cursors;
-  higher tiers have the worse raw payback, cost ~10× for ~5-8× the CpS),
-  while a tight bank still buys the most CpS per cookie first. Save
-  targets, "good deal" and postponement still use the plain payback;
-  with one purchase per task (AUTO-7), later ticks work down the same
-  ranking, so the store empties out highest score first whenever nothing
-  is being saved for. Otherwise nothing is bought and the target is shown
-  (preferred first, then lowest pp): only an option that is itself worth
-  saving up for (in reach, good deal or preferred) is ever named, so a
-  bad deal that merely happens to be in reach is never "saved for" while
-  a far better one sits just past the window.
+  Iron/... mouse series —, the kitten upgrades (`AUTO_PREF_TYPES`) and
+  Wizard towers below `autoWizardTowerTarget` — are bought the moment they
+  are affordable, in tier order (golden, click power and kitten upgrades
+  first, then the Bingo center, then Wizard towers).
+  (C) The target to save for: the preferred candidate in reach (AUTO-5;
+  highest tier, then the soonest affordable), else the not-yet-affordable
+  option with the lowest pp, however far off. An achievement top-off
+  (AUTO-15) is never a target. An ordinary affordable purchase is bought
+  when nothing not yet affordable pays back sooner, counting its wait
+  (payback < the lowest pp among them: else a stream of cheap, slower ones,
+  the next cursor every few seconds, eats the bank before the better one a
+  few seconds off, the next grandma, is ever affordable), and, while saving
+  for a preferred target (wanted as soon as possible whatever its own
+  payback), when it pays back before that target arrives (payback < its
+  wait). Everything else waits.
+  Among everything bought this tick: preferred first, then by payback,
+  except that a cost at or below 1% of the spendable bank
+  (`AUTO_TRIVIAL_BANK_SHARE`) counts as that 1%: cookies are no constraint
+  for such pocket money, the paw's time is, so a flush bank buys the
+  biggest CpS gain first. One purchase per task (AUTO-7), so later ticks
+  work down the same ranking. The target is reported ("saving for X",
+  which also lowers the stock trader's budget, STOCK-4) only while it is in
+  reach; a far-off one still decides what is held back. Checked in a
+  simulated run from 0 cookies to 10M CpS (`tests/unit/strategy-sim.test.ts`):
+  every CpS goal is reached at least as fast as by buying the best payback
+  at once or the cheapest thing (1M CpS in ~4.5h instead of ~22h).
 - **AUTO-5** "In reach" = affordable within 1800s (`autoReachSec`) at the
   income — purely a time-window check, not a profitability one: a
   candidate outside it is just too far off to reason about yet, not "too
@@ -1807,8 +1818,6 @@ saved (see `normalizeSetting()` in
 | `autoPlay` | (Auto play button, stored) | false | – |
 | `autoDryRun` | Auto play dry run (log only) [checkbox] | false | – |
 | `autoInsignificantShare` | Auto: insignificant cost (share of bank) | 0.001 | 0-1 |
-| `autoGoodFactor` | Auto: good deal (× best payback) | 1.2 | 1-10 |
-| `autoBiggerImpact` | Auto: much bigger impact (×) | 3 | 1-100 |
 | `autoReachSec` | Auto: in reach within (s) | 1800 | 0-86400 |
 | `autoReserveSec` | Auto: bank reserve (s of CpS) | 0 | 0-1000000 |
 | `autoWizardTowerTarget` | Auto: wizard tower target | 57 | 0-500 |
@@ -2161,6 +2170,44 @@ mouse while the bot runs and confirm the "+N" number follows your cursor,
 not the paw's).
 
 ## 12. Changelog
+
+- **5.8.24** Fixed: while saving for a preferred upgrade, auto play bought
+  every purchase that paid back before the upgrade arrived, so cheap
+  cursors (affordable every few seconds) kept eating the bank before the
+  better grandma was ever affordable. An affordable purchase now also has to
+  beat everything not affordable yet, counting its wait (AUTO-4 C). Unit
+  test in `tests/unit/strategy-sim.test.ts`.
+
+- **5.8.23** New purchase algorithm (AUTO-4), replacing the patched rule
+  set: the lowest payback including the wait (pp) decides what is bought
+  and what is saved for, so small purchases build the income up until the
+  big ones are worth it; preferred upgrades are bought the moment they are
+  affordable and saved for first, with everything that pays back before
+  they arrive bought on the way. Clicking upgrades (cursor doublers,
+  fingers, mouse upgrades) are valued with Click Frenzies counted, at least
+  ×7, and kittens also by the clicks they add through the mouse upgrades
+  (AUTO-3, `clickFrenzyFactor()`). While the hammer is on its clicks count
+  as income from the first second, so early waits are right. The setting
+  "Auto: good deal (x best payback)" (`autoGoodFactor`) is gone. Checked in
+  a simulated run from 0 to 10M CpS against simple strategies and the old
+  algorithm (1M CpS in ~4.5h, the old one ~7.5h). Unit tests in
+  `tests/unit/strategy-sim.test.ts`, `tests/unit/strategy.test.ts` and
+  `tests/unit/heavenly-unlocks.test.ts`.
+
+- **5.8.22** Only the one target auto play saves for (preferred first:
+  golden, cursor/click and kitten upgrades) decides what is held back
+  (AUTO-4 C), so a closer building deal no longer blocks the powerful
+  buildings that reach the preferred upgrade fastest. Unit tests in
+  `tests/unit/strategy.test.ts`.
+
+- **5.8.21** Fixed: while saving for an upgrade, auto play either spent
+  the bank on purchases that only pushed the target away or refused the
+  next building tier that would have got it there in a few minutes. A save
+  target now holds back exactly the purchases whose payback is at least its
+  wait (buying them first reaches the target later) and lets everything
+  faster through (AUTO-4 C), insignificant purchases included. The setting
+  "Auto: much bigger impact (x)" (`autoBiggerImpact`) is gone with the old
+  impact rule. Unit tests in `tests/unit/strategy.test.ts`.
 
 - **5.8.20** "Insignificant" (AUTO-4 A) now means at most 0.1% of the
   spendable bank instead of 60s of CpS: the setting "Auto: insignificant

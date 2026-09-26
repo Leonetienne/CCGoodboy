@@ -39,8 +39,6 @@ export interface Config {
   autoPlay: boolean;
   autoDryRun: boolean;
   autoInsignificantShare: number;
-  autoGoodFactor: number;
-  autoBiggerImpact: number;
   autoReachSec: number;
   autoReserveSec: number;
   autoWizardTowerTarget: number;
@@ -156,8 +154,6 @@ export const DEFAULTS: PersistedState = {
     autoPlay: false,
     autoDryRun: false,
     autoInsignificantShare: 0.001,
-    autoGoodFactor: 1.2,
-    autoBiggerImpact: 3,
     autoReachSec: 1800,
     autoReserveSec: 0,
     autoWizardTowerTarget: 57,

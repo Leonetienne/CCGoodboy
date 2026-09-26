@@ -16,8 +16,8 @@ function ctx(overrides: Partial<AutoCollectCtx> = {}): AutoCollectCtx {
     reserve: 0,
     cfg: {
       insignificantShare: 0.001,
-      goodFactor: 1.2,
-      biggerImpact: 3,
+     
+     
       reachSec: 1800,
     },
     biscuitBase: null,
@@ -81,7 +81,7 @@ describe('autoDecide', () => {
     // reachSec = 10: wait (100s at income 100) is NOT in reach, so there's nothing to buy or
     // save for, even though the candidate's payback would otherwise be perfectly fine.
     const cands = [candidate('Too far off', 10000, 100)]; // payback 100, wait 100s
-    const d = autoDecide(cands, ctx({ bank: 0, income: 100, reserve: 0, cfg: { insignificantShare: 0.001, goodFactor: 1.2, biggerImpact: 3, reachSec: 10 } }));
+    const d = autoDecide(cands, ctx({ bank: 0, income: 100, reserve: 0, cfg: { insignificantShare: 0.001, reachSec: 10 } }));
 
     expect(d.buy).toBeNull();
     expect(d.save).toBeNull();
@@ -119,20 +119,38 @@ describe('autoDecide', () => {
     expect(d.buy?.name).toBe('Tiny upgrade');
   });
 
-  it('an insignificant purchase is exempt from the impact postponement next to a much bigger save target', () => {
-    // Big target: not affordable (wait 0.85s at income 1000), a good deal (its own bestPP), and
-    // >= 3x the impact of the trinket (30 vs 3.75) — normally enough to postpone the trinket,
-    // since the trinket also costs > 10% of big's cost (150 > 100). But the trinket is
-    // insignificant (150 <= the whole bank here, insignificantShare 1) and pays back faster than the
-    // target's pp (4 < 4.18), so it still goes out.
-    const trinket = candidate('Trinket', 150, 37.5); // payback 4, impact 3.75
-    const big = candidate('Big upgrade', 1000, 300); // payback 3.33, impact 30
+  it('buys on the way what pays back before the target arrives, holds back the rest', () => {
+    // Million fingers-like preferred target: 10M, bank 1M, income 10K -> wait 900s.
+    const target = candidate('Million fingers', 10_000_000, 5_000, AUTO_PREF_GOLDEN);
+    const bank = candidate('Bank', 700_000, 1_400); // payback 500s < 900s: gets there sooner
+    const cursor = candidate('Cursor', 500_000, 50); // payback 10,000s: only delays it
+    const d = autoDecide([target, bank, cursor], ctx({ cps: 10_000, income: 10_000, bank: 1_000_000 }));
 
-    const d = autoDecide([trinket, big], ctx({ bank: 150, income: 1000, reserve: 0, cfg: { insignificantShare: 1, goodFactor: 1.2, biggerImpact: 3, reachSec: 1800 } }));
+    expect(d.save?.name).toBe('Million fingers');
+    expect(d.buy?.name).toBe('Bank');
+    expect(d.buyable?.map((r) => r.c.name)).toEqual(['Bank']);
+  });
 
-    expect(d.buy?.name).toBe('Trinket');
-    expect(d.why).toBe('insignificant cost');
-    expect(d.save?.name).toBe('Big upgrade');
+  it('saves for a kitten upgrade over a closer building deal, buying the fast buildings on the way', () => {
+    const kitten = { ...candidate('Kitten workers', 9_000_000, 3_000), type: 'kitten', kind: 'upgrade' as const, pref: AUTO_PREF_GOLDEN };
+    // kitten: wait 800s. A closer good-deal target (Mine: wait 10s, pp 560 <= 1.2 x 500) would
+    // have held back the Bank; only the target actually saved for decides now.
+    const closer = candidate('Mine', 1_100_000, 2_000); // wait 10s, payback 550s
+    const temple = candidate('Temple', 800_000, 1_000); // payback 800s >= 800s: only delays it
+    const bank = candidate('Bank', 700_000, 1_400); // payback 500s < 800s: bought on the way
+    const d = autoDecide([kitten, closer, temple, bank], ctx({ cps: 10_000, income: 10_000, bank: 1_000_000 }));
+
+    expect(d.save?.name).toBe('Kitten workers');
+    expect(d.buyable?.map((r) => r.c.name)).toEqual(['Bank']);
+  });
+
+  it('buys a preferred upgrade the moment it is affordable, before any building', () => {
+    const cursorUp = { ...candidate('Reinforced index finger', 100, 1), type: 'cursor', kind: 'upgrade' as const, pref: AUTO_PREF_GOLDEN };
+    const bank = candidate('Bank', 700_000, 1_400);
+    const d = autoDecide([bank, cursorUp], ctx({ cps: 10_000, income: 10_000, bank: 1_000_000 }));
+
+    expect(d.buy?.name).toBe('Reinforced index finger');
+    expect(d.why).toBe('preferred');
   });
 
   it('holds back insignificant purchases that pay back slower than a save target (early game)', () => {
@@ -200,7 +218,7 @@ describe('autoDecide', () => {
 
     // reachSec = 10: 100s to afford it is NOT in reach, so the bot does not queue it as a
     // save target and buys nothing.
-    const d = autoDecide([wizard], ctx({ bank: 0, income: 100, reserve: 0, cfg: { insignificantShare: 0.001, goodFactor: 1.2, biggerImpact: 3, reachSec: 10 } }));
+    const d = autoDecide([wizard], ctx({ bank: 0, income: 100, reserve: 0, cfg: { insignificantShare: 0.001, reachSec: 10 } }));
 
     expect(d.buy).toBeNull();
     expect(d.save).toBeNull();

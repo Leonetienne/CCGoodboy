@@ -27,42 +27,32 @@ export interface Decision {
   buyable?: DecisionRow[];
 }
 
-/** THE STRATEGY (pure function, no game access). For every option:
- *   payback = cost / dCps    seconds until it has paid for itself ("rentability")
- *   impact  = dCps / CpS     how much it changes production, regardless of cost
+/** THE STRATEGY (pure function, no game access). Goal: the highest CpS in the shortest time.
+ * For every option:
+ *   payback = cost / dCps      seconds until it has paid for itself
  *   wait    = time to afford it at the current income (CpS + clicking), after the reserve
- *   pp      = wait + payback  payback including the time spent saving up
- * Every candidate reaching here already passed AUTO-2/AUTO-3's classification (never the
- * research center, never something unclassifiable, always a positive dCps), so there is no
- * absolute payback ceiling: a slow payback still beats 0% return from letting cookies sit idle,
- * and how "good" a payback is only matters for ORDERING purchases and for deciding what is
- * worth deliberately saving up for — never for refusing an otherwise-affordable one outright.
- * "In reach" = affordable within reachSec (AUTO-5); a candidate outside that window is simply
- * too far off to reason about yet, not "too slow a payback" (there is no such thing here).
+ *   pp      = wait + payback   seconds from NOW until it has paid for itself
+ * Always going for the lowest pp is the greedy rule for growing CpS as fast as possible: a big
+ * building or upgrade waits until the income it needs is there (its wait shrinks as smaller,
+ * quicker purchases raise the income), and anything that pays for itself before the target
+ * would even be affordable has the lower pp, so it is bought on the way (it gets the bank
+ * there sooner: with the bank covering it, the target is reached after
+ * (T - bank + cost)/(income + dCps) instead of (T - bank)/income, sooner exactly when
+ * payback < the target's wait).
  * Decision, each tick:
- *   1) Preferred candidates (the Bingo center, golden cookie upgrades, Wizard towers below
- *      their target) are bought outright whenever affordable, no other condition.
- *      Insignificant ones (<= insignificantShare x the spendable bank, "worthless junk") too, unless a save
- *      target pays back sooner even counting its wait (3a).
- *   2) Otherwise: if nothing is not-yet-affordable and worth deliberately saving up for, buy
- *      every other affordable candidate too — highest score (lowest payback) first. "Worth
- *      saving up for" means in reach, not affordable yet, and a good deal (pp <= goodFactor x
- *      the best pp of ALL options, in reach or not) or preferred. Measuring "good" against
- *      everything matters: a clearly better option just past reachSec must not leave a terrible
- *      one that happens to be in reach looking like "the best deal in reach".
- *   3) A save target holds back an ordinary (non-insignificant, non-preferred) affordable
- *      purchase when the target's pp (wait included) beats that purchase's payback, or when the
- *      target has >= biggerImpact x its impact AND it costs more than 10% of the target's cost
- *      (otherwise a stream of worse purchases would keep the bank too low to ever afford the
- *      better one). Preferred purchases are exempt; insignificant ones only from the impact
- *      rule, so a stream of cheap, slow ones never starves a target that pays back sooner.
- *   Among everything bought this tick, the single best one goes out (lowest payback, with every
- *   cost below 1% of the spendable bank counted as that 1%, so on a flush bank the biggest CpS
- *   gain goes first); on an
- *   idle-game timescale of one purchase per tick (AUTO-7), the rest follow on later ticks in the
- *   same order, so the store empties out highest score first whenever nothing is being saved
- *   for. The save target is the best of those "worth saving up for" (preferred first, then
- *   lowest pp); a bad deal is never reported as one, even when it is the only thing in reach. */
+ *   1) Preferred candidates (golden, cursor/click and kitten upgrades, the Bingo center,
+ *      Wizard towers below their target; AUTO-4 B) are bought the moment they are affordable.
+ *   2) The target to save for: the preferred candidate in reach (highest tier, then soonest
+ *      affordable), else the not-yet-affordable option with the lowest pp. An achievement
+ *      top-off (AUTO-15) is never a target.
+ *   3) An ordinary affordable purchase is bought when nothing not yet affordable pays back
+ *      sooner, counting its wait (payback < the lowest pp among them), and, while saving for
+ *      a preferred target (worth having as soon as possible, whatever its own payback), when
+ *      it pays back before that target arrives (payback < its wait). Everything else waits.
+ *   Among everything bought this tick: preferred first, then by payback, except that every
+ *   cost at or below 1% of the spendable bank counts as that 1%: cookies are no constraint
+ *   for such pocket money, the paw's time is, so a flush bank buys the biggest CpS gain first.
+ *   One purchase per task (AUTO-7), so later ticks work down the same ranking. */
 export function autoDecide(cands: PurchaseCandidate[], ctx: AutoCollectCtx): Decision {
   const cfg = ctx.cfg;
   const cpsEff = Math.max(ctx.cps, 0.1);
@@ -90,63 +80,29 @@ export function autoDecide(cands: PurchaseCandidate[], ctx: AutoCollectCtx): Dec
     });
   }
 
+  if (!rows.length) return { buy: null, save: null, note: 'nothing in reach', rows };
+
   const prefOf = (r: DecisionRow) => r.c.pref ?? 0;
-  const wizardPref = (r: DecisionRow) => prefOf(r) === AUTO_PREF_WIZARD;
-  const prefWhy = (r: DecisionRow) => (prefOf(r) === AUTO_PREF_BINGO ? 'starts the research' : wizardPref(r) ? 'wizard target' : 'preferred');
+  const prefWhy = (r: DecisionRow) => (prefOf(r) === AUTO_PREF_BINGO ? 'starts the research' : prefOf(r) === AUTO_PREF_WIZARD ? 'wizard target' : 'preferred');
 
-  const inReach = rows.filter((r) => r.wait <= cfg.reachSec);
+  // 2) the target
+  const later = rows.filter((r) => !r.affordable && r.c.milestone == null);
+  const prefTarget = later.filter((r) => prefOf(r) > 0 && r.wait <= cfg.reachSec).sort((a, b) => prefOf(b) - prefOf(a) || a.wait - b.wait)[0];
+  const bestLater = [...later].sort((a, b) => a.pp - b.pp)[0] || null;
+  const target = prefTarget || bestLater;
+  // An affordable purchase must beat everything not affordable yet (counting its wait): else a
+  // stream of cheap, slower ones (the next cursor, every few seconds) eats the bank before the
+  // better one a few seconds off (the next grandma) is ever affordable. For a preferred target
+  // it must also pay back before that target arrives.
+  const bar = Math.min(prefTarget ? prefTarget.wait : Infinity, bestLater ? bestLater.pp : Infinity);
+  // It is only reported as saved for (the HUD, the stock trader's smaller budget, STOCK-4)
+  // while it is in reach; a far-off one still sets the bar.
+  const save = target && target.wait <= cfg.reachSec ? target : null;
 
-  if (!inReach.length) {
-    return { buy: null, save: null, note: 'nothing in reach', rows };
-  }
-
-  // Best pp over EVERY option, not just those in reach: pp already charges the waiting time, so
-  // an option past reachSec only lowers the bar when it is genuinely the better deal.
-  const bestPP = Math.min(...rows.map((r) => r.pp));
-  const good = (r: DecisionRow) => r.pp <= cfg.goodFactor * bestPP;
-
-  const affordable = inReach.filter((r) => r.affordable);
-
-  // Worth deliberately saving up for: not affordable yet, in reach, and either a good deal
-  // relative to everything else on offer or preferred (golden upgrades, Wizard towers).
-  // An achievement top-off (AUTO-15) is never saved for: it is only bought when affordable
-  // and nothing better holds it back, so the bot never locks in on one.
-  const targets = inReach.filter((r) => !r.affordable && r.c.milestone == null && (good(r) || prefOf(r) > 0));
-
-  // Held back for a target when (a) the target, even counting the wait for it, is the better
-  // deal: buying the worse one first only pushes the better one further away (and a stream of
-  // them never lets the bank reach it) — this is what protects a research chain step, whose
-  // impact is diluted by hours of delay (WRINK-1) and so never passes (b); or (b) the target has
-  // much more impact and this one would eat a real share of its price.
-  // An insignificant purchase is only exempt from (b): cheap as each one is, a steady stream of
-  // them would otherwise eat the whole income and never let the bank reach a better deal.
-  const postponed = (p: DecisionRow) =>
-    targets.some(
-      (q) =>
-        q.pp < p.payback ||
-        (!p.insignificant && q.impact >= cfg.biggerImpact * p.impact && (p.c.projectCost ?? p.c.cost) > 0.1 * q.c.cost),
-    );
-
-  // Buy now: every affordable candidate that isn't held back in favor of a save target.
-  // Preferred purchases are always exempt from postponement. Nothing else is
-  // gated on payback quality at all — it already passed AUTO-2/AUTO-3's classification, so
-  // spending idle cash on it beats hoarding. Within a preference tier the best `order` goes
-  // first: payback, except that everything costing <= 1% of the spendable bank counts as
-  // costing that 1%. Cookies are no constraint for those, the paw's time is, so they go out
-  // biggest CpS gain first (a flush bank buys the big buildings before 100 cursors), while a
-  // tight bank still buys the most CpS per cookie first.
-  const buyable = affordable
-    .filter((r) => prefOf(r) > 0 || !postponed(r))
+  // 1) + 3) what goes out now
+  const buyable = rows
+    .filter((r) => r.affordable && (prefOf(r) > 0 || r.payback < bar))
     .sort((a, b) => prefOf(b) - prefOf(a) || a.order - b.order);
-
-  // What's next to save for, computed independently of whether something is ALSO buyable this
-  // tick: an affordable insignificant/preferred purchase (e.g. a Wizard tower) can go out this
-  // very tick while the bot is still accumulating for something bigger it isn't affording yet
-  // (that's exactly what `postponed()` above is protecting) — both should be reported, not just
-  // whichever one `autoDecide` happens to act on this call. Only a real target qualifies: a
-  // merely-in-reach option with a terrible payback is not "saved for" (it would still be bought
-  // once affordable if nothing better holds it back, like any other purchase).
-  const save = [...targets].sort((a, b) => prefOf(b) - prefOf(a) || a.pp - b.pp)[0] || null;
 
   if (buyable.length) {
     const p = buyable[0]!;
@@ -166,7 +122,7 @@ export function autoDecide(cands: PurchaseCandidate[], ctx: AutoCollectCtx): Dec
     buy: null,
     save: save ? save.c : null,
     saveRow: save,
-    note: save ? 'saving' : 'nothing worth saving for in reach',
+    note: save ? 'saving' : rows.some((r) => r.wait <= cfg.reachSec) ? 'nothing worth saving for in reach' : 'nothing in reach',
     rows,
   };
 }

@@ -15,7 +15,7 @@ function ctx(overrides: Partial<AutoCollectCtx> = {}): AutoCollectCtx {
     income: 10,
     bank: 1000,
     reserve: 0,
-    cfg: { insignificantShare: 0.001, goodFactor: 1.2, biggerImpact: 3, reachSec: 1800 },
+    cfg: { insignificantShare: 0.001, reachSec: 1800 },
     biscuitBase: null,
     cursor: null,
     nonCursor: 0,
@@ -117,7 +117,7 @@ describe('junk spree (AUTO-18)', () => {
 
   it('skips junk the paw cannot reach and junk that would leave too little for the pick', () => {
     // insignificant up to 10% of the bank here (94), so Far and Near are junk and Pick isn't
-    const cfg = { insignificantShare: 0.1, goodFactor: 1.2, biggerImpact: 3, reachSec: 1800 };
+    const cfg = { insignificantShare: 0.1, reachSec: 1800 };
     const d = autoDecide([upgrade('Far', 50, 1), upgrade('Near', 60, 1), upgrade('Pick', 900, 100)], ctx({ bank: 940, cfg }));
     expect(d.buy?.name).toBe('Pick');
     const last = upgrade('Other', 1, 1);

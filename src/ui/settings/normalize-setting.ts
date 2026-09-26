@@ -36,12 +36,6 @@ export function normalizeSetting(key: string, raw: string): number {
     case 'autoInsignificantShare':
       return Number.isFinite(value) && raw !== '' ? clamp(value, 0, 1) : 0.001;
 
-    case 'autoGoodFactor':
-      return Number.isFinite(value) && raw !== '' ? clamp(value, 1, 10) : 1.2;
-
-    case 'autoBiggerImpact':
-      return Number.isFinite(value) && raw !== '' ? clamp(value, 1, 100) : 3;
-
     case 'autoReachSec':
       return Number.isFinite(value) && raw !== '' ? clamp(value, 0, 86400) : 1800;
 

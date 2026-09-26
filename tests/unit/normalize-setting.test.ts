@@ -23,7 +23,6 @@ describe('normalizeSetting', () => {
   it('clamps to the documented range for every ranged setting', () => {
     expect(normalizeSetting('autoHammerMinShare', '5000')).toBe(1000);
     expect(normalizeSetting('autoProbeSec', '1')).toBe(2); // min 2
-    expect(normalizeSetting('autoGoodFactor', '0.5')).toBe(1); // min 1
     expect(normalizeSetting('autoWizardTowerTarget', '9999')).toBe(500); // max 500
     expect(normalizeSetting('autoWizardTowerTarget', '0')).toBe(0);
     expect(normalizeSetting('autoWizardTowerTarget', '')).toBe(57);

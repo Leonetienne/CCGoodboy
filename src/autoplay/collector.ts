@@ -3,7 +3,7 @@ import type { RuntimeState } from '../core/runtime-state';
 import type { IGameAdapter } from '../game/game-adapter';
 import type { GameBuilding, GameUpgrade } from '../game/types';
 import { achievementCpsShare, autoMilestoneValue, nextAchievementCount } from './achievement-milestones';
-import { autoBuildingGain, autoFingerBonus, autoPerClick, autoUnbuffedCps } from './building-valuation';
+import { autoBuildingGain, autoFingerBonus, autoPerClick, autoUnbuffedCps, clickFrenzyFactor } from './building-valuation';
 import { CHRISTMAS_UPGRADES, christmasUpgradeGain } from './christmas';
 import { EASTER_EGGS, easterEggGain } from './easter-eggs';
 import type { IncomeTracker } from './income-tracker';
@@ -27,8 +27,6 @@ import {
 export interface AutoConfig {
   /** AUTO-4 A: a cost at or below this share of the spendable bank is insignificant. */
   insignificantShare: number;
-  goodFactor: number;
-  biggerImpact: number;
   reachSec: number;
 }
 
@@ -42,8 +40,12 @@ export interface AutoCollectCtx {
   biscuitBase: number | null;
   cursor: GameBuilding | null;
   nonCursor: number;
+  /** Clicks per second the bot clicks, weighted by what a click is worth with the Click
+   * Frenzies counted (clickFrenzyFactor()): what clicking upgrades are valued at. */
   clicksPerSec: number;
   clickUnit: number;
+  /** Share of the CpS every click gains from the owned mouse upgrades (0.01 per +1%). */
+  mouseShare?: number;
 }
 
 export interface PurchaseCandidate {
@@ -109,8 +111,6 @@ export function autoCollect(game: IGameAdapter, data: PersistedData, runtime: Ru
 
   const cfg: AutoConfig = {
     insignificantShare: Math.max(0, num(data.config.autoInsignificantShare, 0.001)),
-    goodFactor: Math.max(1, num(data.config.autoGoodFactor, 1.2)),
-    biggerImpact: Math.max(1, num(data.config.autoBiggerImpact, 3)),
     reachSec: Math.max(0, num(data.config.autoReachSec, 1800)),
   };
 
@@ -118,18 +118,23 @@ export function autoCollect(game: IGameAdapter, data: PersistedData, runtime: Ru
   // comes back when they are popped, WRINK-*), so saving up takes that much longer.
   const withered = Math.min(1, Math.max(0, num(game.getCpsSucked(), 0)));
 
+  // While the paw hammers, its clicks count from the first second: the measured clicking income
+  // (20s smoothing) starts at 0 and would make every wait look far too long early in a run.
+  const hammering = !!runtime.hammer || (data.config.autoHammer !== false && !!runtime.autoHammerState.on);
+  const hammerIncome = hammering ? Math.max(0, num(data.config.clickFrenzyCps, 8)) * autoPerClick(game) : 0;
+
   const ctx: AutoCollectCtx = {
     cps,
     mult: raw > 0 ? cps / raw : 1,
-    income: cps * (1 - withered) + incomeTracker.update(Date.now()),
+    income: cps * (1 - withered) + Math.max(incomeTracker.update(Date.now()), hammerIncome),
     bank: num(game.getCookies(), 0),
     reserve: Math.max(0, num(data.config.autoReserveSec, 0)) * cps,
     cfg,
     biscuitBase: null,
     cursor: game.getBuildingByName('Cursor') || objs.find((o) => o && o.name === 'Cursor') || null,
     nonCursor: 0,
-    // clicks per second the bot will click (the hammer rate), used to value clicking upgrades
-    clicksPerSec: data.config.autoHammer !== false || runtime.hammer ? Math.max(0, num(data.config.clickFrenzyCps, 8)) : 0,
+    // the hammer rate, weighted by the Click Frenzies: what clicking upgrades are worth
+    clicksPerSec: data.config.autoHammer !== false || runtime.hammer ? Math.max(0, num(data.config.clickFrenzyCps, 8)) * clickFrenzyFactor(game) : 0,
     clickUnit: 1,
   };
 
@@ -157,6 +162,8 @@ export function autoCollect(game: IGameAdapter, data: PersistedData, runtime: Ru
       if (m) mousePct += Number(m[1]);
     }
   }
+
+  ctx.mouseShare = mousePct / 100;
 
   const clickBase = autoPerClick(game) - (mousePct / 100) * (Number(game.getCookiesPs()) || 0);
   const clickDenom = Math.pow(2, doublers) + autoFingerBonus(game) * ctx.nonCursor;

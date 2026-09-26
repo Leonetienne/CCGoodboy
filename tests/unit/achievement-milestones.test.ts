@@ -114,7 +114,7 @@ describe('an achievement top-off never locks in (AUTO-15)', () => {
       income: 10,
       bank: 1000,
       reserve: 0,
-      cfg: { insignificantShare: 0.001, goodFactor: 1.2, biggerImpact: 3, reachSec: 1800 },
+      cfg: { insignificantShare: 0.001, reachSec: 1800 },
       biscuitBase: null,
       cursor: null,
       nonCursor: 0,

@@ -154,3 +154,14 @@ export function autoStripHtml(s: unknown): string {
     .trim()
     .toLowerCase();
 }
+
+/** Clicking is worth more than its plain rate: during a Click Frenzy (x777 click power, and
+ * the paw hammers every one, CF-1) a click is worth 777 normal ones. A golden cookie turns into
+ * one ~4% of the time (the game's 10% chance to join a list of ~2-3 effects), every ~10 min
+ * (halved by Lucky day and by Serendipity), so clicks are worth 1 + 776 x that share of time;
+ * never less than AUTO_CLICK_VALUE_MIN (the bot's own FTHOF casts add more Click Frenzies on
+ * top). Used for everything valued by clicking: cursor doublers, fingers, mouse upgrades, and
+ * the kittens' boost through the mouse upgrades (AUTO-3). */
+export const AUTO_CLICK_FRENZY_CHANCE = 0.04;
+export const AUTO_GOLDEN_INTERVAL_SEC = 600;
+export const AUTO_CLICK_VALUE_MIN = 7;
