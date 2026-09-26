@@ -1,7 +1,6 @@
-![The paw catching a golden cookie and celebrating afterwards](https://raw.githubusercontent.com/Leonetienne/CCGoodboy/refs/heads/master/github-assets/peace.gif)
 
 # CC Good Boy
-
+![The paw catching a golden cookie and celebrating afterwards](https://raw.githubusercontent.com/Leonetienne/CCGoodboy/refs/heads/master/github-assets/peace.gif)
 ![The paw heading for a golden cookie during a Frenzy](https://raw.githubusercontent.com/Leonetienne/CCGoodboy/refs/heads/master/github-assets/hero.png)
 
 A little paw that lives on your Cookie Clicker tab and catches golden cookies
