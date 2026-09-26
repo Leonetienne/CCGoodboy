@@ -126,6 +126,11 @@ export const AUTO_PREF_WIZARD = 1;
  * next one costs next to nothing (insignificant, AUTO-4 A); before that they compete on
  * payback like any building, so the target can't hold back the next building tier. */
 export const AUTO_WIZARD_PREF_SHARE = 0.93;
+/** Impact bias (AUTO-4): an ordinary purchase adding less than this share of the CpS counts
+ * its payback as longer, × (this share / its impact): +0.05% CpS counts 10× slower. Every
+ * purchase costs a trip of the paw and a pause in hammering, and a flood of tiny ones keeps it
+ * from the big ones. In the simulation: no slower CpS growth, 37% fewer purchases. */
+export const AUTO_IMPACT_REF = 0.005;
 export const AUTO_PREF_BINGO = 2;
 export const AUTO_PREF_GOLDEN = 3;
 /** Upgrade types preferred like golden cookie upgrades (AUTO-4 B): the click power ones

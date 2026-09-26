@@ -7,11 +7,11 @@ import type { Decision, DecisionRow } from './strategy';
 /** The overlay's rank per option, 0 (worst on offer) to 1 (best), following what the bot
  * wants to buy (BUY-2): the tick's pick and every preferred option (the Bingo center, golden
  * upgrades, the cursor doublers, Wizard towers near their target, AUTO-4 B) rank 1; the rest
- * by payback on a log scale among themselves, so a preferred option with a slow payback
- * doesn't squash their scale. Pure. */
+ * by the payback the decision goes by (`score`, with the impact bias of AUTO-4) on a log scale
+ * among themselves, so a preferred option with a slow payback doesn't squash their scale. Pure. */
 export function buyValueRanks(d: Pick<Decision, 'rows' | 'buy'>): Map<DecisionRow, number> {
   const wanted = (row: DecisionRow) => row.c === d.buy || row.pref > 0;
-  const logPb = (row: DecisionRow) => Math.log(Math.max(row.payback, 0.001));
+  const logPb = (row: DecisionRow) => Math.log(Math.max(row.score, 0.001));
 
   const rest = d.rows.filter((row) => !wanted(row)).map(logPb);
   const best = Math.min(...rest);

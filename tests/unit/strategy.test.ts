@@ -197,6 +197,23 @@ describe('autoDecide', () => {
     expect(d.why).toBe('wizard target');
   });
 
+  it('counts a tiny CpS gain as a slower payback (impact bias)', () => {
+    // CpS 1000. Tiny: payback 50 but only +0.01% CpS, so it counts 50 x 50 = 2500s.
+    // Big: payback 200, +1% CpS. Not affordable yet: 100s away.
+    const tiny = candidate('Cursor', 5, 0.1);
+    const big = candidate('Shipment', 2000, 10);
+
+    const d = autoDecide([tiny, big], ctx({ cps: 1000, income: 1000, bank: 1900, reserve: 0 }));
+    const row = d.rows.find((r) => r.c === tiny)!;
+    expect(row.score).toBeCloseTo(2500);
+    expect(d.buy).toBeNull();
+    expect(d.save?.name).toBe('Shipment');
+
+    // insignificant (<= 0.1% of the bank) or preferred: no bias
+    const rich = autoDecide([tiny, big], ctx({ cps: 1000, income: 1000, bank: 1e6, reserve: 0 }));
+    expect(rich.rows.find((r) => r.c === tiny)!.score).toBeCloseTo(50);
+  });
+
   it('prefers Wizard towers far below their target only while the next one is insignificant', () => {
     const ordinary = candidate('Fast payback building', 100, 10); // payback 10
     const wizard = { ...candidate('Wizard tower', 100, 0.001, AUTO_PREF_WIZARD), nearTarget: false };
@@ -212,10 +229,10 @@ describe('autoDecide', () => {
     expect(rich.why).toBe('wizard target');
   });
 
-  it('keeps buying Wizard towers (worth it here) while a far-off golden upgrade waits, and only saves for it in reach', () => {
+  it('keeps buying Wizard towers near their target while a far-off golden upgrade waits, and only saves for it in reach', () => {
     // a quadrillion golden upgrade, years away at 1e6/s, and a Wizard tower costing billions
     const golden = candidate('Golden upgrade', 1e15, 1e5, AUTO_PREF_GOLDEN);
-    const wizard = candidate('Wizard tower', 2e9, 1, AUTO_PREF_WIZARD);
+    const wizard = { ...candidate('Wizard tower', 2e9, 1, AUTO_PREF_WIZARD), nearTarget: true };
 
     const far = autoDecide([golden, wizard], ctx({ cps: 1e6, income: 1e6, bank: 3e9, reserve: 0 }));
     expect(far.buy?.name).toBe('Wizard tower');

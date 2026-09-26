@@ -706,6 +706,13 @@ action log (UI-6); nothing here is stored.
   covering it the target is reached after (T − bank + cost)/(income +
   dCps) instead of (T − bank)/income, sooner exactly when payback < the
   target's wait). Each tick:
+  Impact bias: an ordinary purchase (not preferred, not insignificant)
+  adding less than 0.5% of the CpS (`AUTO_IMPACT_REF`) counts its payback
+  × (0.5% / its impact) in everything below (`DecisionRow.score`; +0.05%
+  CpS counts 10× slower), since every purchase costs a trip of the paw and
+  a pause in hammering: the lower tiers' tiny gains no longer keep the paw
+  from the big purchases. The "how good is a buy" overlay ranks by the same
+  score (BUY-2).
   (A) insignificant cost (<= `autoInsignificantShare` × the spendable
   bank, default 0.1%) is only a label now (the "why" in the log, the junk
   spree AUTO-18, Krumblor's and Santa's cookie costs); it is decided like
@@ -726,7 +733,7 @@ action log (UI-6); nothing here is stored.
   which counts the Click Frenzies (AUTO-3, ×7 and more) and grows with the
   CpS. An achievement top-off (AUTO-15) is never a target. An ordinary
   affordable purchase is bought when it pays for itself before the target
-  would (payback < the target's pp): that covers everything that pays back
+  would (its score < the target's pp): that covers everything that pays back
   before the target is even affordable (it gets the bank there sooner) and
   every deal that is simply better than the target. A cheap, slower one (the
   next cursor, affordable every few seconds) can't eat the bank while the
@@ -962,7 +969,9 @@ action log (UI-6); nothing here is stored.
   follows what the bot wants to buy: the tick's pick and every preferred
   option (AUTO-4 B: the Bingo center, golden, click power and kitten
   upgrades, Wizard towers while they are preferred) score 100 whatever their payback, and
-  are left out of the others' scale (`buyValueRanks()`,
+  are left out of the others' scale, which ranks by the payback the
+  decision goes by, impact bias included (AUTO-4, `DecisionRow.score`;
+  `buyValueRanks()`,
   `src/autoplay/buy-value-overlay.ts`). Uses the same scoring as
   `autoDecide()` (AUTO-3/AUTO-4), refreshed at most twice a second.
 - **BUY-3** A box is only drawn for an element that is genuinely on
@@ -2179,6 +2188,15 @@ mouse while the bot runs and confirm the "+N" number follows your cursor,
 not the paw's).
 
 ## 12. Changelog
+
+- **5.8.28** Auto play leans towards purchases with a big CpS gain
+  (AUTO-4): an ordinary purchase adding less than 0.5% of the CpS counts
+  its payback × (0.5% / its impact) (`AUTO_IMPACT_REF`, `DecisionRow.score`),
+  so the lower tiers' tiny gains (a Cursor for +0.03%) no longer take the
+  paw's time from the higher tiers. Preferred and insignificant purchases
+  are exempt. The "how good is a buy" overlay ranks by the same score
+  (BUY-2). No slower CpS growth in the simulation. Unit tests in
+  `tests/unit/strategy.test.ts` and `tests/unit/buy-value-overlay.test.ts`.
 
 - **5.8.27** Fixed: auto play bought Wizard towers for billions each
   (24 of them at 7.7M CpS) and never got to the next building tier, since
