@@ -135,7 +135,7 @@ export class FakeGameAdapter implements IGameAdapter {
   }
 
   clickFrenzyActive(): boolean {
-    return this.hasBuff('Click frenzy');
+    return this.hasBuff('Click frenzy') || this.hasBuff('Dragonflight');
   }
 
   getLastGoldenEffect(): string {

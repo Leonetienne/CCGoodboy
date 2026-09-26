@@ -413,4 +413,16 @@ describe('selectJobRequest', () => {
 
     expect(selectJobRequest(makeDeps({ game, runtime, data: (() => { const d = new PersistedData(); d.config.idleWander = false; return d; })() }))).toBeNull();
   });
+  it('treats Dragonflight like Click Frenzy (CF-8): frenzy hammering, no FTHOF', () => {
+    const game = new FakeGameAdapter();
+    game.buffNames.add('Dragonflight');
+    game.grimoire = { spells: { 'hand of fate': { id: 1 } }, getSpellCost: () => 50, magic: 100 };
+    game.rawBuffs = { a: { name: 'Frenzy', multCpS: 7, time: 3000 } };
+    const runtime = new RuntimeState();
+    runtime.nextBigClickAt = Date.now();
+
+    const job = selectJobRequest(makeDeps({ game, runtime, buffs: game.positiveCpsBuffs() }));
+    expect(job?.key).toBe('hammer');
+    expect(job?.priority).toBe(JOB_PRIORITY.CLICK_FRENZY);
+  });
 });

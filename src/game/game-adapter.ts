@@ -20,6 +20,7 @@ export interface IGameAdapter {
   positiveCpsBuffs(): CpsBuff[];
   estimateClickFrenzySec(): number;
   cpsBuffOutlastsClickFrenzy(buffs?: CpsBuff[]): boolean;
+  /** Click Frenzy or Dragonflight (CF-8: treated the same). */
   clickFrenzyActive(): boolean;
   canRefillLump(): boolean;
   getLumps(): number;
@@ -281,8 +282,10 @@ export class GameAdapter implements IGameAdapter {
     return (buffs || this.positiveCpsBuffs()).some((b) => b.time / fps >= cfSec);
   }
 
+  /** Click Frenzy or Dragonflight: both multiply clicks (x777 / x1111), and the bot treats
+   * them the same everywhere (CF-8). */
   clickFrenzyActive(): boolean {
-    return this.hasBuff('Click frenzy');
+    return this.hasBuff('Click frenzy') || this.hasBuff('Dragonflight');
   }
 
   getLastGoldenEffect(): string {

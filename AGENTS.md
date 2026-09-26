@@ -183,6 +183,13 @@ refactor) which `tests/visual/scenarios.mjs` scenario exercises it.
   nothing below it gets the paw (`JOB_PRIORITY.BUFF_COMBO`). A Click
   Frenzy in the combo is plain CF-1. The Chasing row reads "big cookie
   (buff combo)".
+- **CF-8** Dragonflight (clicks ×1111, from the dragon's aura) is treated
+  exactly like a Click Frenzy everywhere: hammered at CF-1's rate with the
+  frenzy's priority, no FTHOF cast or refill while it runs (FT-1/FT-3/FT-4;
+  the game lets a new Click Frenzy and Dragonflight supersede each other),
+  and every "during Click Frenzy" gate (AUTO-7, WRINK-4, ...) holds for it
+  too (`IGameAdapter.clickFrenzyActive()` is true for either buff). In the
+  logs it still reads "click frenzy".
 - **CF-6** `estimateClickFrenzySec()`: rough Click Frenzy length in seconds
   (13s × Get lucky ×2 × Lasting fortune ×1.1 × Epoch Manipulator). Exposed
   on the game adapter; used by FT-2.
@@ -1907,7 +1914,7 @@ file.**
 
 Three layers, each catching a different class of bug:
 
-1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 584 tests
+1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 585 tests
    across 51 files. Pure functions (route planner, `autoDecide`, the chart
    engine, `normalizeSetting`) are tested directly with plain data; the
    cursor queue/actions have their own fake mover/timing tests. Classes
@@ -2098,6 +2105,11 @@ mouse while the bot runs and confirm the "+N" number follows your cursor,
 not the paw's).
 
 ## 12. Changelog
+
+- **5.8.14** Dragonflight is treated like Click Frenzy (CF-8):
+  `clickFrenzyActive()` is true for either buff, so the paw hammers it at
+  the frenzy's rate and priority, and FTHOF, refills, shopping etc. hold
+  off like during a Click Frenzy. Unit test in `tests/unit/priority.test.ts`.
 
 - **5.8.13** The paw hammers the big cookie through every combo of at least
   two positive buffs (CF-7: `multCpS > 1` or `multClick > 1`), not only
