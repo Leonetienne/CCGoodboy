@@ -27,6 +27,9 @@ export function normalizeSetting(key: string, raw: string): number {
     case 'autoHammerMinShare':
       return Number.isFinite(value) && raw !== '' ? clamp(value, 0, 1000) : 0.05;
 
+    case 'autoClickBoost':
+      return Number.isFinite(value) && raw !== '' ? clamp(value, 1, 777) : 2;
+
     case 'autoProbeIntervalSec':
       return Number.isFinite(value) && raw !== '' ? clamp(value, 0, 86400) : 300;
 

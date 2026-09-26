@@ -22,6 +22,9 @@ describe('normalizeSetting', () => {
 
   it('clamps to the documented range for every ranged setting', () => {
     expect(normalizeSetting('autoHammerMinShare', '5000')).toBe(1000);
+    expect(normalizeSetting('autoClickBoost', '0')).toBe(1);
+    expect(normalizeSetting('autoClickBoost', '5000')).toBe(777);
+    expect(normalizeSetting('autoClickBoost', '')).toBe(2);
     expect(normalizeSetting('autoProbeSec', '1')).toBe(2); // min 2
     expect(normalizeSetting('autoWizardTowerTarget', '9999')).toBe(500); // max 500
     expect(normalizeSetting('autoWizardTowerTarget', '0')).toBe(0);

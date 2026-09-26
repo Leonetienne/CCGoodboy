@@ -17,6 +17,7 @@ import {
   AUTO_NON_STORE_POOLS,
   AUTO_BINGO_CENTER,
   AUTO_PREF_BINGO,
+  AUTO_CLICK_VALUE_MIN,
   AUTO_PREF_GOLDEN,
   AUTO_PREF_TYPES,
   AUTO_PREF_WIZARD,
@@ -139,7 +140,7 @@ export function autoCollect(game: IGameAdapter, data: PersistedData, runtime: Ru
     cursor: game.getBuildingByName('Cursor') || objs.find((o) => o && o.name === 'Cursor') || null,
     nonCursor: 0,
     // the hammer rate, weighted by the Click Frenzies: what clicking upgrades are worth
-    clicksPerSec: data.config.autoHammer !== false || runtime.hammer ? Math.max(0, num(data.config.clickFrenzyCps, 8)) * clickFrenzyFactor(game) : 0,
+    clicksPerSec: data.config.autoHammer !== false || runtime.hammer ? Math.max(0, num(data.config.clickFrenzyCps, 8)) * clickFrenzyFactor(game, Math.max(1, num(data.config.autoClickBoost, AUTO_CLICK_VALUE_MIN))) : 0,
     clickUnit: 1,
   };
 

@@ -271,6 +271,10 @@ function panelBodyHtml(version: string): string {
                     <span>Auto: hammer when clicks add >= (x CpS)</span>
                     <input data-setting="autoHammerMinShare" type="number" min="0" max="1000" step="0.01">
                 </div>
+                <div class="ccsb-setting" title="Clicking, cursor and kitten upgrades count every click as worth at least this many clicks (for the Click Frenzies the paw hammers). Higher = the bot saves up for them sooner; 1 = plain clicks">
+                    <span>Auto: priority boost clicking/kitty upgrades (x)</span>
+                    <input data-setting="autoClickBoost" type="number" min="1" max="777" step="0.5">
+                </div>
                 <div class="ccsb-setting">
                     <span>Auto: probe hammering every (s, 0 = never)</span>
                     <input data-setting="autoProbeIntervalSec" type="number" min="0" max="86400" step="30">

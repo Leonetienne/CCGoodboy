@@ -157,12 +157,12 @@ export function autoFingerGain(
 }
 
 /** How many normal clicks one click is worth once Click Frenzies are counted (AUTO-3): 1 + 776
- * x the share of time a Click Frenzy runs, at least AUTO_CLICK_VALUE_MIN. */
-export function clickFrenzyFactor(game: IGameAdapter): number {
+ * x the share of time a Click Frenzy runs, at least `min` (the setting `autoClickBoost`). */
+export function clickFrenzyFactor(game: IGameAdapter, min = AUTO_CLICK_VALUE_MIN): number {
   let interval = AUTO_GOLDEN_INTERVAL_SEC;
   if (game.hasUpgrade('Lucky day')) interval /= 2;
   if (game.hasUpgrade('Serendipity')) interval /= 2;
 
   const share = (AUTO_CLICK_FRENZY_CHANCE * (Number(game.estimateClickFrenzySec()) || 13)) / interval;
-  return Math.max(AUTO_CLICK_VALUE_MIN, 1 + 776 * share);
+  return Math.max(min, 1 + 776 * share);
 }

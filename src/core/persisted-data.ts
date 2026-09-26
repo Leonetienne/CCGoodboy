@@ -44,6 +44,7 @@ export interface Config {
   autoWizardTowerTarget: number;
   autoHammer: boolean;
   autoHammerMinShare: number;
+  autoClickBoost: number;
   autoProbeIntervalSec: number;
   autoProbeSec: number;
   autoGrandmapocalypse: boolean;
@@ -159,6 +160,7 @@ export const DEFAULTS: PersistedState = {
     autoWizardTowerTarget: 57,
     autoHammer: true,
     autoHammerMinShare: 0.05,
+    autoClickBoost: 2,
     autoProbeIntervalSec: 300,
     autoProbeSec: 10,
     autoGrandmapocalypse: true,

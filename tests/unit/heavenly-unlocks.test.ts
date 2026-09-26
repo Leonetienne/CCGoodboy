@@ -6,7 +6,7 @@ import { autoDecide } from '../../src/autoplay/strategy';
 import { PersistedData } from '../../src/core/persisted-data';
 import { RuntimeState } from '../../src/core/runtime-state';
 import type { GameUpgrade } from '../../src/game/types';
-import { AUTO_PREF_GOLDEN } from '../../src/autoplay/valuation-tables';
+import { AUTO_CLICK_VALUE_MIN, AUTO_PREF_GOLDEN } from '../../src/autoplay/valuation-tables';
 import { FakeGameAdapter } from './fakes/fake-game-adapter';
 
 function heavenlyGame(prestige: number, bank: number): FakeGameAdapter {
@@ -20,9 +20,11 @@ function heavenlyGame(prestige: number, bank: number): FakeGameAdapter {
   return game;
 }
 
-function collect(game: FakeGameAdapter) {
+function collect(game: FakeGameAdapter, clickBoost?: number) {
   const runtime = new RuntimeState();
-  const r = autoCollect(game, new PersistedData(), runtime, new IncomeTracker(runtime, game));
+  const data = new PersistedData();
+  if (clickBoost != null) data.config.autoClickBoost = clickBoost;
+  const r = autoCollect(game, data, runtime, new IncomeTracker(runtime, game));
   if ('skip' in r) throw new Error(r.skip);
   return r;
 }
@@ -90,13 +92,14 @@ describe('autoCollect: cursor doublers (AUTO-4 B)', () => {
 describe('Click Frenzy value of clicking upgrades (AUTO-3)', () => {
   beforeEach(() => localStorage.clear());
 
-  it('values a click at least 7x, more with the golden upgrades', () => {
+  it('values a click at least the boost (default 2x), more with the golden upgrades', () => {
     const game = heavenlyGame(0, 1e6);
-    expect(clickFrenzyFactor(game)).toBe(7);
+    expect(clickFrenzyFactor(game)).toBe(2);
+    expect(clickFrenzyFactor(game, 7)).toBe(7);
 
-    // all golden upgrades: 1 + 776 x 0.04 x 29s / 150s = ~7, where the floor already is
+    // all golden upgrades: 1 + 776 x 0.04 x 29s / 150s = ~7
     for (const n of ['Lucky day', 'Serendipity', 'Get lucky', 'Lasting fortune']) game.upgradeNames.add(n);
-    expect(clickFrenzyFactor(game)).toBeCloseTo(7, 1);
+    expect(clickFrenzyFactor(game)).toBeCloseTo(1 + 776 * 0.04 * 29 / 150);
 
     // longer frenzies (Epoch Manipulator, ...): 1 + 776 x 0.04 x 60s / 150s
     game.estimateClickFrenzySec = () => 60;
@@ -111,13 +114,18 @@ describe('Click Frenzy value of clicking upgrades (AUTO-3)', () => {
     game.upgradesInStore = [plastic, kitten];
 
     const before = collect(game).cands;
-    // 1000 CpS x 1% x 8 clicks/s x 7
-    expect(before.find((c) => c.name === 'Plastic mouse')!.dCps).toBeCloseTo(1000 * 0.01 * 8 * 7);
+    // 1000 CpS x 1% x 8 clicks/s x the boost (default 2)
+    expect(before.find((c) => c.name === 'Plastic mouse')!.dCps).toBeCloseTo(1000 * 0.01 * 8 * AUTO_CLICK_VALUE_MIN);
     const kittenPlain = before.find((c) => c.name === 'Kitten helpers')!.dCps;
 
     // with 10% of the CpS on every click, the kitten's extra CpS also lands on every click
     game.upgrades = [{ name: 'Mouse x10', bought: 1, desc: 'Clicking gains <b>+10% of your CpS</b>.' } as GameUpgrade];
     const kittenMouse = collect(game).cands.find((c) => c.name === 'Kitten helpers')!.dCps;
-    expect(kittenMouse).toBeCloseTo(kittenPlain * (1 + 0.1 * 8 * 7));
+    expect(kittenMouse).toBeCloseTo(kittenPlain * (1 + 0.1 * 8 * AUTO_CLICK_VALUE_MIN));
+
+    // the setting "Auto: priority boost clicking/kitty upgrades (x)" sets the boost
+    const boosted = collect(game, 7).cands;
+    expect(boosted.find((c) => c.name === 'Plastic mouse')!.dCps).toBeCloseTo(1000 * 0.01 * 8 * 7);
+    expect(boosted.find((c) => c.name === 'Kitten helpers')!.dCps).toBeCloseTo(kittenPlain * (1 + 0.1 * 8 * 7));
   });
 });

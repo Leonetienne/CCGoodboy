@@ -126,8 +126,8 @@ export const AUTO_PREF_WIZARD = 1;
  * next one costs next to nothing (insignificant, AUTO-4 A); before that they compete on
  * payback like any building, so the target can't hold back the next building tier. */
 export const AUTO_WIZARD_PREF_SHARE = 0.93;
-/** Impact bias (AUTO-4): an ordinary purchase adding less than this share of the CpS counts
- * its payback as longer, × (this share / its impact): +0.05% CpS counts 10× slower. Every
+/** Impact bias (AUTO-4): a purchase (preferred ones too; only insignificant ones are exempt)
+ * adding less than this share of the CpS counts its payback as longer, × (this share / its impact): +0.05% CpS counts 10× slower. Every
  * purchase costs a trip of the paw and a pause in hammering, and a flood of tiny ones keeps it
  * from the big ones. In the simulation: no slower CpS growth, 37% fewer purchases. */
 export const AUTO_IMPACT_REF = 0.005;
@@ -171,9 +171,10 @@ export function autoStripHtml(s: unknown): string {
  * the paw hammers every one, CF-1) a click is worth 777 normal ones. A golden cookie turns into
  * one ~4% of the time (the game's 10% chance to join a list of ~2-3 effects), every ~10 min
  * (halved by Lucky day and by Serendipity), so clicks are worth 1 + 776 x that share of time;
- * never less than AUTO_CLICK_VALUE_MIN (the bot's own FTHOF casts add more Click Frenzies on
- * top). Used for everything valued by clicking: cursor doublers, fingers, mouse upgrades, and
+ * never less than the setting "Auto: priority boost clicking/kitty upgrades (x)"
+ * (`autoClickBoost`, default AUTO_CLICK_VALUE_MIN; the bot's own FTHOF casts add more Click
+ * Frenzies on top). Used for everything valued by clicking: cursor doublers, fingers, mouse upgrades, and
  * the kittens' boost through the mouse upgrades (AUTO-3). */
 export const AUTO_CLICK_FRENZY_CHANCE = 0.04;
 export const AUTO_GOLDEN_INTERVAL_SEC = 600;
-export const AUTO_CLICK_VALUE_MIN = 7;
+export const AUTO_CLICK_VALUE_MIN = 2;

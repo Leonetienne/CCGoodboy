@@ -35,7 +35,7 @@ export interface Decision {
  *   payback = cost / dCps      seconds until it has paid for itself
  *   wait    = time to afford it at the current income (CpS + clicking), after the reserve
  *   pp      = wait + payback   seconds from NOW until it has paid for itself
- * except that an ordinary purchase (not preferred, not insignificant) adding less than
+ * except that a purchase (preferred or not, but not insignificant) adding less than
  * AUTO_IMPACT_REF (0.5%) of the CpS counts its payback × (0.5% / its impact) everywhere below
  * (`score`): every purchase costs a trip of the paw and a pause in hammering, so the big
  * purchases win over a flood of tiny ones (no slower CpS growth in the simulation, 37% fewer
@@ -53,7 +53,7 @@ export interface Decision {
  *      Wizard towers below their target once >= 93% of it is owned or while insignificant;
  *      AUTO-4 B) are bought the moment they are affordable.
  *   2) The target to save for: the not-yet-affordable option with the lowest pp. The click
- *      upgrades get there on their value, which counts the Click Frenzies (AUTO-3, x7 and
+ *      upgrades get there on their value, which counts the Click Frenzies (AUTO-3, x2 and
  *      more) and grows with the CpS, so the buildings bought meanwhile make them the target
  *      soon enough. An achievement top-off (AUTO-15) is never a target.
  *   3) An ordinary affordable purchase is bought on the way when it pays for itself before
@@ -79,7 +79,7 @@ export function autoDecide(cands: PurchaseCandidate[], ctx: AutoCollectCtx): Dec
     const insignificant = whole <= cfg.insignificantShare * Math.max(0, avail);
     const pref = c.pref === AUTO_PREF_WIZARD && !c.nearTarget && !insignificant ? 0 : c.pref ?? 0;
     const impact = c.dCps / cpsEff;
-    const score = pref > 0 || insignificant ? payback : payback * Math.max(1, AUTO_IMPACT_REF / impact);
+    const score = insignificant ? payback : payback * Math.max(1, AUTO_IMPACT_REF / impact);
 
     rows.push({
       c,

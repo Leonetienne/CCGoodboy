@@ -691,8 +691,10 @@ action log (UI-6); nothing here is stored.
   click gain even with 0 cursors. The factor is 1 + 776 × the share of time
   a Click Frenzy runs (a golden cookie turns into one ~4% of the time,
   `AUTO_CLICK_FRENZY_CHANCE`, every ~10 min, halved by Lucky day and by
-  Serendipity, for `estimateClickFrenzySec()`), at least ×7
-  (`AUTO_CLICK_VALUE_MIN`: the bot's FTHOF casts add more frenzies), since
+  Serendipity, for `estimateClickFrenzySec()`), at least "Auto: priority
+  boost clicking/kitty upgrades (x)" (`autoClickBoost`, default ×2,
+  1-777: the bot's FTHOF casts add more frenzies; higher makes the bot save
+  up for these upgrades sooner), since
   every Click Frenzy multiplies click power ×777 and the paw hammers each
   one. It covers the cursor doublers, the fingers series, the mouse
   upgrades, the Cookie egg and Santa's helpers; the kittens also get the
@@ -715,8 +717,8 @@ action log (UI-6); nothing here is stored.
   covering it the target is reached after (T − bank + cost)/(income +
   dCps) instead of (T − bank)/income, sooner exactly when payback < the
   target's wait). Each tick:
-  Impact bias: an ordinary purchase (not preferred, not insignificant)
-  adding less than 0.5% of the CpS (`AUTO_IMPACT_REF`) counts its payback
+  Impact bias: a purchase (preferred ones too; only insignificant ones are
+  exempt) adding less than 0.5% of the CpS (`AUTO_IMPACT_REF`) counts its payback
   × (0.5% / its impact) in everything below (`DecisionRow.score`; +0.05%
   CpS counts 10× slower), since every purchase costs a trip of the paw and
   a pause in hammering: the lower tiers' tiny gains no longer keep the paw
@@ -739,7 +741,7 @@ action log (UI-6); nothing here is stored.
   building, so the target can't hold back the next building tier.
   (C) The target to save for: the not-yet-affordable option with the
   lowest pp, however far off. The click upgrades get there on their value,
-  which counts the Click Frenzies (AUTO-3, ×7 and more) and grows with the
+  which counts the Click Frenzies (AUTO-3, ×2 and more) and grows with the
   CpS. An achievement top-off (AUTO-15) is never a target. An ordinary
   affordable purchase is bought when it pays for itself before the target
   would (its score < the target's pp): that covers everything that pays back
@@ -754,7 +756,7 @@ action log (UI-6); nothing here is stored.
   the stock trader's budget, STOCK-4) only while it is in reach; a far-off
   one still decides what is held back. Checked in a simulated run from 0
   cookies to 10M CpS (`tests/unit/strategy-sim.test.ts`, with the cursor
-  and mouse upgrades valued ×7): every CpS goal is reached at least as fast
+  and mouse upgrades valued ×2): every CpS goal is reached at least as fast
   as by buying the best payback at once or the cheapest thing (1M CpS in
   ~4.3h instead of ~20h). Every other greedy variant tried (payback order,
   buying only the lowest pp, preferred not first) lands within 0.3% of it;
@@ -1850,6 +1852,7 @@ saved (see `normalizeSetting()` in
 | `autoWizardTowerTarget` | Auto: wizard tower target | 57 | 0-500 |
 | `autoHammer` | Auto: manage hammering [checkbox] | true | – |
 | `autoHammerMinShare` | Auto: hammer when clicks add >= (× CpS) | 0.05 | 0-1000 |
+| `autoClickBoost` | Auto: priority boost clicking/kitty upgrades (x) (AUTO-3) | 2 | 1-777 |
 | `autoProbeIntervalSec` | Auto: probe hammering every (s, 0=never) | 300 | 0-86400 |
 | `autoProbeSec` | Auto: probe length (s) | 10 | 2-120 |
 | `autoWrinklerMaturity` | Auto: pop a wrinkler after (x its respawn time) | 5 | 1-50 |
@@ -2197,6 +2200,17 @@ mouse while the bot runs and confirm the "+N" number follows your cursor,
 not the paw's).
 
 ## 12. Changelog
+
+- **5.8.30** Auto play no longer saves for far-off clicking and kitten
+  upgrades while cheaper progress waits (a 50 billion upgrade held back
+  purchases for 2 billion). Every click was valued at least ×7 for the
+  Click Frenzies, which also inflated the kittens through the mouse
+  upgrades; that floor is now the setting "Auto: priority boost
+  clicking/kitty upgrades (x)" (`autoClickBoost`, default 2, 1-777;
+  `clickFrenzyFactor(game, min)`, AUTO-3). The impact bias (AUTO-4) now
+  applies to preferred upgrades too, so their tiny gains no longer skip it.
+  Unit tests in `tests/unit/heavenly-unlocks.test.ts` and
+  `tests/unit/normalize-setting.test.ts`.
 
 - **5.8.29** New debug tool "Game speed x100 (on/off)" (DBG-25): runs
   `Game.Logic` 100 times per frame, so a test save plays hours in minutes.

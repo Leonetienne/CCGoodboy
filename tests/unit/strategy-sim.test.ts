@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { AutoCollectCtx, PurchaseCandidate } from '../../src/autoplay/collector';
 import { autoDecide } from '../../src/autoplay/strategy';
-import { AUTO_PREF_GOLDEN } from '../../src/autoplay/valuation-tables';
+import { AUTO_CLICK_VALUE_MIN, AUTO_PREF_GOLDEN } from '../../src/autoplay/valuation-tables';
 
 /* A small, deterministic Cookie Clicker: the game's buildings (base price, base CpS, price x1.15
  * per copy), their "twice as efficient" tier upgrades at 1/5/25/50/100 owned (10x/50x/500x/
@@ -34,7 +34,7 @@ const CURSOR_UPS: [string, number, number][] = [
   ['Ambidextrous', 10000, 10],
 ];
 const CLICKS_PER_SEC = 8;
-/** "Clicking gains +1% of your CpS", valued like the bot does: x7 for the Click Frenzies. */
+/** "Clicking gains +1% of your CpS", valued like the bot does: x AUTO_CLICK_VALUE_MIN for the Click Frenzies. */
 const MICE: [string, number][] = [
   ['Plastic mouse', 50000],
   ['Iron mouse', 5e6],
@@ -88,7 +88,7 @@ function options(s: Sim): Buy[] {
   const mo = MICE[s.mice];
   if (mo) {
     out.push({
-      c: { kind: 'upgrade', type: 'click', name: mo[0], obj: obj(mo[0]), cost: mo[1], dCps: cps(s) * 0.01 * CLICKS_PER_SEC * 7, pref: AUTO_PREF_GOLDEN },
+      c: { kind: 'upgrade', type: 'click', name: mo[0], obj: obj(mo[0]), cost: mo[1], dCps: cps(s) * 0.01 * CLICKS_PER_SEC * AUTO_CLICK_VALUE_MIN, pref: AUTO_PREF_GOLDEN },
       apply: () => s.mice++,
     });
   }
