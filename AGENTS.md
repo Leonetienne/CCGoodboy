@@ -570,6 +570,15 @@ the paw clicks.
   than one fast tick for a trip; every click is re-planned right before it
   fires (STOCK-3), so a stale trade is simply dropped. Fails in red while
   the market is locked.
+- **DBG-25** Game speed x100 (on/off): the whole game runs 100× faster:
+  `Game.Logic` is wrapped to run 100 times per frame (the game's latency
+  catch-up calls run once, so a lagging page can't spiral into a freeze).
+  Everything the game counts in frames speeds up: CpS income, golden cookie
+  spawns and their lifespans, buffs, mana, research, the stock market;
+  what it times with the wall clock does not (sugar lumps, the garden, the
+  lump refill cooldown). The bot's own timing (paw, delays, click rates) is
+  unchanged, so it may miss short-lived shimmers. Clicking again, a reload
+  or `destroy()` puts the original `Game.Logic` back.
 ### 3.12 Console voice
 
 The bot talks in the browser console, in the same cute style as the UI
@@ -2188,6 +2197,11 @@ mouse while the bot runs and confirm the "+N" number follows your cursor,
 not the paw's).
 
 ## 12. Changelog
+
+- **5.8.29** New debug tool "Game speed x100 (on/off)" (DBG-25): runs
+  `Game.Logic` 100 times per frame, so a test save plays hours in minutes.
+  `IGameAdapter` gains `getGameSpeed()`/`setGameSpeed()`; `destroy()`
+  restores the normal speed. Unit tests in `tests/unit/game-adapter.test.ts`.
 
 - **5.8.28** Auto play leans towards purchases with a big CpS gain
   (AUTO-4): an ordinary purchase adding less than 0.5% of the CpS counts

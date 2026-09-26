@@ -61,6 +61,7 @@ export class FakeGameAdapter implements IGameAdapter {
   market: MarketSnapshot | null = null;
   marketTicks = 0;
   marketSpeed = 1;
+  gameSpeed = 1;
   garden: GardenSnapshot | null = null;
 
   isPresent(): boolean {
@@ -425,6 +426,14 @@ export class FakeGameAdapter implements IGameAdapter {
   setMarketSpeed(factor: number): void {
     if (!this.market) throw new Error('the stock market is not unlocked (Bank level 0)');
     this.marketSpeed = Math.max(1, factor);
+  }
+
+  getGameSpeed(): number {
+    return this.gameSpeed;
+  }
+
+  setGameSpeed(factor: number): void {
+    this.gameSpeed = Math.max(1, Math.round(factor));
   }
 
   crashMarket(): number {

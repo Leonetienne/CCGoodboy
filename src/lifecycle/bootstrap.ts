@@ -255,6 +255,13 @@ export class Bootstrap {
 
     this.deps.data.saveNow();
 
+    // DBG-25: don't leave the game sped up without the bot that switched it on
+    try {
+      if (this.deps.game.getGameSpeed() > 1) this.deps.game.setGameSpeed(1);
+    } catch {
+      // the game is gone already
+    }
+
     this.uiRoot?.destroy();
     this.updateChecker?.destroy();
 

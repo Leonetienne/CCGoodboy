@@ -159,7 +159,16 @@ export interface IGameAdapter {
    * game's own speed cheat; not saved by the game, so a reload is back to 1). Throws without a
    * market. */
   setMarketSpeed(factor: number): void;
+  /** How many times faster than normal the game's logic runs (1 = normal). */
+  getGameSpeed(): number;
+  /** Makes the whole game run `factor` times faster by running Game.Logic that many times per
+   * frame (DBG-25); 1 puts the original Game.Logic back. Not saved, so a reload is back to 1.
+   * Throws when Game.Logic is missing. */
+  setGameSpeed(factor: number): void;
 }
+
+/** Game.Logic wrapped by setGameSpeed() (DBG-25), remembering the original and its factor. */
+type SpedUpLogic = ((...args: unknown[]) => unknown) & { ccsbOriginal?: (...args: unknown[]) => unknown; ccsbSpeed?: number };
 
 export class GameAdapter implements IGameAdapter {
   isPresent(): boolean {
@@ -1040,6 +1049,36 @@ export class GameAdapter implements IGameAdapter {
     M.secondsPerTick = MARKET_SECONDS_PER_TICK / Math.max(1, factor);
     M.tickT = Math.min(Number(M.tickT) || 0, (Number(window.Game.fps) || 30) * M.secondsPerTick);
     M.toRedraw = 2;
+  }
+
+  getGameSpeed(): number {
+    const logic = window.Game?.Logic as SpedUpLogic | undefined;
+    return (logic && logic.ccsbSpeed) || 1;
+  }
+
+  setGameSpeed(factor: number): void {
+    const Game = window.Game;
+    const current = Game?.Logic as SpedUpLogic | undefined;
+    if (typeof current !== 'function') throw new Error('Game.Logic not found');
+
+    const original = current.ccsbOriginal || current;
+    const n = Math.max(1, Math.round(factor));
+    if (n === 1) {
+      Game.Logic = original;
+      return;
+    }
+
+    const sped: SpedUpLogic = function (this: unknown, ...args: unknown[]) {
+      // Game.Loop's latency catch-up calls (Game.catchupLogic = 1) run once: running them n times
+      // too would make a lagging frame lag even more, until the page freezes.
+      const runs = window.Game && window.Game.catchupLogic ? 1 : n;
+      let result: unknown;
+      for (let i = 0; i < runs; i++) result = original.apply(this, args);
+      return result;
+    };
+    sped.ccsbOriginal = original;
+    sped.ccsbSpeed = n;
+    Game.Logic = sped;
   }
 
   /** The Bank's minigame object, only once it has loaded (level >= 1). */

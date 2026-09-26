@@ -128,4 +128,39 @@ describe('GameAdapter', () => {
       expect(game.getMarketSpeed()).toBe(1);
     });
   });
+  describe('game speed (DBG-25)', () => {
+    it('runs Game.Logic n times per frame, once while catching up, and restores it', () => {
+      let calls = 0;
+      const logic = () => {
+        calls++;
+      };
+      const Game: any = { Logic: logic, catchupLogic: 0 };
+      (window as any).Game = Game;
+
+      expect(game.getGameSpeed()).toBe(1);
+
+      game.setGameSpeed(100);
+      expect(game.getGameSpeed()).toBe(100);
+      Game.Logic();
+      expect(calls).toBe(100);
+
+      Game.catchupLogic = 1;
+      Game.Logic();
+      expect(calls).toBe(101);
+
+      game.setGameSpeed(100); // switching on twice doesn't stack
+      Game.catchupLogic = 0;
+      Game.Logic();
+      expect(calls).toBe(201);
+
+      game.setGameSpeed(1);
+      expect(Game.Logic).toBe(logic);
+      expect(game.getGameSpeed()).toBe(1);
+    });
+
+    it('throws without Game.Logic', () => {
+      (window as any).Game = {};
+      expect(() => game.setGameSpeed(100)).toThrow(/Game.Logic/);
+    });
+  });
 });

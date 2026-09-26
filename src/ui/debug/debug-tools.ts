@@ -10,6 +10,9 @@ import { escapeHtml, formatNum } from '../format';
 /** How much faster "Stock market: speed x50" makes the market tick (DBG-24). */
 export const MARKET_DEBUG_SPEED = 50;
 
+/** How much faster "Game speed x100" makes the whole game run (DBG-25). */
+export const GAME_DEBUG_SPEED = 100;
+
 export interface DebugTool {
   label: string;
   run: () => string;
@@ -67,6 +70,7 @@ export class DebugTools {
       { label: 'Stock market: next tick now', run: () => this.marketTickNow() },
       { label: 'Stock market: crash prices', run: () => this.crashMarket() },
       { label: 'Stock market: speed x50 (on/off)', run: () => this.toggleMarketSpeed() },
+      { label: `Game speed x${GAME_DEBUG_SPEED} (on/off)`, run: () => this.toggleGameSpeed() },
       { label: 'Show update popup', run: () => this.showUpdatePopup() },
     ];
   }
@@ -85,6 +89,18 @@ export class DebugTools {
 
     this.game.setMarketSpeed(MARKET_DEBUG_SPEED);
     return `stock market ${MARKET_DEBUG_SPEED}x fast: a tick every ${(60 / MARKET_DEBUG_SPEED).toFixed(1)}s (click again or reload to stop)`;
+  }
+
+  /** DBG-25: the whole game runs 100x faster (Game.Logic 100 times a frame) until clicked
+   * again or reloaded. */
+  toggleGameSpeed(): string {
+    if (this.game.getGameSpeed() > 1) {
+      this.game.setGameSpeed(1);
+      return 'game speed back to normal';
+    }
+
+    this.game.setGameSpeed(GAME_DEBUG_SPEED);
+    return `game ${GAME_DEBUG_SPEED}x fast (click again or reload to stop)`;
   }
 
   private crashMarket(): string {
