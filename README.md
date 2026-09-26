@@ -1,3 +1,5 @@
+![The paw catching a golden cookie and celebrating afterwards](https://raw.githubusercontent.com/Leonetienne/CCGoodboy/refs/heads/master/github-assets/peace.png)
+
 # CC Good Boy
 
 ![The paw heading for a golden cookie during a Frenzy](https://raw.githubusercontent.com/Leonetienne/CCGoodboy/refs/heads/master/github-assets/hero.png)
