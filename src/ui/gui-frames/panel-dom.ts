@@ -137,6 +137,10 @@ function panelBodyHtml(version: string): string {
             <input id="ccsb-garden" type="checkbox">
             Tend the garden :3
         </label>
+        <label style="display:flex;gap:6px;align-items:center;margin-top:5px" title="With the heavenly upgrade &quot;Fortune cookies&quot; the news ticker sometimes shows a fortune for a few seconds. The paw clicks it: it unlocks a Fortune upgrade, spawns a golden cookie or gives an hour of CpS. Works with or without auto play.">
+            <input id="ccsb-fortunes" type="checkbox">
+            Click fortune cookies in the news :3
+        </label>
         <div class="ccsb-setting">
             <span>Happy dance length (ms, 0 = off)</span>
             <input data-setting="happyDanceMs" type="number" min="0" max="10000" step="100">

@@ -50,8 +50,8 @@ Buying is only done by the optional, OFF-by-default "Auto play" mode
 (AUTO-\*) and even then only through the game's own buy functions, and by
 the stock market trader (STOCK-\*, on by default), which only uses the
 market's own buttons. The bot
-NEVER clicks anything except: good golden cookies, reindeer (XMAS-6), the big cookie, the
-FTHOF spell button, the lump-refill button, a ripe sugar lump, the
+NEVER clicks anything except: good golden cookies, reindeer (XMAS-6), the big cookie, a fortune in the news
+ticker (FORTUNE-1), the FTHOF spell button, the lump-refill button, a ripe sugar lump, the
 Options/Stats menu buttons and the "View Grimoire" button needed to get the
 FTHOF spell on screen (FT-8), with "Play the stock market" the "View Stock
 Market" button, the market's buy/sell buttons and its "Hire" (broker)
@@ -266,6 +266,45 @@ refactor) which `tests/visual/scenarios.mjs` scenario exercises it.
   lump isn't there to click, and a ripe lump must not hold back the
   ascension at the tier below (ASC-10).
 
+### 3.5a Fortune cookies (the news ticker)
+
+With the heavenly upgrade "Fortune cookies" the game sometimes (2% of
+ticker lines, 4% with "O Fortuna") puts a fortune in the news ticker
+(`Game.TickerEffect.type === 'fortune'`) for ~10s, until the next line.
+Clicked, it unlocks a Fortune upgrade into the store (one not unlocked yet),
+spawns a golden cookie ("Today is your lucky day!", once per run) or gives
+one hour of CpS, capped at the bank ("Your lucky numbers are ...", once per
+run). Read from the game's `main.js` 2.058 (`getNewTicker`, the
+`#commentsText1` click handler).
+
+- **FORTUNE-1** The paw clicks every fortune it sees: it moves onto the
+  fortune text (`.fortune` inside `#commentsText1`, `src/game/ticker-dom.ts`)
+  and clicks it (a real synthetic click, NFR-8 a; `FortuneClickAction`,
+  `src/actions/fortune.ts`, module `FortuneCatcher`,
+  `src/hunting/fortune.ts`; `IGameAdapter.getTickerFortune()`). Not tied
+  to auto play: it runs with or without it. Opt-out via the basic setting
+  "Click fortune cookies in the news" (`fortunes`, DEFAULT ON); switched
+  off the paw never clicks the ticker. Priority: right above a ripe
+  sugar lump (`JOB_PRIORITY.FORTUNE`), below FTHOF/refill and a buff combo
+  (CF-7, whose hammering may let a fortune pass); it aborts for a golden
+  cookie or a Click Frenzy and when the fortune has gone (FT-4 pattern),
+  respects the click delay and pre-click pause, and never runs while
+  ascending or with a prompt open. A pending fortune stops idle play and
+  the dance like a ripe lump.
+- **FORTUNE-2** A click that took the fortune is counted
+  (`stats.fortunes`, "Fortunes cracked" in the HUD statistics once > 0),
+  logged (`"click fortune"` with what it gave) and says `"Cracked a fortune
+  cookie: Fortune #001!! ^w^"` (CON-1); one that didn't says so (CON-2).
+  The golden cookie it spawns is caught like any other (GC-\*).
+- **FORTUNE-3** Auto play buys the unlocked Fortune upgrades like any other
+  candidate (AUTO-2..4): Fortune #001-#017 (a building 7% more efficient
+  and 7% cheaper) are worth that building's CpS × 14% (the discount valued
+  like Faberge egg's, type `fortune`); #100 (+1%, 1% cheaper) and #101
+  (+7%) are flat multipliers; #103 is a kitten with milk factor 0.05
+  (`autoKittenFactor()`, also counted for achievements, AUTO-15); #104 is a
+  mouse upgrade (+1% of CpS per click); #102 (CpS while the game is closed)
+  gets the nominal 0.1% of CpS.
+
 ### 3.6 Scheduling and priority
 
 - **SCHED-1** Priority, highest first:
@@ -276,7 +315,8 @@ refactor) which `tests/visual/scenarios.mjs` scenario exercises it.
   2. real Click Frenzy clicking
   3. FTHOF cast (and its FT-8 preparation steps), then lump refill, then
      hammering through a buff combo (CF-7)
-  4. a ripe sugar lump (LUMP-\*)
+  4. a fortune in the news ticker (FORTUNE-1), then a ripe sugar lump
+     (LUMP-\*)
   5. a buildings-view recipe already under way / the "Show grimoire"
      debug goal (DBG-9/11), then the auto hammer's kick-off after the
      Heavenly key (AUTO-19), then auto play: an ascension under way on the
@@ -433,7 +473,8 @@ the paw clicks.
   settings" (or Enter) validates, clamps, applies and stores them at once.
 - **UI-11** Settings are split into "Basic" (what a nontechnical player
   would touch: the on/off switches for overlays, the hunting show, idle
-  play, keep-alive, FTHOF, lumps, the stock market and the garden, the stock budget,
+  play, keep-alive, FTHOF, lumps, the stock market, the garden and the
+  news fortunes, the stock budget,
   the dance length and the two opacities) and an "Advanced" section
   (timings, speeds, click rates, history/log sizes, the ascension tuning),
   a `<details>` collapsed by default. The auto play settings are split the
@@ -600,7 +641,8 @@ action log (UI-6); nothing here is stored.
   profit, stonks ^w^"` (STOCK-6); a harvest that unlocks a seed says
   `"Found a new seed: Thumbcorn!! ^w^"` (GARDEN-8); a butter biscuit top-up
   that worked says `"Unlocked the Milk chocolate butter biscuit, +10% CpS
-  ^w^"` (BUTTER-2).
+  ^w^"` (BUTTER-2); a clicked fortune says `"Cracked a fortune cookie:
+  Fortune #001!! ^w^"` (FORTUNE-2).
 - **CON-2** "Wanted to ..., but ..." lines (`console.log`) whenever the bot
   wants to do something and can't. Conditions re-checked every scheduler
   tick go through `sayCantWhile(wish, reasonCode, msg)`, which says each
@@ -622,7 +664,8 @@ action log (UI-6); nothing here is stored.
     Gardening wanted ("Tend the garden" on): no Farm, garden still locked
     (Farm level 0).
 
-  One-off events use `sayCant(msg)`: a golden cookie click that didn't pop
+  One-off events use `sayCant(msg)`: a fortune click that didn't take
+  (FORTUNE-2), a golden cookie click that didn't pop
   it (not for storm drops) or a reindeer that ran away, a FTHOF/refill/lump click that did nothing,
   FT-8 preparation falling back to a direct cast, the Grimoire unlock,
   wrinkler popping, a stock market click that did nothing or a view step
@@ -665,7 +708,8 @@ action log (UI-6); nothing here is stored.
 - **AUTO-2** Scope. It may buy ONLY: buildings; building upgrades that
   make a building "twice as efficient"; grandma "cofactor" upgrades
   (grandmas twice as efficient + 1% CpS of a building per N grandmas, also
-  recognised by their description); KITTEN upgrades; ALL cookie (biscuit)
+  recognised by their description); KITTEN upgrades; the Fortune upgrades
+  (FORTUNE-3); ALL cookie (biscuit)
   upgrades; every other flat "Cookie production multiplier +N%." upgrade
   (Wrinkler ambergris, Dragon scale, the eggs, ...); golden cookie upgrades (Lucky day, Serendipity, Get lucky,
   Lasting fortune, Lucky digit, Lucky number, Lucky payout, Green yeast
@@ -1951,6 +1995,7 @@ saved (see `normalizeSetting()` in
 | `stockMaxShare` | Stocks: invest at most (share of bank) (STOCK-4) | 0.5 | 0-1 |
 | `stockInvest` | ("Pause investments" button, stored; STOCK-9) | true | – |
 | `garden` | Tend the garden [checkbox] (GARDEN-1) | true | – |
+| `fortunes` | Click fortune cookies in the news [checkbox] (FORTUNE-1) | true | – |
 | `autoPlay` | (Auto play button, stored) | false | – |
 | `autoDryRun` | Auto play dry run (log only) [checkbox] | false | – |
 | `autoInsignificantShare` | Auto: insignificant cost (share of bank) | 0.001 | 0-1 |
@@ -2023,10 +2068,10 @@ gainLumps) — still guarded, still the only path to those `Game.*` calls.
 | Area | Path | Contents |
 |---|---|---|
 | Core state | `src/core/` | `constants.ts` (VERSION, clamp helpers), `console-voice.ts` (CON-\*), `persisted-data.ts`, `runtime-state.ts`, `state-machine.ts` |
-| Game facade | `src/game/` | `game-adapter.ts` (IGameAdapter + GameAdapter), `types.ts` (GameShimmer/RawBuff/CpsBuff/GrimoireMinigame/GameBuilding/GameUpgrade), `golden-cookie-model.ts` (fade curve, shimmer classification, GC-2/GC-3), `hurry-mode.ts` (HURRY-\*), `buffs-lock.ts` (LOCK_A, FT-6), `grimoire.ts` (FTHOF spell/cost lookup), `grimoire-dom.ts` (real Grimoire controls — FT-7), `market-dom.ts` (the stock market's trade and "Hire" buttons — STOCK-\*), `garden-dom.ts` (the garden's plot tiles, seeds and soils — GARDEN-\*), `lump-dom.ts` (`#lumps` control/centre — LUMP-\*), `wrinkler-dom.ts` (`#backgroundLeftCanvas`, a wrinkler's body point — WRINK-5), `dragon-dom.ts` (the special tabs on the left canvas, `#specialPopup`, the aura picker, Santa's "Evolve" button — KRUMB-3/XMAS-4), `buildings-view-dom.ts` (`#centerArea`, menu buttons, building rows/level buttons, the Options/Stats/Stats recipe, `centeredScrollTop` — AUTO-13), `reindeer.ts` (a reindeer's predicted path and the paw's meeting point — XMAS-6), `ascension-dom.ts` (the Legacy button, the Ascend/Reincarnate prompts, heavenly crates, the Reincarnate button, how far to drag the tree — ASC-10; the permanent slot picker — ASC-16), `store-dom.ts` (the collapsible upgrade store sections, opened while the paw is there — AUTO-9), `dom-geometry.ts` (visibleRect/looseRect/clippedByAncestor — shared by every overlay box, GC-2/BUY-3) |
+| Game facade | `src/game/` | `game-adapter.ts` (IGameAdapter + GameAdapter), `types.ts` (GameShimmer/RawBuff/CpsBuff/GrimoireMinigame/GameBuilding/GameUpgrade), `golden-cookie-model.ts` (fade curve, shimmer classification, GC-2/GC-3), `hurry-mode.ts` (HURRY-\*), `buffs-lock.ts` (LOCK_A, FT-6), `grimoire.ts` (FTHOF spell/cost lookup), `grimoire-dom.ts` (real Grimoire controls — FT-7), `market-dom.ts` (the stock market's trade and "Hire" buttons — STOCK-\*), `garden-dom.ts` (the garden's plot tiles, seeds and soils — GARDEN-\*), `lump-dom.ts` (`#lumps` control/centre — LUMP-\*), `ticker-dom.ts` (the news ticker's fortune — FORTUNE-1), `wrinkler-dom.ts` (`#backgroundLeftCanvas`, a wrinkler's body point — WRINK-5), `dragon-dom.ts` (the special tabs on the left canvas, `#specialPopup`, the aura picker, Santa's "Evolve" button — KRUMB-3/XMAS-4), `buildings-view-dom.ts` (`#centerArea`, menu buttons, building rows/level buttons, the Options/Stats/Stats recipe, `centeredScrollTop` — AUTO-13), `reindeer.ts` (a reindeer's predicted path and the paw's meeting point — XMAS-6), `ascension-dom.ts` (the Legacy button, the Ascend/Reincarnate prompts, heavenly crates, the Reincarnate button, how far to drag the tree — ASC-10; the permanent slot picker — ASC-16), `store-dom.ts` (the collapsible upgrade store sections, opened while the paw is there — AUTO-9), `dom-geometry.ts` (visibleRect/looseRect/clippedByAncestor — shared by every overlay box, GC-2/BUY-3) |
 | Cursor (queue) | `src/cursor/` | `types.ts` (`JOB_PRIORITY`, `CursorAction`, `CursorJob`, `CursorJobContext`, `CursorMover`, `CursorClickTiming`, `JobRequest`), `cursor-manager.ts` (owns the priority queue + all cursor motion: click gap → travel → pre-click pause → `cursor_at_position`, dedup by key, preemption, single cursor writer) |
-| Actions | `src/actions/` | `click-element.ts` (ClickElementAction/MoveAction/VisualPressAction), `golden-cookie.ts` (GoldenCookieAction, `effectPrettyName`), `hammer.ts` (HammerAction + big-cookie point helpers, CF-\*), `fthof.ts` (FthofAction/RefillAction), `lump-harvest.ts` (LumpHarvestAction, LUMP-\*), `buildings-view.ts` (MenuButtonAction, ScrollIntoViewAction, MinigameButtonAction — FT-8/AUTO-13/DBG-9..11), `minigame-unlock.ts` (MinigameUnlockAction: a building's "lvl" click that unlocks its minigame), `grimoire-unlock.ts` (GrimoireUnlockAction, AUTO-13), `market.ts` (MarketClickAction: one click on a stock market button, STOCK-\*), `garden.ts` (GardenClickAction: one click on a garden tile, seed or soil, GARDEN-\*), `wrinkler-pop.ts` (WrinklerPopAction, WRINK-5), `krumblor.ts` (DragonClickAction/DragonStoreAction, KRUMB-3; Santa's and the ascension's clicks reuse DragonClickAction, XMAS-4/ASC-10), `ascension.ts` (WaitWhileAction, DragTreeAction — ASC-10), `achievement-dump.ts` (AchievementDumpAction: buying a building copy by copy for its achievement — ASC-13), `store-visit.ts` (`enterStoreElement`: the paw opening an upgrade's store section and moving onto the crate, AUTO-9), `dance.ts` (DanceAction + `danceEligible`/`anyGoldenPresent`/`getDanceMs`), `ponder.ts` (PonderAction), `idle.ts` (IdleWanderAction + `IDLE_SPOTS`/`pickIdleSpot`) |
-| Hunting (modules) | `src/hunting/` | `click-golden.ts` (golden hunter: `jobFor` → GoldenCookieAction), `click-big-cookie.ts` (hammer module: `job` → HammerAction), `golden-queue.ts` (route caching, wraps route-planner), `fthof.ts` (FthofActions: `fthofOrRefillPending` + `castJob`/`refillJob`), `lump-harvest.ts` (LumpHarvestActions: `pending` + `harvestJob`), `happy-dance.ts` (HappyDance: `job` → DanceAction), `buildings-view.ts` (BuildingsViewNavigator: Options/Stats/Stats recipe + scroll-into-view steps, `PrepStep`), `minigame-view.ts` (MinigameView: step planner to a building's unlocked/open, on-screen minigame — shared by the Grimoire and the stock market), `grimoire-view.ts` (GrimoireView: the Wizard tower's MinigameView for FT-8/AUTO-13, plus the DBG-9..11 tools and their scheduler tier), `hitbox-overlay.ts` (GC-2) |
+| Actions | `src/actions/` | `click-element.ts` (ClickElementAction/MoveAction/VisualPressAction), `golden-cookie.ts` (GoldenCookieAction, `effectPrettyName`), `hammer.ts` (HammerAction + big-cookie point helpers, CF-\*), `fthof.ts` (FthofAction/RefillAction), `lump-harvest.ts` (LumpHarvestAction, LUMP-\*), `fortune.ts` (FortuneClickAction, FORTUNE-\*), `buildings-view.ts` (MenuButtonAction, ScrollIntoViewAction, MinigameButtonAction — FT-8/AUTO-13/DBG-9..11), `minigame-unlock.ts` (MinigameUnlockAction: a building's "lvl" click that unlocks its minigame), `grimoire-unlock.ts` (GrimoireUnlockAction, AUTO-13), `market.ts` (MarketClickAction: one click on a stock market button, STOCK-\*), `garden.ts` (GardenClickAction: one click on a garden tile, seed or soil, GARDEN-\*), `wrinkler-pop.ts` (WrinklerPopAction, WRINK-5), `krumblor.ts` (DragonClickAction/DragonStoreAction, KRUMB-3; Santa's and the ascension's clicks reuse DragonClickAction, XMAS-4/ASC-10), `ascension.ts` (WaitWhileAction, DragTreeAction — ASC-10), `achievement-dump.ts` (AchievementDumpAction: buying a building copy by copy for its achievement — ASC-13), `store-visit.ts` (`enterStoreElement`: the paw opening an upgrade's store section and moving onto the crate, AUTO-9), `dance.ts` (DanceAction + `danceEligible`/`anyGoldenPresent`/`getDanceMs`), `ponder.ts` (PonderAction), `idle.ts` (IdleWanderAction + `IDLE_SPOTS`/`pickIdleSpot`) |
+| Hunting (modules) | `src/hunting/` | `click-golden.ts` (golden hunter: `jobFor` → GoldenCookieAction), `click-big-cookie.ts` (hammer module: `job` → HammerAction), `golden-queue.ts` (route caching, wraps route-planner), `fthof.ts` (FthofActions: `fthofOrRefillPending` + `castJob`/`refillJob`), `lump-harvest.ts` (LumpHarvestActions: `pending` + `harvestJob`), `fortune.ts` (FortuneCatcher: `pending` + `job`, FORTUNE-1), `happy-dance.ts` (HappyDance: `job` → DanceAction), `buildings-view.ts` (BuildingsViewNavigator: Options/Stats/Stats recipe + scroll-into-view steps, `PrepStep`), `minigame-view.ts` (MinigameView: step planner to a building's unlocked/open, on-screen minigame — shared by the Grimoire and the stock market), `grimoire-view.ts` (GrimoireView: the Wizard tower's MinigameView for FT-8/AUTO-13, plus the DBG-9..11 tools and their scheduler tier), `hitbox-overlay.ts` (GC-2) |
 | Routing | `src/routing/route-planner.ts` | `exactRoute` (Held-Karp DP, <= 11 cookies), `heuristicRoute` (nearest-neighbor + 2-opt/Or-opt + restarts), `planRoute` (GC-5) |
 | Idle | `src/idle/` | `idle-behavior.ts` (IdleBehavior module: `idleJob` → IdleWanderAction), `pending-work.ts` (conditions + queue state via `CursorManager.hasJobsAbove` — the shared "is anything more important pending?" predicate) |
 | Input synthesis | `src/input/` | `dispatch.ts` (dispatchMouse/dispatchMove — MOUSE-\*), `human-click.ts` (ClickTiming: delays, waitUntil, humanClick), `cursor-controller.ts` (CursorController: low-level PAW-4 arc/spline/warp travel, moveCursorTo/glideCursor — the only file that writes `runtime.cursor.x/y`), `background-clock.ts` (BackgroundClock: BG-1/BG-2 worker timer), `keep-alive.ts` (BG-3) |
@@ -2082,6 +2127,7 @@ target)`) instead of scattering direct field writes across every task.
 | `fthof` | casting Force the Hand of Fate (FT-1) | `FthofAction` |
 | `grimoire-refill` | spending a sugar lump on mana (FT-3) | `RefillAction` |
 | `lump-harvest` | harvesting a ripe sugar lump (LUMP-1) | `LumpHarvestAction` |
+| `fortune` | clicking a fortune in the news ticker (FORTUNE-1) | `FortuneClickAction` |
 | `buildings-view` | clicking Options/Stats back to the buildings, scrolling `#centerArea`, or clicking "View Grimoire" / "View Stock Market" / "View Garden" (FT-8, AUTO-13, AUTO-16, AUTO-17, STOCK-5, GARDEN-7, DBG-9..11) | `MenuButtonAction` / `ScrollIntoViewAction` / `MinigameButtonAction` |
 | `grimoire-unlock` | spending a sugar lump on Wizard tower level 1 (AUTO-13) | `GrimoireUnlockAction` |
 | `bank-unlock` | spending a sugar lump on Bank level 1 (AUTO-16) | `MinigameUnlockAction` (from `BankUnlocker`) |
@@ -2115,8 +2161,8 @@ file.**
 
 Three layers, each catching a different class of bug:
 
-1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 647 tests
-   across 55 files. Pure functions (route planner, `autoDecide`, the chart
+1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 656 tests
+   across 56 files. Pure functions (route planner, `autoDecide`, the chart
    engine, `normalizeSetting`) are tested directly with plain data; the
    cursor queue/actions have their own fake mover/timing tests. Classes
    that depend on the game are tested against `FakeGameAdapter`
@@ -2306,6 +2352,22 @@ mouse while the bot runs and confirm the "+N" number follows your cursor,
 not the paw's).
 
 ## 12. Changelog
+
+- **5.8.46** Clicking the news fortunes (FORTUNE-1) can be switched off:
+  new basic setting "Click fortune cookies in the news" (`fortunes`, on by
+  default). It runs with or without auto play, as before. Unit test in
+  `tests/unit/fortune.test.ts`.
+
+- **5.8.45** Fortune cookies (FORTUNE-\*): the paw clicks every fortune
+  in the news ticker (a Fortune upgrade, a golden cookie or an hour of
+  CpS), right above a ripe sugar lump, and auto play buys the Fortune
+  upgrades it unlocks: #001-#017 (a building 7% more efficient and 7%
+  cheaper, type `fortune`) and #103 (a kitten, `autoKittenFactor()`) were
+  never classified before, #102 gets a nominal value. New
+  `FortuneCatcher`, `FortuneClickAction`, `src/game/ticker-dom.ts`,
+  `IGameAdapter.getTickerFortune()`, `JOB_PRIORITY.FORTUNE`, mood
+  `fortune`, stat "Fortunes cracked". Unit tests in
+  `tests/unit/fortune.test.ts` and `tests/unit/priority.test.ts`.
 
 - **5.8.44** Fixed: the whole game froze on the ascension screen at a
   level with four 7s. Once a lucky upgrade was on the shopping list

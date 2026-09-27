@@ -28,6 +28,8 @@ export interface Config {
   stockMaxShare: number;
   stockInvest: boolean;
   garden: boolean;
+  /** Click fortunes in the news ticker (FORTUNE-1). */
+  fortunes: boolean;
   ascendLuckyWaitSec: number;
   ascendMinBoost: number;
   ascendShopWaitSec: number;
@@ -59,6 +61,8 @@ export interface Stats {
   fthofCasts: number;
   grimoireRefills: number;
   lumpHarvests: number;
+  /** Fortunes clicked in the news ticker (FORTUNE-2). */
+  fortunes: number;
   autoBuys: number;
   wrinklersPopped: number;
   ascensions: number;
@@ -150,6 +154,7 @@ export const DEFAULTS: PersistedState = {
     stockMaxShare: 0.5,
     stockInvest: true,
     garden: true,
+    fortunes: true,
     ascendLuckyWaitSec: 86400,
     ascendMinBoost: 2,
     ascendShopWaitSec: 21600,
@@ -180,6 +185,7 @@ export const DEFAULTS: PersistedState = {
     fthofCasts: 0,
     grimoireRefills: 0,
     lumpHarvests: 0,
+    fortunes: 0,
     autoBuys: 0,
     wrinklersPopped: 0,
     ascensions: 0,

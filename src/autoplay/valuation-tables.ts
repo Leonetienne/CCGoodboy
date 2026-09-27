@@ -104,7 +104,21 @@ export const AUTO_KITTEN_POWER: Record<string, number> = {
   'kitten executives': 0.115,
   'kitten admins': 0.11,
   'kitten strategists': 0.105,
+  // a fortune upgrade (FORTUNE-3): catMult *= 1 + milk x 0.05
+  'fortune #103': 0.05,
 };
+
+/** Milk factor of a kitten upgrade ("Kitten ..." or Fortune #103), null for anything else. */
+export function autoKittenFactor(name: unknown): number | null {
+  const n = String(name).toLowerCase();
+  if (Object.prototype.hasOwnProperty.call(AUTO_KITTEN_POWER, n)) return AUTO_KITTEN_POWER[n]!;
+  return /^kitten /.test(n) ? 0.1 : null;
+}
+
+/** Fortune upgrades (FORTUNE-3) worth nothing the bot can measure: Fortune #102 (more CpS
+ * while the game is closed) gets the nominal 0.1% of CpS, so it is still considered. */
+export const AUTO_FORTUNE_NOMINAL = new Set(['Fortune #102']);
+export const AUTO_FORTUNE_NOMINAL_SHARE = 0.001;
 
 /** Upper limits per building for the auto player: it never buys more than this many of them.
  * 57 Wizard towers is the sweet spot for mana, more only makes spells pricier. The wizard

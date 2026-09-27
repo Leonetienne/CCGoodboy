@@ -20,6 +20,7 @@ import type { GoldenQueueItem } from '../hunting/golden-queue';
 import type { GrimoireView } from '../hunting/grimoire-view';
 import type { HappyDance } from '../hunting/happy-dance';
 import type { LumpHarvestActions } from '../hunting/lump-harvest';
+import type { FortuneCatcher } from '../hunting/fortune';
 import type { IdleBehavior } from '../idle/idle-behavior';
 import type { StockTrader } from '../market/stock-trader';
 import type { Gardener } from '../garden/gardener';
@@ -34,6 +35,8 @@ export interface PriorityDeps {
   clickBigCookie: ClickBigCookieTask;
   fthof: FthofActions;
   lumpHarvest: LumpHarvestActions;
+  /** Fortunes in the news ticker (FORTUNE-1). */
+  fortune?: FortuneCatcher;
   grimoireView: GrimoireView;
   ascension: AscensionRunner;
   grimoireUnlock: GrimoireUnlocker;
@@ -61,7 +64,8 @@ export interface PriorityDeps {
  *   3 FTHOF, else refill     -> FthofAction / RefillAction (only outside Click Frenzy); FTHOF
  *                               first gets the Grimoire on screen (FT-8, GrimoireView steps)
  *     then a buff combo      -> HammerAction (CF-7: >= 2 positive buffs; nothing below runs)
- *   4 ripe sugar lump        -> LumpHarvestAction (harvest before the game auto-harvests it)
+ *   4 a fortune in the news  -> FortuneClickAction (FORTUNE-1: gone after ~10s)
+ *     ripe sugar lump        -> LumpHarvestAction (harvest before the game auto-harvests it)
  *   5 a started buildings-view recipe / "Show grimoire" debug goal, then the auto hammer's
  *     kick-off after the Heavenly key (AUTO-19: HammerAction), then auto play: ascend
  *     (ASC-10), unlock the Grimoire, unlock the stock market, unlock the garden, train
@@ -82,7 +86,7 @@ export interface PriorityDeps {
  * still falls through to lump harvest/auto-shop/hammer/dance/idle below it, exactly as the
  * original did. */
 export function selectJobRequest(deps: PriorityDeps): JobRequest | null {
-  const { queue, buffs, runtime, data, game, clickGolden, clickBigCookie, fthof, lumpHarvest, grimoireView, ascension, grimoireUnlock, bankUnlock, farmUnlock, krumblor, santa, butterBiscuit, stockTrader, gardener, autoPlay, wrinklerPopper, happyDance, idleBehavior, hammerActive, hammerKick } = deps;
+  const { queue, buffs, runtime, data, game, clickGolden, clickBigCookie, fthof, lumpHarvest, fortune, grimoireView, ascension, grimoireUnlock, bankUnlock, farmUnlock, krumblor, santa, butterBiscuit, stockTrader, gardener, autoPlay, wrinklerPopper, happyDance, idleBehavior, hammerActive, hammerKick } = deps;
 
   let job: JobRequest | null = null;
 
@@ -131,6 +135,11 @@ export function selectJobRequest(deps: PriorityDeps): JobRequest | null {
   if (!job && !game.clickFrenzyActive() && buffComboActive(game)) {
     if (Date.now() < runtime.nextBigClickAt - BIG_CLICK_LEAD_MS) return null;
     return clickBigCookie.job();
+  }
+
+  // A fortune in the news ticker (FORTUNE-1): it only stays ~10s.
+  if (!job && fortune && fortune.pending()) {
+    job = fortune.job();
   }
 
   // A ripe sugar lump, below FTHOF/refill, above auto-shop.

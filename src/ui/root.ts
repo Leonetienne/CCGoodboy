@@ -142,6 +142,7 @@ export class UiRoot {
     bindCheckbox('ccsb-spend-lumps', data.config.spendLumps !== false);
     bindCheckbox('ccsb-stock-market', data.config.stockMarket !== false);
     bindCheckbox('ccsb-garden', data.config.garden !== false);
+    bindCheckbox('ccsb-fortunes', data.config.fortunes !== false);
     bindCheckbox('ccsb-auto-hammer', data.config.autoHammer !== false);
     bindCheckbox('ccsb-auto-grandmapocalypse', data.config.autoGrandmapocalypse !== false);
     bindCheckbox('ccsb-auto-pop-wrinklers', data.config.autoPopWrinklers !== false);

@@ -80,6 +80,10 @@ export interface GameUpgrade {
   buildingTie?: GameBuilding | null;
 }
 
+/** A fortune in the news ticker (Game.TickerEffect, FORTUNE-1): an upgrade it unlocks, a
+ * golden cookie ("Today is your lucky day!") or an hour of CpS ("Your lucky numbers are"). */
+export type TickerFortune = { kind: 'upgrade'; name: string } | { kind: 'golden' } | { kind: 'cps' };
+
 /** One slot of Game.wrinklers. `phase` 0 = empty slot, 1 = crawling in, 2 = attached and
  * digesting. `x`/`y` are the anchor on #backgroundLeftCanvas (canvas pixels, near the big
  * cookie); `r` is the angle around the cookie in degrees. `type` 1 = shiny. */

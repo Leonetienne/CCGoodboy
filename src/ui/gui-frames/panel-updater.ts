@@ -151,6 +151,7 @@ export class PanelUpdater {
       `<span>FTHOF casts ^w^</span><b>${this.data.stats.fthofCasts}</b>`,
       `<span>Grimoire refills :3</span><b>${this.data.stats.grimoireRefills}</b>`,
       `<span>Sugar lumps harvested :3</span><b>${this.data.stats.lumpHarvests || 0}</b>`,
+      ...(this.data.stats.fortunes ? [`<span>Fortunes cracked :3</span><b>${this.data.stats.fortunes}</b>`] : []),
       ...(this.data.stats.ascensions ? [`<span>Ascensions ^w^</span><b>${this.data.stats.ascensions}</b>`] : []),
       ...(this.data.stats.stockTrades
         ? [

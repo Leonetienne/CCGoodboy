@@ -25,6 +25,7 @@ import { GrimoireView } from './hunting/grimoire-view';
 import { GoldenQueue } from './hunting/golden-queue';
 import { danceEligible, HappyDance } from './hunting/happy-dance';
 import { LumpHarvestActions } from './hunting/lump-harvest';
+import { FortuneCatcher } from './hunting/fortune';
 import { IdleBehavior } from './idle/idle-behavior';
 import { StockTrader } from './market/stock-trader';
 import { Gardener } from './garden/gardener';
@@ -77,7 +78,9 @@ const fthof = new FthofActions(runtime, game, stats, log, isGoodGoldenReady, gri
 const fthofOrRefillPending = () => fthof.fthofOrRefillPending();
 
 const lumpHarvest = new LumpHarvestActions(runtime, game, stats, log, isGoodGoldenReady);
-const lumpHarvestPending = () => lumpHarvest.pending();
+const fortune = new FortuneCatcher(runtime, data, game, stats, log, isGoodGoldenReady);
+// a ripe lump or a fortune in the news (FORTUNE-1): both stop idle play and the dance
+const lumpHarvestPending = () => lumpHarvest.pending() || fortune.pending();
 
 const autoPlay = new AutoPlayEngine(
   runtime,
@@ -172,6 +175,7 @@ const scheduler = new Scheduler(runtime, game, log, buffLock, goldenCookieModel,
   clickBigCookie,
   fthof,
   lumpHarvest,
+  fortune,
   grimoireView,
   ascension: ascensionRunner,
   grimoireUnlock,

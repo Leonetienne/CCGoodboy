@@ -13,7 +13,6 @@ import {
   AUTO_BUILDING_CAPS,
   AUTO_CURSOR_DOUBLERS,
   AUTO_ESCALATION_NAMES,
-  AUTO_KITTEN_POWER,
   AUTO_NON_STORE_POOLS,
   AUTO_BINGO_CENTER,
   AUTO_PREF_BINGO,
@@ -24,6 +23,7 @@ import {
   AUTO_WIZARD_PREF_SHARE,
   AUTO_RESEARCH,
   AUTO_STAGE1_NAME,
+  autoKittenFactor,
   autoStripHtml,
 } from './valuation-tables';
 
@@ -188,8 +188,8 @@ export function autoCollect(game: IGameAdapter, data: PersistedData, runtime: Ru
     // AUTO-15: what one more achievement is worth through the milk and the owned kittens
     const kittens = game
       .getUpgrades()
-      .filter((u) => u && u.bought && /^kitten /i.test(String(u.name)))
-      .map((u) => AUTO_KITTEN_POWER[String(u.name).toLowerCase()] || 0.1);
+      .filter((u) => u && u.bought && autoKittenFactor(u.name) != null)
+      .map((u) => autoKittenFactor(u.name)!);
     const milk = game.getMilkProgress() ?? game.getAchievementsOwned() / 25;
     const achievementGain = cps * achievementCpsShare(milk, kittens);
 

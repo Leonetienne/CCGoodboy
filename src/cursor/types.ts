@@ -16,6 +16,8 @@ export const JOB_PRIORITY = {
   REFILL: 3,
   /** Hammering through a combo of >= 2 positive buffs (CF-7): below the Grimoire. */
   BUFF_COMBO: 3.5,
+  /** A fortune in the news ticker (FORTUNE-1): gone after ~10s, so above the lump. */
+  FORTUNE: 3.8,
   LUMP_HARVEST: 4,
   AUTO_SHOP: 5,
   HAMMER: 6,

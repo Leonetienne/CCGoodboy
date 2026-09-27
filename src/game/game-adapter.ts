@@ -1,4 +1,4 @@
-import type { CpsBuff, GameBuilding, GameShimmer, GameUpgrade, GameWrinkler, GardenSnapshot, GardenTile, GrimoireMinigame, HeavenlyUpgradeInfo, MarketGood, PermanentSlotInfo, MarketSnapshot, RawBuff } from './types';
+import type { CpsBuff, GameBuilding, GameShimmer, GameUpgrade, GameWrinkler, GardenSnapshot, GardenTile, GrimoireMinigame, HeavenlyUpgradeInfo, MarketGood, PermanentSlotInfo, MarketSnapshot, RawBuff, TickerFortune } from './types';
 
 /** Every access to the live Cookie Clicker `Game` object goes through this interface. It is
  * the one mockable seam between our logic and the page's own global. */
@@ -28,6 +28,9 @@ export interface IGameAdapter {
   setAskLumpsPref(value: number): void;
   isLumpRipe(): boolean;
   lumpsUnlocked(): boolean;
+  /** The fortune the news ticker shows right now (FORTUNE-1, heavenly upgrade "Fortune
+   * cookies"), null if the ticker shows no fortune (or it was already clicked). */
+  getTickerFortune(): TickerFortune | null;
   /** The open menu screen ('prefs', 'stats', 'log', ...), '' while the buildings are shown. */
   getOnMenu(): string;
 
@@ -330,6 +333,21 @@ export class GameAdapter implements IGameAdapter {
    * lumpRipeAge and lumpOverripeAge. Below that it is still growing/only "mature" (clicking
    * gambles a 50% botched harvest); at/above lumpOverripeAge the game auto-harvests it on its
    * own next tick, so there is nothing left to click. */
+  getTickerFortune(): TickerFortune | null {
+    try {
+      const eff = window.Game && window.Game.TickerEffect;
+      if (!eff || eff.type !== 'fortune') return null;
+
+      const sub = eff.sub;
+      if (sub === 'fortuneGC') return { kind: 'golden' };
+      if (sub === 'fortuneCPS') return { kind: 'cps' };
+      if (sub && typeof sub === 'object' && typeof sub.name === 'string') return { kind: 'upgrade', name: sub.name };
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
   isLumpRipe(): boolean {
     const Game = window.Game;
     if (!Game || typeof Game.canLumps !== 'function' || !Game.canLumps()) return false;

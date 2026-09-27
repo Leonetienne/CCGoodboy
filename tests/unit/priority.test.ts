@@ -8,6 +8,7 @@ import type { FthofActions } from '../../src/hunting/fthof';
 import type { GoldenQueueItem } from '../../src/hunting/golden-queue';
 import type { HappyDance } from '../../src/hunting/happy-dance';
 import type { LumpHarvestActions } from '../../src/hunting/lump-harvest';
+import type { FortuneCatcher } from '../../src/hunting/fortune';
 import type { IdleBehavior } from '../../src/idle/idle-behavior';
 import { JOB_PRIORITY } from '../../src/cursor/types';
 import type { BankUnlocker } from '../../src/autoplay/bank-unlock';
@@ -243,6 +244,20 @@ describe('selectJobRequest', () => {
     const job = selectJobRequest(makeDeps({ lumpHarvest, autoPlay }));
     expect(job?.key).toBe('lump-harvest');
     expect(job?.priority).toBe(JOB_PRIORITY.LUMP_HARVEST);
+  });
+
+  it('picks a fortune in the news above a ripe sugar lump (FORTUNE-1)', () => {
+    const lumpHarvest = {
+      pending: () => true,
+      harvestJob: vi.fn().mockReturnValue({ action: { label: 'lump-harvest' }, priority: JOB_PRIORITY.LUMP_HARVEST, key: 'lump-harvest' }),
+    } as unknown as LumpHarvestActions;
+    const fortune = {
+      pending: () => true,
+      job: vi.fn().mockReturnValue({ action: { label: 'click fortune' }, priority: JOB_PRIORITY.FORTUNE, key: 'fortune' }),
+    } as unknown as FortuneCatcher;
+
+    expect(selectJobRequest(makeDeps({ lumpHarvest, fortune }))?.key).toBe('fortune');
+    expect(selectJobRequest(makeDeps({ lumpHarvest, fortune, queue: [goldenItem(1)] }))?.key).not.toBe('fortune');
   });
 
   it('picks the Grimoire unlock before auto-shop, below a ripe sugar lump', () => {

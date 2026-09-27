@@ -30,6 +30,11 @@ export class StatsRecorder {
     this.data.scheduleSave();
   }
 
+  recordFortune(): void {
+    this.data.stats.fortunes = (this.data.stats.fortunes || 0) + 1;
+    this.data.scheduleSave();
+  }
+
   recordLumpHarvest(): void {
     this.data.stats.lumpHarvests += 1;
     this.data.scheduleSave();

@@ -65,6 +65,7 @@ export class SettingsPanel {
     this.data.config.spendLumps = (document.getElementById('ccsb-spend-lumps') as HTMLInputElement).checked;
     this.data.config.stockMarket = (document.getElementById('ccsb-stock-market') as HTMLInputElement).checked;
     this.data.config.garden = (document.getElementById('ccsb-garden') as HTMLInputElement).checked;
+    this.data.config.fortunes = (document.getElementById('ccsb-fortunes') as HTMLInputElement).checked;
     this.data.config.showDebugTools = (document.getElementById('ccsb-show-debug') as HTMLInputElement).checked;
 
     this.keepAlive.init();

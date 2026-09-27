@@ -3,7 +3,7 @@ import type { GameBuilding, GameUpgrade } from '../game/types';
 import { autoFingerGain } from './building-valuation';
 import { wrinklerRespawnSec } from './wrinkler-strategy';
 import { chainStepGain } from './grandmapocalypse-valuation';
-import { AUTO_CURSOR_DOUBLERS, AUTO_FINGER_STEPS, AUTO_KITTEN_POWER, AUTO_RESEARCH, AUTO_STAGE1_CHAIN, autoStripHtml } from './valuation-tables';
+import { AUTO_CURSOR_DOUBLERS, AUTO_FINGER_STEPS, AUTO_FORTUNE_NOMINAL, AUTO_FORTUNE_NOMINAL_SHARE, AUTO_RESEARCH, autoKittenFactor, AUTO_STAGE1_CHAIN, autoStripHtml } from './valuation-tables';
 import { AUTO_GOLDEN_UPGRADES, AUTO_HEAVENLY_UNLOCKS } from './valuation-tables';
 
 export interface UpgradeClassifyCtx {
@@ -37,7 +37,9 @@ export function biscuitPower(up: GameUpgrade): number {
  *   golden   golden cookie upgrades (AUTO_GOLDEN_UPGRADES)
  *   grandma  grandma "cofactor" upgrades: grandmas twice as efficient + 1% CpS of a building
  *            per N grandmas (recognised by the game's own list OR by the description text)
- *   kitten   "Kitten helpers/workers/..." (CpS multiplier growing with the milk)
+ *   kitten   "Kitten helpers/workers/..." and Fortune #103 (CpS multiplier growing with the milk)
+ *   fortune  Fortune #001-#017 (a building 7% more efficient and 7% cheaper) and Fortune #102
+ *            (nominal); #100/#101 are multipliers, #104 a mouse upgrade (FORTUNE-3)
  *   biscuit  all cookie upgrades (pool 'cookie', +power% CpS)
  *   multiplier  other flat "Cookie production multiplier +N%." upgrades (Wrinkler ambergris,
  *            Dragon scale, Arcane sugar, eggs, ...)
@@ -72,6 +74,19 @@ export function autoUpgradeGain(game: IGameAdapter, up: GameUpgrade, ctx: Upgrad
 
   const gdesc = autoStripHtml(up.desc);
 
+  // Fortune #001-#017: "Cursors are 7% more efficient and 7% cheaper." The building's CpS x 7%,
+  // and its 7% discount valued like Faberge egg's (1% cheaper ~ +1%) on that building's CpS.
+  const fm = gdesc.match(/are\s*(\d+(?:\.\d+)?)\s*%\s*more efficient and\s*(\d+(?:\.\d+)?)\s*%\s*cheaper/);
+
+  if (fm && up.buildingTie) {
+    const pct = Number(fm[1]) + Number(fm[2]);
+    return { gain: (Number(up.buildingTie.storedTotalCps) || 0) * ctx.mult * (pct / 100), type: 'fortune' };
+  }
+
+  if (AUTO_FORTUNE_NOMINAL.has(name)) {
+    return { gain: ctx.cps * AUTO_FORTUNE_NOMINAL_SHARE, type: 'fortune' };
+  }
+
   // "Grandmas are twice as efficient. Farms gain +1% CpS per grandma."  /  "... per 2 grandmas."
   const gm = gdesc.match(/grandmas are twice as efficient\.?\s*(.+?)\s+gain\s*\+?\s*(\d+(?:\.\d+)?)\s*%\s*cps per\s*(?:(\d+)\s*)?grandma/);
 
@@ -102,8 +117,9 @@ export function autoUpgradeGain(game: IGameAdapter, up: GameUpgrade, ctx: Upgrad
   }
 
   // kittens: a multiplier on ALL production that grows with the milk (achievements)
-  if (/^kitten /i.test(String(name))) {
-    const f = AUTO_KITTEN_POWER[String(name).toLowerCase()] || 0.1;
+  const f = autoKittenFactor(name);
+
+  if (f != null) {
     const milk = game.getMilkProgress() ?? game.getAchievementsOwned() / 25;
 
     // and every click gains the mouse upgrades' share of that extra CpS (Click Frenzies included)
