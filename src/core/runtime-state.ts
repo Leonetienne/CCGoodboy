@@ -152,6 +152,8 @@ export class RuntimeState {
   storeScrollGiveUp = new Map<string, number>();
   /** ASC-12: the routine's preparation (pops, sales, achievements) is done for this target. */
   ascendPrepDone = false;
+  /** ASC-12: the run (Game.startDate) whose WAIT already had its wrinklers popped (0: none). */
+  ascendWaitPopRun = 0;
   autoHammerState: AutoHammerState = freshAutoHammerState();
 
   // ---- paw animation ----

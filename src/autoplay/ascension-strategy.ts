@@ -60,7 +60,9 @@ export interface AscensionInput {
   prestige: number;
   /** Game.heavenlyChips: unspent chips. */
   heavenlyChips: number;
-  /** Game.cookiesReset + Game.cookiesEarned: all-time cookies that count for prestige. */
+  /** Game.cookiesReset + Game.cookiesEarned: all-time cookies that count for prestige. The
+   * attached wrinklers' cookies do NOT count: the game throws them away unless they are popped
+   * first (ASC-1). */
   totalCookies: number;
   hcFactor: number;
   /** Cookies per second the run is making now (measured, see AscensionPlanner). */
@@ -85,6 +87,8 @@ export interface AscensionInput {
   routineIncome?: number;
   /** The prestige CpS bonus must grow at least this many times for an ascension (setting). */
   minBoost: number;
+  /** ASC-9: the most 7s a lucky level this run already waited for needed (hysteresis). */
+  luckyKeepSevens?: number;
 }
 
 export type AscensionVerdict = 'no-gain' | 'too-small' | 'growing' | 'waiting' | 'ascend';
@@ -179,6 +183,7 @@ export function planAscension(input: AscensionInput): AscensionPlan {
     luckyMinDigit: luckyDigit,
     luckyFromLevel,
     luckyMinLevels,
+    luckyKeepSevens: input.luckyKeepSevens,
   });
 
   // ASC-12: the window the ascension must land in.

@@ -19,7 +19,11 @@ function state(over: Partial<AscendState> = {}): AscendState {
 describe('nextAscensionStep (ASC-10/12)', () => {
   it('does nothing until a target is locked', () => {
     expect(nextAscensionStep(state())).toEqual({ kind: 'wait' });
-    expect(nextAscensionStep(state({ wrinklers: [1], stocks: [1] }))).toEqual({ kind: 'wait' });
+    expect(nextAscensionStep(state({ stocks: [1] }))).toEqual({ kind: 'wait' });
+  });
+
+  it('pops the safe wrinklers while waiting for a lucky level, before anything is locked', () => {
+    expect(nextAscensionStep(state({ wrinklers: [1] }))).toEqual({ kind: 'pop-wrinkler', id: 1 });
   });
 
   it('pops, sells and spends, in that order, then holds until the level is there', () => {
@@ -277,6 +281,48 @@ describe('AscensionRunner (ASC-10/12)', () => {
     expect(runner.step()).toEqual({ kind: 'open-legacy' });
   });
 
+  describe('wrinklers and a lucky target (ASC-12)', () => {
+    // level 250 -> 1170 is ~1.6e21 cookies; at 1e18/s the rest of the routine is ~2 min
+    const small = () => wrinkler(0, 1e20, 0);
+    const huge = () => wrinkler(1, 2e21, 180);
+
+    it('pops only what stays clear of the target once the plan waits for it, once per run', () => {
+      game.wrinklers = [small(), huge()];
+      current = plan('waiting', 1170, 100000, 1, 1179);
+      expect(runner.step()).toEqual({ kind: 'pop-wrinkler', id: 0 });
+      expect(runtime.ascendTarget).toBeNull();
+      game.wrinklers = [huge()];
+      expect(runner.step()).toBeNull();
+      expect(runtime.ascendWaitPopRun).toBe(game.runStartDate);
+      // wrinklers that grow back while it waits are left for the routine
+      game.wrinklers = [huge(), wrinkler(2, 1e19, 90)];
+      expect(runner.step()).toBeNull();
+    });
+
+    it('does not pop while waiting for a level without 7s, or while a buff runs', () => {
+      game.wrinklers = [small()];
+      current = plan('waiting', 1170, 100000);
+      expect(runner.step()).toBeNull();
+      current = plan('waiting', 1170, 100000, 1, 1179);
+      game.rawBuffs = { Frenzy: { name: 'Frenzy', multCpS: 7, time: 3000 } };
+      expect(runner.step()).toBeNull();
+    });
+
+    it('the routine skips a pop that would jump past the target or too close to it', () => {
+      game.wrinklers = [huge(), small()];
+      current = plan('waiting', 1170, 10, 1, 1179);
+      expect(runner.step()).toEqual({ kind: 'pop-wrinkler', id: 0 });
+      game.wrinklers = [huge()];
+      expect(runner.step()).toEqual({ kind: 'hold' });
+      // 50s before 1170, less than the routine still needs: nothing is popped
+      game.cookiesEarned = atLevel(1170) - 5e19;
+      runtime.ascendTarget = null;
+      runtime.ascendPrepDone = false;
+      game.wrinklers = [small()];
+      expect(runner.step()).toEqual({ kind: 'hold' });
+    });
+  });
+
   it('pops the fattest wrinkler first, shiny ones too (ascending would lose them)', () => {
     game.wrinklers = [wrinkler(0, 100, 0), { ...wrinkler(1, 500, 180), type: 1 }];
     current = plan('waiting', 1107, 10);
@@ -380,6 +426,24 @@ describe('AscensionRunner (ASC-10/12)', () => {
       held = [];
       expect(runner.step()).toEqual({ kind: 'dump', id: 2, name: 'Farm', target: 50, count: 2 });
       expect(runner.armed()).toBe(true);
+    });
+
+    it('without lucky wishes the level is already there: pops, sells and spends first all the same', () => {
+      current = plan('ascend');
+      game.wrinklers = [wrinkler(0, 100, 0)];
+      held = [3];
+      expect(runner.step()).toEqual({ kind: 'pop-wrinkler', id: 0 });
+      game.wrinklers = [];
+      expect(runner.step()).toEqual({ kind: 'sell-stock', id: 3 });
+      held = [];
+      expect(runner.step()).toEqual({ kind: 'dump', id: 2, name: 'Farm', target: 50, count: 2 });
+      game.cookies = 10; // spent
+      expect(runner.step()).toEqual({ kind: 'open-legacy' });
+    });
+
+    it('a lucky window still comes first: the rest of the preparation is dropped', () => {
+      current = plan('waiting', 250, 0, 1, 259);
+      expect(runner.step()).toEqual({ kind: 'open-legacy' });
     });
 
     it('selling is urgent too: above golden cookies', () => {

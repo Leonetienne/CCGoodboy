@@ -231,6 +231,17 @@ describe('planAscension (ASC-2..4/9)', () => {
     expect(p.verdict).toBe('ascend');
   });
 
+  it('keeps waiting for a lucky level it already waited for when the ETA swings a bit past the setting', () => {
+    const base = input({ prestige: 1000, heavenlyChips: 700, totalCookies: atLevel(1100), income: 1e16, heavenly: luckyTree(ALL_BUT_LUCKY) });
+    const eta = planAscension(base).shop.etaSec;
+    expect(eta).toBeGreaterThan(0);
+    // the income dipped: the ETA is now a quarter over the setting
+    expect(planAscension({ ...base, luckyWaitSec: eta * 0.8 }).verdict).toBe('ascend');
+    const kept = planAscension({ ...base, luckyWaitSec: eta * 0.8, luckyKeepSevens: 1 });
+    expect(kept.verdict).toBe('waiting');
+    expect(kept.shop.waitFor).toBe('Lucky digit');
+  });
+
   it('does not wait for a lucky upgrade whose chips are days away', () => {
     // 777 chips from 0: level 1777, ~5 days at 1e16/s
     const p = planAscension(

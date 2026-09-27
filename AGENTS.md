@@ -1270,12 +1270,12 @@ ascend", on by default) the bot also ascends by itself (ASC-10). Pure logic in `
 `ascension-overlay.ts`.
 
 - **ASC-1** Pending level = `floor(((Game.cookiesReset +
-  Game.cookiesEarned + the wrinklers' payout) / 1e12)^(1/HCfactor))`, the
-  same computation the game uses when ascending (so a total exactly on a
-  level boundary floors like the game does). The wrinklers' payout
-  (digested × pop multiplier, shiny ones too) counts because the bot pops
-  them all before ascending (ASC-10); the game throws them away on reset.
-  Levels gained = pending − `Game.prestige`; chips after ascending =
+  Game.cookiesEarned) / 1e12)^(1/HCfactor))`, the same computation the game
+  uses when ascending (so a total exactly on a level boundary floors like
+  the game does): what ascending right now gives. Unpopped wrinklers don't
+  count (the game throws them away on reset), so every level the HUD and the
+  overlay show is the one a player ascending by hand gets; the bot pops what
+  it safely can before its own ascension (ASC-12 g). Levels gained = pending − `Game.prestige`; chips after ascending =
   `Game.heavenlyChips` + that gain.
 - **ASC-2** Income = cookies per second over the last 30 minutes, measured
   from the all-time cookie count (sampled every 5s), so CpS, clicks, golden
@@ -1320,7 +1320,12 @@ ascend", on by default) the bot also ascends by itself (ASC-10). Pure logic in `
   level for everything taken so far — within "Ascend: wait for a lucky
   level up to (s)" (`ascendLuckyWaitSec`, default 86400; the share cap
   does not apply to them: a missed lucky level is hard to get back, and the run keeps earning levels while it
-  waits); one out of reach is skipped without ending the list. Result: the
+  waits); one out of reach is skipped without ending the list. Once the run
+  has waited for a lucky level (verdict WAIT with its 7s), a lucky wish
+  needing at most those 7s gets twice the budget for the rest of the run
+  (`LUCKY_KEEP_FACTOR`, `AscensionPlanner.luckyKept`): the ETA comes from
+  the measured income, which swings, and a wish at the budget's edge must
+  not drop out and let the bot ascend without it. Result: the
   level to ascend at, the upgrades to buy there in buying order (parents
   first), the wish the run waits for, and the wish it saves for next.
 - **ASC-5** Plain wording, one fact per line (`planLines()`,
@@ -1333,7 +1338,10 @@ ascend", on by default) the bot also ascends by itself (ASC-10). Pure logic in `
   (2) why, in plain words (e.g. "then the chips also pay for X", "N
   levels/h now, M levels/h on average this run", "CpS bonus would grow
   x1.10, wanted x2.00 (level 100, ~ETA)");
-  (3) "Prestige: current -> pending";
+  (3) "Prestige: current -> pending", and while wrinklers are attached
+  "(with the wrinklers popped first; ascending without popping them gives
+  N)" (`AscensionPlan.nowLevel`: the game throws unpopped wrinklers away,
+  its own Legacy tooltip leaves them out);
   (4) "CpS bonus after ascending: xN" and "Heavenly chips to spend: N"
   (unspent chips + the levels gained);
   (5) only for ASCEND NOW / WAIT: "Buy in heaven: N upgrades (X chips)" and,
@@ -1346,7 +1354,8 @@ ascend", on by default) the bot also ascends by itself (ASC-10). Pure logic in `
   (amber WAIT, baby blue NOT YET while prestige still comes in fast,
   lavender the other NOT YETs), with a card under it. Collapsed by default
   to one line, the level after ascending and the answer ("Lv 54,369 ·
-  ASCEND NOW" / "· WAIT" / "· NOT YET", `compactLine()`); while the real
+  ASCEND NOW" / "· WAIT" / "· NOT YET", `compactLine()`; with wrinklers
+  attached both levels, "Lv 54,369 popped / 51,020 not · WAIT"); while the real
   mouse is over the card itself (the canvas takes no mouse events, so it
   uses the tracked real mouse position, `runtime.userMouse`; the open card
   covers the collapsed one's spot, so it stays open while hovered) it shows
@@ -1390,8 +1399,9 @@ ascend", on by default) the bot also ascends by itself (ASC-10). Pure logic in `
   (ASC-4) through a committed routine (ASC-12), one step per scheduler
   tick re-derived from the live game (`nextAscensionStep()`), every step a
   real synthetic click or a visible drag (NFR-8):
-  (1) pop every attached wrinkler, shiny ones too, fattest first
-  (`WrinklerPopAction`; the game would throw their cookies away), then sell
+  (1) pop the attached wrinklers, shiny ones too, fattest first
+  (`WrinklerPopAction`; the game would throw their cookies away), only those
+  that can't overshoot a lucky target (ASC-12 g), then sell
   every stock and spend the bank on achievements (ASC-13), then hold still
   with the paw on Legacy until the target level is there (ASC-12);
   (2) click the Legacy button (`#legacyButton`) and the visible "Ascend" in
@@ -1437,7 +1447,7 @@ ascend", on by default) the bot also ascends by itself (ASC-10). Pure logic in `
   `AscensionPlanner.leadSec`): 5s per attached wrinkler + 6s per stock to
   sell + 2s per building and 0.1s per copy the ASC-13 plan buys (for the
   bank plus the wrinklers' cookies; at most 90s), × 1.5, + 60s safety buffer
-  (`LEAD_*` constants).
+  (`LEAD_*` constants; `leadSec(false)` leaves the pops out).
   (b) Routine income: while the routine runs no wrinkler digests, nothing
   is clicked and no buff runs, so the bank only gets the game's unbuffed CpS
   (`AscensionInput.routineIncome`, `Game.unbuffedCps`); the measured income
@@ -1463,15 +1473,18 @@ ascend", on by default) the bot also ascends by itself (ASC-10). Pure logic in `
   (d) The routine outranks everything from then on, golden cookies included
   (SCHED-1 tier 0; its jobs never give way to a golden cookie, and the
   stock sales and buildings-view steps ignore golden cookies and frenzies
-  while it runs): pop every wrinkler, sell the stocks, spend the bank on
+  while it runs): pop the wrinklers (g), sell the stocks, spend the bank on
   achievements (ASC-13), once (`runtime.ascendPrepDone`; wrinklers that grow
   back and the bank that builds up during the wait are left alone), then
   hold still with the paw on Legacy (`WaitWhileAction`, mood `ascend`,
   logged "ready: waiting for level L"). Nothing is clicked meanwhile.
   (e) Ascend: as soon as the real prestige level (all-time cookies without
   the unpopped wrinklers, which the game throws away) is within [level,
-  end], Legacy and "Ascend" are clicked; whatever preparation is left is
-  dropped, the level comes first.
+  end], Legacy and "Ascend" are clicked; with a lucky window whatever
+  preparation is left is dropped, the level comes first. An open-ended
+  target (no lucky wishes, `end` = Infinity) can't be missed and is often
+  reached the moment it is locked, so there the preparation always runs
+  first and Legacy is clicked once it is done.
   (e2) Moved on, still committed (golden cookies stay ignored; logged
   "moved the target to level L: ..."): while the real level is below the
   target, a lucky window that lasts less than 20s at the current unbuffed
@@ -1486,6 +1499,17 @@ ascend", on by default) the bot also ascends by itself (ASC-10). Pure logic in `
   off at the unbuffed CpS (`MAX_HOLD_SEC`; as long as it is honestly on its
   way the routine keeps holding, however long that takes), or auto
   ascension was switched off (silently).
+  (g) Wrinklers and a lucky target (`safePops()`): a wrinkler is only
+  popped when its cookies leave the level below the target with at least
+  the rest of the routine (`leadSec(false)`: sales, achievements, safety
+  buffer) still to go at the unbuffed CpS, so a pop never jumps past the 7s
+  or lands too close to them; fattest first, the rest stay attached (and
+  are lost on ascending). Without a lucky window every wrinkler is popped.
+  As soon as the plan says WAIT for a lucky level (before anything is
+  locked, same gates as ASC-10, tier 5) the paw already pops the ones safe
+  now, once per run (`runtime.ascendWaitPopRun`), so their cookies are in
+  before the level is timed; wrinklers that grow back are left to the
+  routine. Logged as `"pop wrinkler"` ("before ascending").
 
 - **ASC-13** Spending the bank before ascending ("Auto: spend the bank on
   achievements before ascending", `ascendDumpBank`, DEFAULT ON; only as
@@ -2245,6 +2269,44 @@ mouse while the bot runs and confirm the "+N" number follows your cursor,
 not the paw's).
 
 ## 12. Changelog
+
+- **5.8.41** The ascension planner no longer counts unpopped wrinklers
+  (ASC-1): every level on the Legacy card and the HUD row is what ascending
+  right now gives (the game throws unpopped wrinklers away), so 5.8.40's
+  "popped / not" display is gone again. The bot pops them itself instead
+  (ASC-12 g): once the plan waits for a lucky level it pops the wrinklers
+  that are safe right away, and the committed routine pops the ones safe
+  then; a wrinkler whose cookies would jump past the 7s, or so close to them
+  that the rest of the routine can't finish first, stays attached.
+  `AscensionRunner.safePops()`/`waitPops()`, `leadSec(withPops)`,
+  `runtime.ascendWaitPopRun`. Unit tests in
+  `tests/unit/ascension-runner.test.ts`.
+
+- **5.8.40** The Legacy card and the HUD row no longer pass off the level
+  with the wrinklers popped as the level ascending gives (ASC-5/6): the game
+  throws unpopped wrinklers away, so ascending by hand at a "Lv" with four
+  7s landed far lower. With wrinklers attached the collapsed card reads "Lv
+  X popped / Y not" and the full card adds what ascending without popping
+  them gives (`AscensionPlan.nowLevel`, `AscensionInput.wrinklerCookies`).
+  Unit test in `tests/unit/ascension.test.ts`.
+
+- **5.8.39** Fixed: the ascension planner could say "WAIT: ascend at level
+  L" for a lucky upgrade (e.g. Lucky payout at 27,777,xxx,xxx) and then
+  ascend long before L: the lucky level's ETA comes from the measured
+  income, and the moment it swung past "Ascend: wait for a lucky level up
+  to (s)" the wish dropped out, the verdict flipped to ASCEND NOW and the
+  routine started at once. A lucky wish the run already waited for now
+  keeps twice the budget for the rest of the run (ASC-9, `LUCKY_KEEP_FACTOR`,
+  `HeavenlyShopInput.luckyKeepSevens`). Unit tests in
+  `tests/unit/heavenly-shopping.test.ts` and `tests/unit/ascension.test.ts`.
+
+- **5.8.38** Fixed: an automatic ascension without lucky wishes (every
+  lucky upgrade already owned) skipped its whole preparation: its target
+  is open-ended and usually already reached when it is locked, so the paw
+  clicked Legacy at once, without popping the wrinklers, selling the stocks
+  or spending the bank on achievements (ASC-12 e, ASC-13). Only a lucky
+  window still drops the preparation for the level. Unit tests in
+  `tests/unit/ascension-runner.test.ts`.
 
 - **5.8.37** Krumblor (KRUMB-2): the pocket-money limit is gone; a batch of
   sacrifices starts as soon as the spendable bank pays for all the

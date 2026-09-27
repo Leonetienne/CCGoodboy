@@ -12,6 +12,12 @@ export const LUCKY_UPGRADES: ReadonlyArray<{ name: string; sevens: number }> = [
   { name: 'Lucky digit', sevens: 1 },
 ];
 
+/** ASC-9: a lucky wish the run already waits for (`luckyKeepSevens`) keeps its place while its
+ * ETA stays within this many times the lucky wait budget: the ETA comes from the measured
+ * income, which swings with every golden cookie, so a wish right at the budget's edge would
+ * otherwise drop out of the plan and the bot would ascend without it. */
+export const LUCKY_KEEP_FACTOR = 2;
+
 /** How far nextLevelWithSevens() looks ahead. Four 7s are always found within 10^5 levels
  * (the last five digits cycle through x7777), so this is only a safety net. */
 const MAX_LEVEL_SEARCH = 200000;
@@ -143,6 +149,9 @@ export interface HeavenlyShopInput {
   luckyFromLevel?: number;
   /** The lucky level's window must still hold this many levels from the target on (ASC-12). */
   luckyMinLevels?: number;
+  /** The most 7s a lucky wish this run already waited for needed: such a wish gets
+   * LUCKY_KEEP_FACTOR x the lucky budget (hysteresis). 0: none. */
+  luckyKeepSevens?: number;
   priority?: readonly string[];
 }
 
@@ -239,7 +248,8 @@ export function planHeavenlyShopping(input: HeavenlyShopInput): HeavenlyShopPlan
     // Worth waiting for: no extra level at all, or within the time budget and, for an ordinary
     // wish, only a few chips short (the extra levels a small share of what the ascension gains).
     const fewShort = lucky || at == null || at - input.fromLevel <= (input.maxExtraLevels ?? Infinity);
-    const ok = at != null && (at === level || (fewShort && etaSec <= (lucky ? input.luckyWaitSec : input.shopWaitSec)));
+    const luckyBudget = input.luckyWaitSec * (chainSevens <= (input.luckyKeepSevens ?? 0) ? LUCKY_KEEP_FACTOR : 1);
+    const ok = at != null && (at === level || (fewShort && etaSec <= (lucky ? luckyBudget : input.shopWaitSec)));
 
     if (!ok) {
       const wish = { name, cost: chainCost, level: at, etaSec };

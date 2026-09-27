@@ -15,8 +15,8 @@ const ASC_SAMPLE_EVERY_MS = 5000;
 /** The plan is recomputed at most this often (HUD + overlay both read it). */
 const ASC_PLAN_TTL_MS = 500;
 
-/** Cookies the attached wrinklers give when popped: counted for prestige, since the bot pops
- * them all before ascending (ASC-1/ASC-10). */
+/** Cookies the attached wrinklers give when popped: not counted for the level (ASC-1), but
+ * for the income, which a pop would otherwise show as a jump. */
 function wrinklerStash(game: IGameAdapter): number {
   let sum = 0;
 
@@ -41,6 +41,8 @@ export class AscensionPlanner {
   /** ASC-12: how long the routine before an ascension takes (the runner's estimate), so a
    * lucky level is only planned where it is still ahead once the routine is done. */
   leadSec: () => number = () => 0;
+  /** ASC-9: the most 7s a lucky level this run waited for needed, per run (Game.startDate). */
+  private luckyKept = { run: 0, sevens: 0 };
 
   constructor(
     private readonly data: PersistedData,
@@ -87,14 +89,18 @@ export class AscensionPlanner {
     if (!this.game.isReady() || this.game.isAscending()) return null;
 
     try {
-      const totalCookies = this.game.getCookiesReset() + this.game.getCookiesEarned() + wrinklerStash(this.game);
+      // ASC-1: the level is what ascending right now gives: the game throws unpopped wrinklers
+      // away. The income still counts what they digest (a pop only moves it into the bank).
+      const totalCookies = this.game.getCookiesReset() + this.game.getCookiesEarned();
+      const run = this.game.getRunStartDate();
+      if (this.luckyKept.run !== run) this.luckyKept = { run, sevens: 0 };
 
       this.cache = planAscension({
         prestige: this.game.getPrestige(),
         heavenlyChips: this.game.getHeavenlyChips(),
         totalCookies,
         hcFactor: this.game.getHCFactor(),
-        income: this.measuredIncome(now, totalCookies),
+        income: this.measuredIncome(now, totalCookies + wrinklerStash(this.game)),
         runSec: Math.max(0, (now - this.game.getRunStartDate()) / 1000),
         heavenly: this.game.getHeavenlyUpgrades(),
         luckyWaitSec: this.data.config.ascendLuckyWaitSec ?? 86400,
@@ -103,7 +109,10 @@ export class AscensionPlanner {
         shopWaitShare: this.data.config.ascendShopWaitShare ?? 0.1,
         leadSec: this.leadSec(),
         routineIncome: Math.max(0, Number(this.game.getUnbuffedCps()) || 0),
+        luckyKeepSevens: this.luckyKept.sevens,
       });
+
+      if (this.cache.verdict === 'waiting' && this.cache.shop.sevens > this.luckyKept.sevens) this.luckyKept.sevens = this.cache.shop.sevens;
     } catch (_e) {
       this.cache = null;
     }
@@ -166,7 +175,7 @@ export function verdictLines(p: AscensionPlan): string[] {
 }
 
 /** The collapsed Legacy card (ASC-6): the level after ascending and the one-word answer,
- * "Lv 54,369 · ASCEND NOW" / "· WAIT" / "· NOT YET". */
+ * "Lv 54,369 · ASCEND NOW" / "· WAIT" / "· NOT YET" (without the unpopped wrinklers, ASC-1). */
 export function compactLine(p: AscensionPlan): string {
   const answer = p.verdict === 'ascend' ? 'ASCEND NOW' : p.verdict === 'waiting' ? 'WAIT' : 'NOT YET';
   return `Lv ${formatNum(p.pendingLevel)} \u00b7 ${answer}`;

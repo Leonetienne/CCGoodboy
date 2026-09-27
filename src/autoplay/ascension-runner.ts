@@ -20,6 +20,7 @@ import {
 } from '../game/ascension-dom';
 import { visibleRect } from '../game/dom-geometry';
 import type { IGameAdapter } from '../game/game-adapter';
+import type { GameWrinkler } from '../game/types';
 import { elementCenter } from '../game/grimoire-dom';
 import { wrinklerPokeCanvasPoint } from '../game/wrinkler-dom';
 import type { LogStore } from '../stats/log';
@@ -130,10 +131,10 @@ export class AscensionRunner {
   /** ASC-12: how long the routine before an ascension takes from now: every pop, stock sale
    * and achievement purchase (for the bank plus the wrinklers' cookies) at a rough pace,
    * stretched by LEAD_FACTOR, plus LEAD_SAFETY_SEC. */
-  leadSec(): number {
+  leadSec(withPops = true): number {
     try {
-      const wrinklers = this.game.getWrinklers().filter((w) => w && w.phase === 2);
-      const stash = wrinklers.reduce((sum, w) => sum + (w.sucked > 0 ? w.sucked * this.game.getWrinklerPopMult(w.type === 1) : 0), 0);
+      const wrinklers = withPops ? this.game.getWrinklers().filter((w) => w && w.phase === 2) : [];
+      const stash = wrinklers.reduce((sum, w) => sum + this.popCookies(w), 0);
       const plan = this.dumpPlan(this.game.getCookies() + stash);
       const dumpSec = Math.min(MAX_DUMP_MS / 1000, LEAD_PER_VISIT_SEC * plan.length + LEAD_PER_COPY_SEC * dumpCopies(plan));
       const prep = LEAD_PER_POP_SEC * wrinklers.length + LEAD_PER_SALE_SEC * this.stocksToSell().length + dumpSec;
@@ -226,7 +227,7 @@ export class AscensionRunner {
     const windowSec = (cookiesForLevel(t.end + 1, hc) - cookiesForLevel(t.level, hc)) / cps;
     if (real <= t.end && windowSec >= MIN_WINDOW_SEC) return;
 
-    const total = this.game.getCookiesReset() + this.game.getCookiesEarned() + this.wrinklerStash();
+    const total = this.game.getCookiesReset() + this.game.getCookiesEarned();
     const at = levelForCookies(total, hc);
     const secPerLevel = (cookiesForLevel(at + 1, hc) - cookiesForLevel(at, hc)) / cps;
     const digit = luckyMinDigit(secPerLevel, ASC_FINAL_SEC);
@@ -242,19 +243,54 @@ export class AscensionRunner {
     this.log.log('ascend', `moved the target to level ${formatNum(level)}: ${why}`, { from: t.level, to: level, end: this.runtime.ascendTarget.end, now: real });
   }
 
-  /** Cookies the attached wrinklers give when popped. */
-  private wrinklerStash(): number {
-    return this.game
-      .getWrinklers()
-      .filter((w) => w && w.phase > 0 && w.sucked > 0)
-      .reduce((sum, w) => sum + w.sucked * this.game.getWrinklerPopMult(w.type === 1), 0);
+  /** What a wrinkler gives when popped (ascending without popping it throws it away). */
+  private popCookies(w: GameWrinkler): number {
+    return w.sucked > 0 ? w.sucked * this.game.getWrinklerPopMult(w.type === 1) : 0;
   }
 
-  /** Seconds until `level` at the unbuffed CpS (the wrinklers' cookies count: they are popped
-   * first); Infinity without CpS. */
+  /** ASC-12: the wrinklers the paw may pop for an ascension at `level` (window up to `end`),
+   * fattest first. Without a lucky window (end Infinity) every one: the level can't be missed.
+   * With one, only a wrinkler whose cookies leave the level below the target with at least the
+   * rest of the routine (sales, achievements, safety buffer: `leadSec(false)`) to go at the
+   * unbuffed CpS: a pop must never jump past the 7s or land so close that the routine can't
+   * finish before them. */
+  private safePops(level: number, end: number): number[] {
+    const all = this.game.getWrinklers();
+    const pokeable = all.filter((w) => w && w.phase === 2 && wrinklerPokeCanvasPoint(w, all)).sort((a, b) => this.popCookies(b) - this.popCookies(a));
+    if (!Number.isFinite(end)) return pokeable.map((w) => w.id);
+
+    const cps = Math.max(0, Number(this.game.getUnbuffedCps()) || 0);
+    const limit = cookiesForLevel(level, this.game.getHCFactor()) - cps * this.leadSec(false);
+    const have = this.game.getCookiesReset() + this.game.getCookiesEarned();
+
+    return pokeable.filter((w) => have + this.popCookies(w) < limit).map((w) => w.id);
+  }
+
+  /** ASC-12: the plan starts to WAIT for a lucky level (nothing committed yet): the paw pops
+   * the wrinklers that are safe to pop now (safePops), once per run, so their cookies are in
+   * before the level is timed. The gates are those of the routine (no buff, no golden cookie). */
+  private waitPops(): number[] {
+    if (this.data.config.autoDryRun === true || !this.gatesClear()) return [];
+
+    const run = this.game.getRunStartDate();
+    if (this.runtime.ascendWaitPopRun === run) return [];
+
+    const p = this.planner.plan();
+    if (!p || p.verdict !== 'waiting' || p.shop.sevens <= 0) return [];
+
+    const ids = this.safePops(p.shop.level, p.luckyEnd);
+    if (!ids.length) {
+      this.runtime.ascendWaitPopRun = run;
+      this.log.log('ascend', `waiting for level ${formatNum(p.shop.level)}: done popping wrinklers`, { now: this.realLevel(), left: this.game.getWrinklers().filter((w) => w && w.phase > 0).length });
+    }
+
+    return ids;
+  }
+
+  /** Seconds until `level` at the unbuffed CpS (unpopped wrinklers don't count: only the pops
+   * that stay clear of the target happen, ASC-12); Infinity without CpS. */
   private holdEtaSec(level: number): number {
-    const stash = this.wrinklerStash();
-    const missing = cookiesForLevel(level, this.game.getHCFactor()) - (this.game.getCookiesReset() + this.game.getCookiesEarned() + stash);
+    const missing = cookiesForLevel(level, this.game.getHCFactor()) - (this.game.getCookiesReset() + this.game.getCookiesEarned());
     if (missing <= 0) return 0;
 
     const cps = Number(this.game.getUnbuffedCps());
@@ -315,16 +351,15 @@ export class AscensionRunner {
     }
 
     const committed = normal && this.committed();
-    const want = committed && this.atTarget();
-    const prep = committed && !want && !this.runtime.ascendPrepDone;
+    const reached = committed && this.atTarget();
+    // Only a lucky window can be lost: there the level comes first and whatever preparation is
+    // left is dropped. An open-ended target (no lucky wishes) is reached the moment it is locked
+    // and stays reached, so the routine (pops, sales, achievements) always runs first.
+    const t = this.runtime.ascendTarget;
+    const rush = reached && !!t && Number.isFinite(t.end);
+    let prep = committed && !rush && !this.runtime.ascendPrepDone;
 
-    const all = this.game.getWrinklers();
-    const wrinklers = prep
-      ? all
-          .filter((w) => w && w.phase === 2 && wrinklerPokeCanvasPoint(w, all))
-          .sort((a, b) => b.sucked - a.sucked)
-          .map((w) => w.id)
-      : [];
+    const wrinklers = prep ? this.safePops(t!.level, t!.end) : normal && !committed ? this.waitPops() : [];
     const stocks = prep ? this.stocksToSell() : [];
     const dump = prep ? this.dumpPlan()[0] : undefined;
 
@@ -332,8 +367,11 @@ export class AscensionRunner {
     if (prep && !wrinklers.length && !stocks.length && !dump) {
       this.runtime.ascendPrepDone = true;
       this.runtime.ascendDumpSince = 0;
-      this.log.log('ascend', `ready: waiting for level ${formatNum(this.runtime.ascendTarget!.level)}`, { now: this.realLevel() });
+      prep = false;
+      this.log.log('ascend', reached ? 'ready: ascending' : `ready: waiting for level ${formatNum(t!.level)}`, { now: this.realLevel() });
     }
+
+    const want = reached && (rush || this.runtime.ascendPrepDone);
 
     return {
       committed,

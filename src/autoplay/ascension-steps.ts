@@ -21,8 +21,9 @@ export interface AscendState {
   intro: boolean;
   /** On the ascension screen. */
   onScreen: boolean;
-  /** What is still to do before the target (empty once the routine's preparation is done):
-   * attached wrinklers the paw can poke, fattest first (ascending would lose their cookies). */
+  /** Attached wrinklers to pop, fattest first (ascending would lose their cookies): while
+   * committed, the routine's pops; before that, while the plan waits for a lucky level, the
+   * pops that stay clear of it (ASC-12). */
   wrinklers: number[];
   /** Stock market goods still held (ASC-13): the ascension throws the market away. */
   stocks: number[];
@@ -73,7 +74,8 @@ export function nextAscensionStep(s: AscendState): AscendStep {
     return { kind: 'reincarnate' };
   }
 
-  if (!s.committed) return { kind: 'wait' };
+  // ASC-12: waiting for a lucky level, the wrinklers that can't overshoot it go first
+  if (!s.committed) return s.wrinklers.length ? { kind: 'pop-wrinkler', id: s.wrinklers[0]! } : { kind: 'wait' };
   if (s.want) return { kind: 'open-legacy' };
   // the wrinklers first, so their cookies fund the achievements too
   if (s.wrinklers.length) return { kind: 'pop-wrinkler', id: s.wrinklers[0]! };

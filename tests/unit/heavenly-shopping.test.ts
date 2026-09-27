@@ -81,6 +81,13 @@ describe('planHeavenlyShopping (ASC-9)', () => {
     expect(p.items.map((i) => i.name)).toEqual(['D']);
   });
 
+  it('keeps a lucky wish it already waits for up to twice the lucky wait (hysteresis)', () => {
+    // Lucky digit's level 1007 is 7s away
+    expect(shop({ fromLevel: 1000, priority: ['Lucky digit'], luckyWaitSec: 5 }).skippedLucky.map((w) => w.name)).toEqual(['Lucky digit']);
+    expect(shop({ fromLevel: 1000, priority: ['Lucky digit'], luckyWaitSec: 5, luckyKeepSevens: 1 }).level).toBe(1007);
+    expect(shop({ fromLevel: 1000, priority: ['Lucky digit'], luckyWaitSec: 3, luckyKeepSevens: 1 }).skippedLucky.map((w) => w.name)).toEqual(['Lucky digit']);
+  });
+
   it('waits for a lucky level with enough 7s within the lucky wait', () => {
     const p = shop({ fromLevel: 1000, priority: ['Lucky digit'], luckyWaitSec: 10 });
     expect(p.level).toBe(1007);
