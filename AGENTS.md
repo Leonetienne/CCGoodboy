@@ -42,8 +42,7 @@ test the hunter on a test save.
 
 Out of scope: seasons (switching them; auto play does buy the Easter egg
 upgrades a season drops, EGG-\*, and the Christmas upgrades, evolving Santa,
-XMAS-\*), breeding garden seeds on purpose (GARDEN-9), pantheon, the stock market's offices and loans (STOCK-8), challenge modes and permanent
-upgrade slots when ascending (auto play ascends by itself unless "Auto:
+XMAS-\*), breeding garden seeds on purpose (GARDEN-9), pantheon, the stock market's offices and loans (STOCK-8), challenge modes when ascending (auto play ascends by itself unless "Auto:
 ascend" is switched off, ASC-10; without auto play the ascension plan is
 only shown), and any
 Grandmapocalypse beyond stage 1 (WRINK-1).
@@ -62,8 +61,9 @@ the Wizard tower's "lvl" button (AUTO-13), the Bank's "lvl" button
 (AUTO-16), the Farm's "lvl" button (AUTO-17), mature wrinklers (WRINK-5), Krumblor's tab,
 popup and aura picker (KRUMB-3) and Santa's tab, "Evolve" button and popup
 "x" (XMAS-4), and with "Auto: ascend" the Legacy button, the "Ascend" /
-"Reincarnate" prompts, heavenly upgrade crates and the Reincarnate button
-(ASC-10) (the paw only "visits" store items, AUTO-9; auto play also sells
+"Reincarnate" prompts, heavenly upgrade crates, a permanent upgrade slot's
+crate, its picker's crates and "Confirm"/"Cancel" (ASC-16) and the
+Reincarnate button (ASC-10) (the paw only "visits" store items, AUTO-9; auto play also sells
 Wizard towers it bought for a butter biscuit back through the game's `sell()`,
 BUTTER-\*).
 
@@ -1300,34 +1300,43 @@ ascend", on by default) the bot also ascends by itself (ASC-10). Pure logic in `
   needs 2,100. Merely breaking even never counts (e.g. 0 + 10 levels is
   x1.10).
 - **ASC-9** Heavenly shopping list (`src/autoplay/heavenly-shopping.ts`,
-  `planHeavenlyShopping()`): a hardcoded priority list of 41 heavenly
-  upgrades (`HEAVENLY_PRIORITY`, names checked against the game's
-  `main.js` 2.058; left out: permanent upgrade slots, the golden switch and
-  other switches, cosmetics and extras the bot can't use). Walked in order
-  from the first level worth ascending at (the pending level or the ASC-8
-  level, whichever is higher); each wish is taken with every parent not
-  owned yet (read live from `Game.PrestigeUpgrades`, 1 chip per level), as
-  long as the run reaches a level paying for everything taken so far
-  within "Ascend: wait for heavenly upgrades up to (s)" (`ascendShopWaitSec`,
-  default 21600) AND the extra levels stay a small share of what the
-  ascension gains anyway: "Ascend: wait for heavenly upgrades at most (x
-  levels gained)" (`ascendShopWaitShare`, default 0.1: at +47,826 levels at
-  most ~4,800 more), so the bot waits when it is a few chips short, never
-  for a wish that would take a big part of another run (a wish already
-  paid for at the current level needs no wait). The first ordinary wish that is too far off ends the list: its
-  chips are kept for it, nothing below it is bought. The lucky upgrades are
-  wishes too, but they also need a level with enough 7s (§2) — the lucky
-  level for everything taken so far — within "Ascend: wait for a lucky
-  level up to (s)" (`ascendLuckyWaitSec`, default 86400; the share cap
-  does not apply to them: a missed lucky level is hard to get back, and the run keeps earning levels while it
-  waits); one out of reach is skipped without ending the list. Once the run
-  has waited for a lucky level (verdict WAIT with its 7s), a lucky wish
-  needing at most those 7s gets twice the budget for the rest of the run
-  (`LUCKY_KEEP_FACTOR`, `AscensionPlanner.luckyKept`): the ETA comes from
-  the measured income, which swings, and a wish at the budget's edge must
-  not drop out and let the bot ascend without it. Result: the
-  level to ascend at, the upgrades to buy there in buying order (parents
-  first), the wish the run waits for, and the wish it saves for next.
+  `planHeavenlyShopping()`), by impact, not by price: every heavenly upgrade
+  has a hardcoded value (`HEAVENLY_VALUE`, roughly "% of CpS in every later
+  run", one table to audit; names checked against the game's `main.js`
+  2.058, every prestige upgrade listed, the Unshackled ones included). Worth
+  0: purely cosmetic ones (dairy selections, wallpapers, the alert sound,
+  Sound test, Label printer) and what the bot can't use (the golden switch
+  and Residual luck, the shimmering veil and its upgrades, "Buy all",
+  Genius accounting, Eye of the wrinkler, Wrapping paper); an upgrade
+  missing from the table counts 0. Greedy, starting from the first level
+  worth ascending at (the pending level or the ASC-8 level, whichever is
+  higher): every round each upgrade worth > 0 is taken with every parent
+  not owned yet (read live from `Game.PrestigeUpgrades`, 1 chip per level)
+  and valued as the sum of that chain's values; of the chains the run pays
+  for, the most valuable is bought (the cheaper chain on a tie), until none
+  fits. So an upgrade worth nothing is bought only as the parent of a
+  valuable one that is affordable along with it, never for one out of
+  reach. "Pays for" means at the level reached so far, or at a higher one
+  within "Ascend: wait for heavenly upgrades up to (s)"
+  (`ascendShopWaitSec`, default 21600) AND while the extra levels stay a
+  small share of what the ascension gains anyway: "Ascend: wait for heavenly
+  upgrades at most (x levels gained)" (`ascendShopWaitShare`, default 0.1: at
+  +47,826 levels at most ~4,800 more), so the bot waits when it is a few
+  chips short, never for a wish that would take a big part of another run.
+  The lucky upgrades also need a level with enough 7s (§2) — the lucky level
+  for everything taken so far — within "Ascend: wait for a lucky level up
+  to (s)" (`ascendLuckyWaitSec`, default 86400; the share cap does not apply
+  to them: a missed lucky level is hard to get back, and the run keeps
+  earning levels while it waits). Once the run has waited for a lucky level
+  (verdict WAIT with its 7s), a lucky wish needing at most those 7s gets
+  twice the budget for the rest of the run (`LUCKY_KEEP_FACTOR`,
+  `AscensionPlanner.luckyKept`): the ETA comes from the measured income,
+  which swings, and a wish at the budget's edge must not drop out and let
+  the bot ascend without it. Result: the level to ascend at, the upgrades to
+  buy there in buying order (each chain parents first), the wish the run
+  waits for (the last one that raised the level), the most valuable wish
+  left out (saved for next time) and the lucky wishes whose 7s are too far
+  off.
 - **ASC-5** Plain wording, one fact per line (`planLines()`,
   `src/autoplay/ascension.ts`), used by the HUD row "Ascension" (joined
   with "; "; hidden until there is prestige or a level to gain) and the
@@ -1418,6 +1427,7 @@ ascend", on by default) the bot also ascends by itself (ASC-10). Pure logic in `
   presses and slides, the tree pans through `Game.AscendOffXT/YT`); a
   crate missing from the tree or failing 3 times is skipped, and after 3
   minutes in heaven the rest of the list is;
+  (4b) fill the permanent upgrade slots (ASC-16);
   (5) click Reincarnate (`#ascendButton`) and "Yes" in its prompt;
   (6) reset the bot's per-run state (`RuntimeState.resetForNewRun()`: LOCK_A,
   plans, Krumblor/Santa/wrinkler bookkeeping, the auto hammer's
@@ -1554,6 +1564,29 @@ ascend", on by default) the bot also ascends by itself (ASC-10). Pure logic in `
   position and above (`countSevensFrom()`, `nextLevelWithSevens(from, n,
   minDigit)`): a target like 1,177,xxx, whose whole block of 10^p levels
   keeps the 7s (`AscensionPlan.luckyDigit`; `luckyEnd` is the block's end).
+
+- **ASC-16** Permanent upgrade slots: on the ascension screen of its own
+  ascension (ASC-10), after the shopping list and before Reincarnate, the
+  paw fills every bought slot with its goal (`permanentSlotGoals()`,
+  `src/autoplay/permanent-slots.ts`), chosen from what the game's picker
+  offers (upgrades bought last run, store pool, not `noPerm`,
+  `IGameAdapter.getPermanentSlots()`): slot I the priciest kitten upgrade,
+  II the priciest "x fingers" (Thousand ... Decillion fingers), III the
+  priciest golden cookie upgrade (`AUTO_GOLDEN_UPGRADES`: Lucky day,
+  Serendipity, Get lucky, ...), IV the second priciest kitten, V the
+  priciest mouse upgrade. One slot at a time, slot I first
+  (`nextSlotTask()`): a slot already holding its goal is left alone, one
+  whose goal sits in another slot waits until that slot gives it up. Real
+  clicks (NFR-8 a): the slot's crate (`#heavenlyUpgrade{id}`; the tree is
+  dragged to it first like a purchase; buying a slot opens its picker at
+  once, `runtime.ascendSlotPrompt` remembers which slot the open picker
+  belongs to), the goal's crate in the "Pick an upgrade to make permanent"
+  prompt (`#upgradeForPermanent{id}`, its list wheel-scrolled first when
+  the crate is out of view, `ScrollIntoViewAction`), then "Confirm". A
+  picker for another slot, or with no goal left, is cancelled. A slot whose
+  picker doesn't open 3 times, or whose pick/confirm didn't work, is
+  skipped for this ascension. Logged as `"heavenly upgrade"` ("made X
+  permanent"). The slots' values in ASC-9: I 15, II 10, III 5, IV 4, V 3.
 
 ### 3.21a Butter biscuits (auto play)
 
@@ -1985,14 +2018,14 @@ gainLumps) — still guarded, still the only path to those `Game.*` calls.
 | Area | Path | Contents |
 |---|---|---|
 | Core state | `src/core/` | `constants.ts` (VERSION, clamp helpers), `console-voice.ts` (CON-\*), `persisted-data.ts`, `runtime-state.ts`, `state-machine.ts` |
-| Game facade | `src/game/` | `game-adapter.ts` (IGameAdapter + GameAdapter), `types.ts` (GameShimmer/RawBuff/CpsBuff/GrimoireMinigame/GameBuilding/GameUpgrade), `golden-cookie-model.ts` (fade curve, shimmer classification, GC-2/GC-3), `hurry-mode.ts` (HURRY-\*), `buffs-lock.ts` (LOCK_A, FT-6), `grimoire.ts` (FTHOF spell/cost lookup), `grimoire-dom.ts` (real Grimoire controls — FT-7), `market-dom.ts` (the stock market's trade and "Hire" buttons — STOCK-\*), `garden-dom.ts` (the garden's plot tiles, seeds and soils — GARDEN-\*), `lump-dom.ts` (`#lumps` control/centre — LUMP-\*), `wrinkler-dom.ts` (`#backgroundLeftCanvas`, a wrinkler's body point — WRINK-5), `dragon-dom.ts` (the special tabs on the left canvas, `#specialPopup`, the aura picker, Santa's "Evolve" button — KRUMB-3/XMAS-4), `buildings-view-dom.ts` (`#centerArea`, menu buttons, building rows/level buttons, the Options/Stats/Stats recipe, `centeredScrollTop` — AUTO-13), `reindeer.ts` (a reindeer's predicted path and the paw's meeting point — XMAS-6), `ascension-dom.ts` (the Legacy button, the Ascend/Reincarnate prompts, heavenly crates, the Reincarnate button, how far to drag the tree — ASC-10), `store-dom.ts` (the collapsible upgrade store sections, opened while the paw is there — AUTO-9), `dom-geometry.ts` (visibleRect/looseRect/clippedByAncestor — shared by every overlay box, GC-2/BUY-3) |
+| Game facade | `src/game/` | `game-adapter.ts` (IGameAdapter + GameAdapter), `types.ts` (GameShimmer/RawBuff/CpsBuff/GrimoireMinigame/GameBuilding/GameUpgrade), `golden-cookie-model.ts` (fade curve, shimmer classification, GC-2/GC-3), `hurry-mode.ts` (HURRY-\*), `buffs-lock.ts` (LOCK_A, FT-6), `grimoire.ts` (FTHOF spell/cost lookup), `grimoire-dom.ts` (real Grimoire controls — FT-7), `market-dom.ts` (the stock market's trade and "Hire" buttons — STOCK-\*), `garden-dom.ts` (the garden's plot tiles, seeds and soils — GARDEN-\*), `lump-dom.ts` (`#lumps` control/centre — LUMP-\*), `wrinkler-dom.ts` (`#backgroundLeftCanvas`, a wrinkler's body point — WRINK-5), `dragon-dom.ts` (the special tabs on the left canvas, `#specialPopup`, the aura picker, Santa's "Evolve" button — KRUMB-3/XMAS-4), `buildings-view-dom.ts` (`#centerArea`, menu buttons, building rows/level buttons, the Options/Stats/Stats recipe, `centeredScrollTop` — AUTO-13), `reindeer.ts` (a reindeer's predicted path and the paw's meeting point — XMAS-6), `ascension-dom.ts` (the Legacy button, the Ascend/Reincarnate prompts, heavenly crates, the Reincarnate button, how far to drag the tree — ASC-10; the permanent slot picker — ASC-16), `store-dom.ts` (the collapsible upgrade store sections, opened while the paw is there — AUTO-9), `dom-geometry.ts` (visibleRect/looseRect/clippedByAncestor — shared by every overlay box, GC-2/BUY-3) |
 | Cursor (queue) | `src/cursor/` | `types.ts` (`JOB_PRIORITY`, `CursorAction`, `CursorJob`, `CursorJobContext`, `CursorMover`, `CursorClickTiming`, `JobRequest`), `cursor-manager.ts` (owns the priority queue + all cursor motion: click gap → travel → pre-click pause → `cursor_at_position`, dedup by key, preemption, single cursor writer) |
 | Actions | `src/actions/` | `click-element.ts` (ClickElementAction/MoveAction/VisualPressAction), `golden-cookie.ts` (GoldenCookieAction, `effectPrettyName`), `hammer.ts` (HammerAction + big-cookie point helpers, CF-\*), `fthof.ts` (FthofAction/RefillAction), `lump-harvest.ts` (LumpHarvestAction, LUMP-\*), `buildings-view.ts` (MenuButtonAction, ScrollIntoViewAction, MinigameButtonAction — FT-8/AUTO-13/DBG-9..11), `minigame-unlock.ts` (MinigameUnlockAction: a building's "lvl" click that unlocks its minigame), `grimoire-unlock.ts` (GrimoireUnlockAction, AUTO-13), `market.ts` (MarketClickAction: one click on a stock market button, STOCK-\*), `garden.ts` (GardenClickAction: one click on a garden tile, seed or soil, GARDEN-\*), `wrinkler-pop.ts` (WrinklerPopAction, WRINK-5), `krumblor.ts` (DragonClickAction/DragonStoreAction, KRUMB-3; Santa's and the ascension's clicks reuse DragonClickAction, XMAS-4/ASC-10), `ascension.ts` (WaitWhileAction, DragTreeAction — ASC-10), `achievement-dump.ts` (AchievementDumpAction: buying a building copy by copy for its achievement — ASC-13), `store-visit.ts` (`enterStoreElement`: the paw opening an upgrade's store section and moving onto the crate, AUTO-9), `dance.ts` (DanceAction + `danceEligible`/`anyGoldenPresent`/`getDanceMs`), `ponder.ts` (PonderAction), `idle.ts` (IdleWanderAction + `IDLE_SPOTS`/`pickIdleSpot`) |
 | Hunting (modules) | `src/hunting/` | `click-golden.ts` (golden hunter: `jobFor` → GoldenCookieAction), `click-big-cookie.ts` (hammer module: `job` → HammerAction), `golden-queue.ts` (route caching, wraps route-planner), `fthof.ts` (FthofActions: `fthofOrRefillPending` + `castJob`/`refillJob`), `lump-harvest.ts` (LumpHarvestActions: `pending` + `harvestJob`), `happy-dance.ts` (HappyDance: `job` → DanceAction), `buildings-view.ts` (BuildingsViewNavigator: Options/Stats/Stats recipe + scroll-into-view steps, `PrepStep`), `minigame-view.ts` (MinigameView: step planner to a building's unlocked/open, on-screen minigame — shared by the Grimoire and the stock market), `grimoire-view.ts` (GrimoireView: the Wizard tower's MinigameView for FT-8/AUTO-13, plus the DBG-9..11 tools and their scheduler tier), `hitbox-overlay.ts` (GC-2) |
 | Routing | `src/routing/route-planner.ts` | `exactRoute` (Held-Karp DP, <= 11 cookies), `heuristicRoute` (nearest-neighbor + 2-opt/Or-opt + restarts), `planRoute` (GC-5) |
 | Idle | `src/idle/` | `idle-behavior.ts` (IdleBehavior module: `idleJob` → IdleWanderAction), `pending-work.ts` (conditions + queue state via `CursorManager.hasJobsAbove` — the shared "is anything more important pending?" predicate) |
 | Input synthesis | `src/input/` | `dispatch.ts` (dispatchMouse/dispatchMove — MOUSE-\*), `human-click.ts` (ClickTiming: delays, waitUntil, humanClick), `cursor-controller.ts` (CursorController: low-level PAW-4 arc/spline/warp travel, moveCursorTo/glideCursor — the only file that writes `runtime.cursor.x/y`), `background-clock.ts` (BackgroundClock: BG-1/BG-2 worker timer), `keep-alive.ts` (BG-3) |
-| Auto play | `src/autoplay/` | `valuation-tables.ts` (AUTO_BLOCKED_\*, AUTO_GOLDEN_UPGRADES, AUTO_KITTEN_POWER, AUTO_FINGER_STEPS, AUTO_BUILDING_CAPS — AUTO-2 data), `building-valuation.ts` + `upgrade-classifier.ts` (AUTO-3 gain math per candidate type), `collector.ts` (`autoCollect`: gathers candidates + ctx, AUTO-7 safety gates), `strategy.ts` (`autoDecide`: the pure insignificant/good/postpone/save decision, AUTO-4 — flagship unit-test target), `buy-streak.ts` (pure: whether the paw buys one more of the same building in its streak, AUTO-14), `achievement-milestones.ts` (pure: a building's value on its way to a count achievement, AUTO-15), `shopping.ts` (`AutoPlayEngine`: evaluate/shopJob/statusText, AUTO-1/8/9/10/12), `auto-hammer.ts` (AUTO-11), `grimoire-unlock.ts` (`GrimoireUnlocker`: AUTO-13 gating, steps from GrimoireView), `minigame-unlock.ts` (`MinigameUnlocker`: a minigame's level 1 unlock, gating and steps from its MinigameView), `bank-unlock.ts` (`BankUnlocker`: AUTO-16), `farm-unlock.ts` (`FarmUnlocker`: AUTO-17), `wrinkler-strategy.ts` (pure: respawn time, maturity, fewest-fattest pick — WRINK-2/3), `grandmapocalypse-valuation.ts` (pure: stage 1 gain, delay, chain-step dCps — WRINK-1), `wrinkler-popper.ts` (`WrinklerPopper`: WRINK-3/4 gating, plan, job, HUD text), `krumblor-strategy.ts` (pure: next Krumblor step — KRUMB-1/2/5), `krumblor.ts` (`KrumblorTrainer`: KRUMB-\* gating, state, jobs, the cursor sale/rebuy), `easter-eggs.ts` (pure-ish: egg values and order — EGG-\*), `christmas.ts` (pure-ish: Christmas upgrade values — XMAS-1..3), `santa-strategy.ts` (pure: next Santa step — XMAS-4), `santa.ts` (`SantaTrainer`: XMAS-4/5 gating, jobs), `butter-biscuit-strategy.ts` (pure: the next Wizard tower top-up / sell-back — BUTTER-\*), `butter-biscuit.ts` (`ButterBiscuitHunter`: BUTTER-\* gating, jobs), `ascension-strategy.ts` (pure: pending level, stagnation, boost gate, verdict — ASC-1..4/8), `heavenly-shopping.ts` (pure: the heavenly priority list, lucky 7s, the shopping list and the level it needs — ASC-9), `ascension-steps.ts` (pure: the next step of an automatic ascension — ASC-10), `achievement-dump.ts` (pure: the cheapest-first achievement plan for the bank before an ascension — ASC-13), `ascension-runner.ts` (`AscensionRunner`: ASC-10 gating, steps, jobs, the per-run reset), `ascension.ts` (`AscensionPlanner`: measured income, cached plan, HUD text — ASC-2/5), `ascension-overlay.ts` (Legacy button and heavenly tree boxes — ASC-6/7), `income-tracker.ts` (smoothed clicking income for AUTO-3's `income`), `buy-value-overlay.ts` (BUY-\*) |
+| Auto play | `src/autoplay/` | `valuation-tables.ts` (AUTO_BLOCKED_\*, AUTO_GOLDEN_UPGRADES, AUTO_KITTEN_POWER, AUTO_FINGER_STEPS, AUTO_BUILDING_CAPS — AUTO-2 data), `building-valuation.ts` + `upgrade-classifier.ts` (AUTO-3 gain math per candidate type), `collector.ts` (`autoCollect`: gathers candidates + ctx, AUTO-7 safety gates), `strategy.ts` (`autoDecide`: the pure insignificant/good/postpone/save decision, AUTO-4 — flagship unit-test target), `buy-streak.ts` (pure: whether the paw buys one more of the same building in its streak, AUTO-14), `achievement-milestones.ts` (pure: a building's value on its way to a count achievement, AUTO-15), `shopping.ts` (`AutoPlayEngine`: evaluate/shopJob/statusText, AUTO-1/8/9/10/12), `auto-hammer.ts` (AUTO-11), `grimoire-unlock.ts` (`GrimoireUnlocker`: AUTO-13 gating, steps from GrimoireView), `minigame-unlock.ts` (`MinigameUnlocker`: a minigame's level 1 unlock, gating and steps from its MinigameView), `bank-unlock.ts` (`BankUnlocker`: AUTO-16), `farm-unlock.ts` (`FarmUnlocker`: AUTO-17), `wrinkler-strategy.ts` (pure: respawn time, maturity, fewest-fattest pick — WRINK-2/3), `grandmapocalypse-valuation.ts` (pure: stage 1 gain, delay, chain-step dCps — WRINK-1), `wrinkler-popper.ts` (`WrinklerPopper`: WRINK-3/4 gating, plan, job, HUD text), `krumblor-strategy.ts` (pure: next Krumblor step — KRUMB-1/2/5), `krumblor.ts` (`KrumblorTrainer`: KRUMB-\* gating, state, jobs, the cursor sale/rebuy), `easter-eggs.ts` (pure-ish: egg values and order — EGG-\*), `christmas.ts` (pure-ish: Christmas upgrade values — XMAS-1..3), `santa-strategy.ts` (pure: next Santa step — XMAS-4), `santa.ts` (`SantaTrainer`: XMAS-4/5 gating, jobs), `butter-biscuit-strategy.ts` (pure: the next Wizard tower top-up / sell-back — BUTTER-\*), `butter-biscuit.ts` (`ButterBiscuitHunter`: BUTTER-\* gating, jobs), `ascension-strategy.ts` (pure: pending level, stagnation, boost gate, verdict — ASC-1..4/8), `heavenly-shopping.ts` (pure: the heavenly value table, lucky 7s, the shopping list and the level it needs — ASC-9), `permanent-slots.ts` (pure: what each permanent upgrade slot holds, the next slot to fill — ASC-16), `ascension-steps.ts` (pure: the next step of an automatic ascension — ASC-10/16), `achievement-dump.ts` (pure: the cheapest-first achievement plan for the bank before an ascension — ASC-13), `ascension-runner.ts` (`AscensionRunner`: ASC-10 gating, steps, jobs, the per-run reset), `ascension.ts` (`AscensionPlanner`: measured income, cached plan, HUD text — ASC-2/5), `ascension-overlay.ts` (Legacy button and heavenly tree boxes — ASC-6/7), `income-tracker.ts` (smoothed clicking income for AUTO-3's `income`), `buy-value-overlay.ts` (BUY-\*) |
 | Stock market | `src/market/` | `market-strategy.ts` (pure: thresholds, trailing stop, budget, brokers, the next trade — STOCK-2..4), `stock-trader.ts` (`StockTrader`: STOCK-\* gating, peaks, jobs, HUD text; the Bank's `MinigameView`) |
 | Garden | `src/garden/` | `garden-strategy.ts` (pure: the crop, pests, payout crops, soil, the next step — GARDEN-2..6), `gardener.ts` (`Gardener`: GARDEN-\* gating, jobs, HUD text; the Farm's `MinigameView`) |
 | Scheduler | `src/scheduler/` | `priority.ts` (`selectJobRequest`: the SCHED-1 cascade as pure data), `scheduler.ts` (`Scheduler.tick()`: wrath logging, queue build, enqueues ONE job via CursorManager), `overlay-loop.ts` (`OverlayLoop`: the requestAnimationFrame draw loop — hunting show, hitboxes, buy-value overlay, ascension overlay, paw) |
@@ -2077,8 +2110,8 @@ file.**
 
 Three layers, each catching a different class of bug:
 
-1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 619 tests
-   across 54 files. Pure functions (route planner, `autoDecide`, the chart
+1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 643 tests
+   across 55 files. Pure functions (route planner, `autoDecide`, the chart
    engine, `normalizeSetting`) are tested directly with plain data; the
    cursor queue/actions have their own fake mover/timing tests. Classes
    that depend on the game are tested against `FakeGameAdapter`
@@ -2196,8 +2229,7 @@ an assertion — hence the visual suite instead.
 - Auto play does not click the big cookie for you (combine with Hammer
   mode), does not buy kittens/mouse upgrades/dragon/seasonal switches, and
   ascends by itself unless "Auto: ascend" is off (ASC-10). Auto
-  ascension never picks a challenge mode or fills permanent upgrade slots,
-  and a page reload on the ascension screen leaves that ascension to the
+  ascension never picks a challenge mode, and a page reload on the ascension screen leaves that ascension to the
   player.
 - Grandmapocalypse stage 1 is on by default (WRINK-1) and cannot be undone
   by the bot. Its cost: 1 in 3 golden cookies becomes a wrath cookie that
@@ -2269,6 +2301,25 @@ mouse while the bot runs and confirm the "+N" number follows your cursor,
 not the paw's).
 
 ## 12. Changelog
+
+- **5.8.42** The heavenly shopping list (ASC-9) goes by impact instead of a
+  fixed order: a hardcoded value per heavenly upgrade (`HEAVENLY_VALUE`,
+  every one of the game's prestige upgrades, replacing the 41-name
+  `HEAVENLY_PRIORITY`), and every round the most valuable upgrade whose
+  missing chain the chips pay for is bought, until none fits. An upgrade
+  worth nothing only comes along as the parent of a valuable one that is
+  affordable with it; the first wish out of reach no longer ends the list.
+  New wishes include God, Chimera, Sucralosia Inutilis, Sugar craving, Sugar
+  aging process, the Star\* season upgrades, Keepsakes, Heralds, Fortune
+  cookies, the permanent upgrade slots and the Unshackled upgrades (by way of
+  Inspired checklist, Genius accounting and Label printer). New: the paw fills
+  the permanent upgrade slots on the ascension screen (ASC-16: the priciest
+  kitten, "x fingers", golden cookie upgrade, second kitten and mouse
+  upgrade), `src/autoplay/permanent-slots.ts`; `IGameAdapter` gains
+  `getPermanentSlots()`, new steps `open-slot`/`scroll-slot`/`pick-slot`/
+  `confirm-slot`/`cancel-slot`, `runtime.ascendSlotPrompt`. Unit tests in
+  `tests/unit/heavenly-shopping.test.ts` and
+  `tests/unit/permanent-slots.test.ts`.
 
 - **5.8.41** The ascension planner no longer counts unpopped wrinklers
   (ASC-1): every level on the Legacy card and the HUD row is what ascending

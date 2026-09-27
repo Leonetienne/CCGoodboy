@@ -75,55 +75,158 @@ export function nextLuckyTarget(from: number, sevens: number, minDigit = 0, minL
   return null;
 }
 
-/** What the bot wants from the heavenly tree, most wanted first (ASC-9). Parents are bought
- * along with a wish (missingChain), so e.g. Kitten angels drags in Twin Gates and
- * Angels .. Dominions. Left out on purpose: things the bot cannot use (permanent upgrade slots
- * need an upgrade picked; the golden switch turns golden cookies off; the shimmering veil,
- * season switcher and sugar frenzy are switches; cosmetics; the gifting/ticker/dragon petting
- * extras). Names as in the game's main.js 2.058. */
-export const HEAVENLY_PRIORITY: readonly string[] = [
-  'Legacy',
-  'Heavenly cookies',
-  'How to bake your dragon',
-  'Heavenly luck',
-  'Tin of british tea biscuits',
-  'Box of macarons',
-  'Box of brand biscuits',
-  'Tin of butter cookies',
-  'Starter kit',
-  'Persistent memory',
-  'Lasting fortune',
-  'Lucky digit',
-  'Starter kitchen',
-  'Decisive fate',
-  'Kitten angels',
-  'Unholy bait',
-  'Halo gloves',
-  'Lucky number',
-  'Divine discount',
-  'Divine sales',
-  'Synergies Vol. I',
-  'Divine bakeries',
-  'Elder spice',
-  'Sacrilegious corruption',
-  'Five-finger discount',
-  'Synergies Vol. II',
-  'Wrinkly cookies',
-  'Distilled essence of redoubled luck',
-  'Lucky payout',
-  'Stevia Caelestis',
-  'Sugar baking',
-  'Diabetica Daemonicus',
-  'Aura gloves',
-  'Sugar crystal cookies',
-  'Kitten wages',
-  'Cat ladies',
-  'Luminous gloves',
-  'Milkhelp&reg; lactose intolerance relief tablets',
-  'Box of maybe cookies',
-  'Box of not cookies',
-  'Box of pastries',
-];
+/** ASC-9: how much each heavenly upgrade is worth to the bot, hardcoded so it can be audited
+ * in one place. Units: roughly "% of CpS for the rest of every later run" (a +10% CpS upgrade
+ * is 10); what the bot can't use (switches it never flips, extra info, gifting) is 0, and so
+ * is anything purely cosmetic. The planner takes the highest-value upgrade whose missing chain
+ * the chips of this ascension pay for; a 0 is only ever bought as the parent of something
+ * worth more that is affordable along with it. An upgrade missing from the table counts 0.
+ * Names as in the game's main.js 2.058 (every one of its prestige upgrades is listed). */
+export const HEAVENLY_VALUE: Readonly<Record<string, number>> = {
+  // the tree itself and the big CpS multipliers
+  Legacy: 1000,
+  'Heavenly cookies': 10, // +10% CpS
+  'Synergies Vol. I': 20, // unlocks the synergy upgrades
+  'Synergies Vol. II': 20,
+  'Sugar baking': 20, // +1% CpS per unspent lump (up to 100)
+  'Kitten angels': 15, // a kitten upgrade
+  'Wrinkly cookies': 12, // +10% CpS, wrinklers +10%
+  'Sugar crystal cookies': 10, // +5% CpS, +1% per building level >= 10
+  Heralds: 10, // +1% CpS per herald
+  'How to bake your dragon': 30, // Krumblor (KRUMB-*): Radiant Appetite x2, Dragonflight
+  // permanent upgrade slots (ASC-16: a kitten, fingers, a golden upgrade, a kitten, a mouse)
+  'Permanent upgrade slot I': 15,
+  'Permanent upgrade slot II': 10,
+  'Permanent upgrade slot III': 5,
+  'Permanent upgrade slot IV': 4,
+  'Permanent upgrade slot V': 3,
+  // cookie upgrades unlocked in the store
+  'Tin of british tea biscuits': 4,
+  'Box of macarons': 4,
+  'Box of brand biscuits': 4,
+  'Tin of butter cookies': 4,
+  'Box of maybe cookies': 4,
+  'Box of not cookies': 4,
+  'Box of pastries': 4,
+  'Fortune cookies': 3,
+  // golden cookies
+  'Heavenly luck': 5, // 5% more often
+  'Lasting fortune': 5, // effects 10% longer
+  'Decisive fate': 2, // stay 5% longer
+  'Distilled essence of redoubled luck': 5, // 1% chance of two
+  'Lucky digit': 2, // +1% prestige, golden effects
+  'Lucky number': 2,
+  'Lucky payout': 2,
+  'Residual luck': 0, // only with the golden switch on
+  'Golden switch': 0, // turns golden cookies off
+  // wrinklers (WRINK-*)
+  'Elder spice': 10, // +2 wrinkler slots
+  'Unholy bait': 5, // wrinklers 5x more often
+  'Sacrilegious corruption': 5, // +5% from popped wrinklers
+  'Eye of the wrinkler': 0, // only shows what a wrinkler holds
+  // kittens, grandmas, clicks
+  'Kitten wages': 3, // kittens 10% cheaper
+  'Cat ladies': 3, // grandmas +29% per kitten
+  'Milkhelp&reg; lactose intolerance relief tablets': 3, // grandmas +5% per milk rank
+  'Halo gloves': 3, // clicks +10%
+  'Aura gloves': 3, // cursor levels boost clicks
+  'Luminous gloves': 3,
+  'Starter kit': 1, // 10 free cursors
+  'Starter kitchen': 1, // 5 free grandmas
+  // prices and research
+  'Persistent memory': 4, // research 10x faster (WRINK-1)
+  'Divine bakeries': 3, // cookie upgrades 5x cheaper
+  'Five-finger discount': 2,
+  'Divine discount': 1,
+  'Divine sales': 1,
+  // sugar lumps
+  'Stevia Caelestis': 5, // ripen 1h sooner
+  'Diabetica Daemonicus': 5, // mature 1h sooner
+  'Sugar aging process': 5, // grandmas ripen lumps sooner
+  'Sucralosia Inutilis': 2, // bifurcated lumps
+  'Sugar craving': 1, // the sugar frenzy switch
+  // offline production (the angels) and its duration (the demons)
+  'Twin Gates of Transcendence': 1,
+  Angels: 1,
+  Archangels: 1,
+  Virtues: 1,
+  Dominions: 1,
+  Cherubim: 1,
+  Seraphim: 1,
+  God: 1,
+  Belphegor: 1,
+  Mammon: 1,
+  Abaddon: 1,
+  Satan: 1,
+  Asmodeus: 1,
+  Beelzebub: 1,
+  Lucifer: 1,
+  Chimera: 2, // synergy upgrades 2% cheaper, more offline
+  // seasons
+  'Season switcher': 1,
+  Starspawn: 1,
+  Starsnow: 1,
+  Starterror: 1,
+  Starlove: 1,
+  Startrade: 1,
+  Keepsakes: 1,
+  'Pet the dragon': 2, // dragon drops
+  // the shimmering veil: a switch the bot never buys (its clicks would break it anyway)
+  'Shimmering veil': 0,
+  "Cosmic beginner's luck": 0.5, // random drops 5x more likely early in a run
+  'Reinforced membrane': 0,
+  'Delicate touch': 0,
+  'Steadfast murmur': 0,
+  'Glittering edge': 0,
+  // the way to the Unshackled upgrades: nothing on their own
+  'Inspired checklist': 0, // "Buy all"
+  'Genius accounting': 0, // price info
+  'Label printer': 0, // cosmetic
+  // Unshackled: a tier and a building together make that building's tiered upgrades stronger
+  'Unshackled cursors': 10,
+  'Unshackled grandmas': 5,
+  'Unshackled farms': 5,
+  'Unshackled mines': 5,
+  'Unshackled factories': 5,
+  'Unshackled banks': 5,
+  'Unshackled temples': 5,
+  'Unshackled wizard towers': 5,
+  'Unshackled shipments': 5,
+  'Unshackled alchemy labs': 5,
+  'Unshackled portals': 5,
+  'Unshackled time machines': 5,
+  'Unshackled antimatter condensers': 5,
+  'Unshackled prisms': 5,
+  'Unshackled chancemakers': 5,
+  'Unshackled fractal engines': 5,
+  'Unshackled javascript consoles': 5,
+  'Unshackled idleverses': 5,
+  'Unshackled cortex bakers': 5,
+  'Unshackled You': 5,
+  'Unshackled flavor': 5,
+  'Unshackled berrylium': 5,
+  'Unshackled blueberrylium': 5,
+  'Unshackled chalcedhoney': 5,
+  'Unshackled buttergold': 5,
+  'Unshackled sugarmuck': 5,
+  'Unshackled jetmint': 5,
+  'Unshackled cherrysilver': 5,
+  'Unshackled hazelrald': 5,
+  'Unshackled mooncandy': 5,
+  'Unshackled astrofudge': 5,
+  'Unshackled alabascream': 5,
+  'Unshackled iridyum': 5,
+  'Unshackled glucosmium': 5,
+  'Unshackled glimmeringue': 5,
+  // no use to the bot, or purely cosmetic
+  'Wrapping paper': 0,
+  'Classic dairy selection': 0,
+  'Fanciful dairy selection': 0,
+  'Basic wallpaper assortment': 0,
+  'Distinguished wallpaper assortment': 0,
+  'Golden cookie alert sound': 0,
+  'Sound test': 0,
+};
 
 export interface HeavenlyShopInput {
   heavenly: HeavenlyUpgradeInfo[];
@@ -152,7 +255,8 @@ export interface HeavenlyShopInput {
   /** The most 7s a lucky wish this run already waited for needed: such a wish gets
    * LUCKY_KEEP_FACTOR x the lucky budget (hysteresis). 0: none. */
   luckyKeepSevens?: number;
-  priority?: readonly string[];
+  /** What each upgrade is worth (default: HEAVENLY_VALUE). */
+  values?: Readonly<Record<string, number>>;
 }
 
 export interface ShopItem {
@@ -182,8 +286,8 @@ export interface HeavenlyShopPlan {
   chipsAt: number;
   /** The wish that pushed `level` above fromLevel last (what the run waits for), or null. */
   waitFor: string | null;
-  /** The first ordinary wish the bot does NOT wait for (too far off); its chips are kept for
-   * it, so nothing below it on the list is bought either. */
+  /** The most valuable ordinary wish the bot does NOT wait for (too far off): what it saves
+   * for next time. */
   next: ShopWish | null;
   /** Lucky upgrades left out because their level is too far off. */
   skippedLucky: ShopWish[];
@@ -214,25 +318,57 @@ function missingChain(name: string, byName: Map<string, HeavenlyUpgradeInfo>, ta
 
 const SEVENS = new Map(LUCKY_UPGRADES.map((l) => [l.name, l.sevens]));
 
-/** ASC-9: walks the priority list and takes each wish (with its missing parents) as long as the
- * run reaches a level that pays for everything taken so far within the wait budget (a lucky
- * wish also needs its 7s, within the lucky budget). An ordinary wish that is too far off ends
- * the list (its chips are saved for it); a lucky one is just skipped. */
+/** ASC-9: greedy by value. Every round it looks at each upgrade worth something (value > 0)
+ * with its missing parents, and takes the one whose chain is worth the most (the chain's
+ * values summed, cheaper first on a tie) among those the run pays for: at the level reached
+ * so far, or at a higher one within the wait budget (an ordinary wish also only while the
+ * extra levels stay few; a lucky one needs its 7s, within the lucky budget). Parents worth
+ * nothing come only along with a wish that is affordable with them. Repeats until nothing
+ * else fits. */
 export function planHeavenlyShopping(input: HeavenlyShopInput): HeavenlyShopPlan {
+  const values = input.values ?? HEAVENLY_VALUE;
+  const valueOf = (name: string) => values[name] ?? 0;
   const byName = new Map(input.heavenly.map((u) => [u.name, u]));
   const taken = new Set<string>();
   const items: ShopItem[] = [];
-  const skippedLucky: ShopWish[] = [];
+  // Every wish's unbought ancestors, parents first, worked out once: a round only drops what
+  // is taken already.
+  const chains = new Map<string, HeavenlyUpgradeInfo[]>();
+  for (const u of input.heavenly) {
+    if (u.bought || valueOf(u.name) <= 0) continue;
+    const chain = missingChain(u.name, byName, new Set());
+    if (chain && chain.length) chains.set(u.name, chain);
+  }
+  const wishes = [...chains.keys()];
 
   let level = input.fromLevel;
   let sevens = 0;
   let cost = 0;
   let waitFor: string | null = null;
-  let next: ShopWish | null = null;
 
-  for (const name of input.priority ?? HEAVENLY_PRIORITY) {
-    const chain = missingChain(name, byName, taken);
-    if (!chain || !chain.length) continue;
+  interface Option {
+    name: string;
+    chain: HeavenlyUpgradeInfo[];
+    chainCost: number;
+    value: number;
+    at: number | null;
+    etaSec: number;
+    lucky: boolean;
+    needSevens: number;
+    ok: boolean;
+  }
+
+  // Most options land on the same level: the lucky search runs once per level and 7s.
+  const luckyCache = new Map<string, number | null>();
+  const luckyTarget = (from: number, need: number): number | null => {
+    const key = `${from}|${need}`;
+    if (!luckyCache.has(key)) luckyCache.set(key, nextLuckyTarget(from, need, input.luckyMinDigit ?? 0, input.luckyMinLevels ?? 1));
+    return luckyCache.get(key)!;
+  };
+
+  const option = (name: string): Option | null => {
+    const chain = (chains.get(name) ?? []).filter((u) => !taken.has(u.name));
+    if (!chain.length) return null;
 
     const chainCost = chain.reduce((sum, u) => sum + u.price, 0);
     const chainSevens = Math.max(0, ...chain.map((u) => SEVENS.get(u.name) ?? 0));
@@ -241,7 +377,7 @@ export function planHeavenlyShopping(input: HeavenlyShopInput): HeavenlyShopPlan
     // 1 chip per level: chips at L = heavenlyChips + (L - prestige).
     const chipsLevel = Math.ceil(input.prestige + cost + chainCost - input.heavenlyChips);
     let at: number | null = Math.max(level, chipsLevel);
-    if (needSevens > 0) at = nextLuckyTarget(Math.max(at, input.luckyFromLevel ?? 0), needSevens, input.luckyMinDigit ?? 0, input.luckyMinLevels ?? 1);
+    if (needSevens > 0) at = luckyTarget(Math.max(at, input.luckyFromLevel ?? 0), needSevens);
 
     const lucky = chainSevens > sevens;
     const etaSec = at == null ? Infinity : input.etaTo(at);
@@ -250,26 +386,49 @@ export function planHeavenlyShopping(input: HeavenlyShopInput): HeavenlyShopPlan
     const fewShort = lucky || at == null || at - input.fromLevel <= (input.maxExtraLevels ?? Infinity);
     const luckyBudget = input.luckyWaitSec * (chainSevens <= (input.luckyKeepSevens ?? 0) ? LUCKY_KEEP_FACTOR : 1);
     const ok = at != null && (at === level || (fewShort && etaSec <= (lucky ? luckyBudget : input.shopWaitSec)));
+    const value = chain.reduce((sum, u) => sum + valueOf(u.name), 0);
 
-    if (!ok) {
-      const wish = { name, cost: chainCost, level: at, etaSec };
-      if (lucky) {
-        skippedLucky.push(wish);
-        continue;
-      }
-      next = wish;
-      break;
+    return { name, chain, chainCost, value, at, etaSec, lucky, needSevens, ok };
+  };
+
+  const better = (a: Option, b: Option | null) => !b || a.value > b.value || (a.value === b.value && a.chainCost < b.chainCost);
+
+  // A wish that needs more 7s and is too far off stays too far off: every later round only
+  // raises the level and the cost. Dropped for the rest of the rounds (its 7s search is the
+  // expensive part); still reported at the end.
+  const outOfReach = new Set<string>();
+
+  for (;;) {
+    let best: Option | null = null;
+    for (const name of wishes) {
+      if (taken.has(name) || outOfReach.has(name)) continue;
+      const o = option(name);
+      if (o && !o.ok && o.lucky) outOfReach.add(name);
+      if (o && o.ok && better(o, best)) best = o;
     }
+    if (!best) break;
 
-    if (at! > level) waitFor = name;
-    level = at!;
-    sevens = needSevens;
-    cost += chainCost;
+    if (best.at! > level) waitFor = best.name;
+    level = best.at!;
+    sevens = best.needSevens;
+    cost += best.chainCost;
 
-    for (const u of chain) {
+    for (const u of best.chain) {
       taken.add(u.name);
       items.push({ name: u.name, price: u.price });
     }
+  }
+
+  // What is left out: the most valuable ordinary wish (saved for next time) and the lucky
+  // wishes whose 7s are too far off.
+  let next: Option | null = null;
+  const skippedLucky: ShopWish[] = [];
+  for (const name of wishes) {
+    if (taken.has(name)) continue;
+    const o = option(name);
+    if (!o) continue;
+    if (o.lucky) skippedLucky.push({ name, cost: o.chainCost, level: o.at, etaSec: o.etaSec });
+    else if (better(o, next)) next = o;
   }
 
   return {
@@ -279,7 +438,7 @@ export function planHeavenlyShopping(input: HeavenlyShopInput): HeavenlyShopPlan
     cost,
     chipsAt: input.heavenlyChips + (level - input.prestige),
     waitFor,
-    next,
+    next: next ? { name: next.name, cost: next.chainCost, level: next.at, etaSec: next.etaSec } : null,
     skippedLucky,
     sevens,
   };

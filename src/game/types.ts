@@ -107,6 +107,25 @@ export interface HeavenlyUpgradeInfo {
   canBePurchased: boolean;
 }
 
+/** An upgrade the "Pick an upgrade to make permanent" prompt offers (ASC-16): bought last run,
+ * a store upgrade (pool '' or 'cookie'), not noPerm (the game's Game.AssignPermanentSlot). */
+export interface PermanentCandidate {
+  id: number;
+  name: string;
+  /** The base price (the game's own price order, without discounts). */
+  price: number;
+  kitten: boolean;
+}
+
+/** The permanent upgrade slots as the ascension screen sees them (ASC-16). */
+export interface PermanentSlotInfo {
+  /** Game.permanentUpgrades: the upgrade id in each of the 5 slots, -1 when empty. */
+  slots: number[];
+  /** Game.SelectingPermanentUpgrade: the upgrade picked in the open prompt, -1 when none. */
+  selecting: number;
+  candidates: PermanentCandidate[];
+}
+
 /** One good of the Bank's stock market minigame (STOCK-*), shaped by the game adapter from
  * `M.goodsById`. Prices are in "$", i.e. seconds of the highest raw CpS this ascension. */
 export interface MarketGood {

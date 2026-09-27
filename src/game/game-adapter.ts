@@ -1,4 +1,4 @@
-import type { CpsBuff, GameBuilding, GameShimmer, GameUpgrade, GameWrinkler, GardenSnapshot, GardenTile, GrimoireMinigame, HeavenlyUpgradeInfo, MarketGood, MarketSnapshot, RawBuff } from './types';
+import type { CpsBuff, GameBuilding, GameShimmer, GameUpgrade, GameWrinkler, GardenSnapshot, GardenTile, GrimoireMinigame, HeavenlyUpgradeInfo, MarketGood, PermanentSlotInfo, MarketSnapshot, RawBuff } from './types';
 
 /** Every access to the live Cookie Clicker `Game` object goes through this interface. It is
  * the one mockable seam between our logic and the page's own global. */
@@ -71,6 +71,8 @@ export interface IGameAdapter {
   onAscendScreen(): boolean;
   /** Every heavenly upgrade (Game.PrestigeUpgrades with pool 'prestige'). */
   getHeavenlyUpgrades(): HeavenlyUpgradeInfo[];
+  /** The permanent upgrade slots, the prompt's pick and what it offers (ASC-16). */
+  getPermanentSlots(): PermanentSlotInfo;
   /** The ascend animation between the "Ascend" confirmation and the ascension screen
    * (Game.AscendTimer running, not on the screen yet). */
   isAscendIntro(): boolean;
@@ -496,6 +498,29 @@ export class GameAdapter implements IGameAdapter {
   onAscendScreen(): boolean {
     const Game = window.Game;
     return !!(Game && Game.OnAscend);
+  }
+
+  getPermanentSlots(): PermanentSlotInfo {
+    const out: PermanentSlotInfo = { slots: [-1, -1, -1, -1, -1], selecting: -1, candidates: [] };
+
+    try {
+      const Game = window.Game;
+      if (!Game) return out;
+
+      if (Array.isArray(Game.permanentUpgrades)) out.slots = Game.permanentUpgrades.map((v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : -1));
+      if (Number.isFinite(Number(Game.SelectingPermanentUpgrade))) out.selecting = Number(Game.SelectingPermanentUpgrade);
+
+      for (const name in Game.Upgrades || {}) {
+        const up = Game.Upgrades[name];
+        if (!up || !up.bought || !up.unlocked || up.noPerm || (up.pool !== '' && up.pool !== 'cookie')) continue;
+
+        out.candidates.push({ id: Number(up.id), name: String(up.name), price: Number(up.basePrice) || 0, kitten: !!up.kitten });
+      }
+    } catch (_e) {
+      // no slots
+    }
+
+    return out;
   }
 
   getHeavenlyUpgrades(): HeavenlyUpgradeInfo[] {

@@ -72,3 +72,24 @@ export function panToCrate(el: Element | null): { dx: number; dy: number } | nul
     dy: window.innerHeight / 2 - (r.top + r.height / 2),
   };
 }
+
+/** ASC-16: an upgrade's crate in the open "Pick an upgrade to make permanent" prompt. */
+export function getPermanentPickCrate(id: number): Element | null {
+  return document.getElementById('promptContentPickPermaUpgrade') ? document.getElementById(`upgradeForPermanent${id}`) : null;
+}
+
+/** The prompt's scrolling list of crates. */
+export function getPermanentPickBox(): HTMLElement | null {
+  const box = document.getElementById('promptContentPickPermaUpgrade');
+  return box ? (box.querySelector('.crateBox') as HTMLElement | null) : null;
+}
+
+/** "Confirm" in that prompt. */
+export function getPermanentConfirmButton(): Element | null {
+  return document.getElementById('promptContentPickPermaUpgrade') ? document.getElementById('promptOption0') : null;
+}
+
+/** "Cancel" in that prompt. */
+export function getPermanentCancelButton(): Element | null {
+  return document.getElementById('promptContentPickPermaUpgrade') ? document.getElementById('promptOption1') : null;
+}

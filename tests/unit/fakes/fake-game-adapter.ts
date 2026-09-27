@@ -1,5 +1,5 @@
 import type { IGameAdapter } from '../../../src/game/game-adapter';
-import type { CpsBuff, GameBuilding, GameShimmer, GameUpgrade, GameWrinkler, GardenSnapshot, GrimoireMinigame, HeavenlyUpgradeInfo, MarketSnapshot, RawBuff } from '../../../src/game/types';
+import type { CpsBuff, GameBuilding, GameShimmer, GameUpgrade, GameWrinkler, GardenSnapshot, GrimoireMinigame, HeavenlyUpgradeInfo, MarketSnapshot, PermanentSlotInfo, RawBuff } from '../../../src/game/types';
 
 /** A hand-written stand-in for GameAdapter, settable per test. Everything defaults to the
  * "Game not ready" shape so a test only needs to override what it cares about. */
@@ -275,6 +275,12 @@ export class FakeGameAdapter implements IGameAdapter {
 
   onAscendScreen(): boolean {
     return this.ascendScreen;
+  }
+
+  permanentSlots: PermanentSlotInfo = { slots: [-1, -1, -1, -1, -1], selecting: -1, candidates: [] };
+
+  getPermanentSlots(): PermanentSlotInfo {
+    return { slots: [...this.permanentSlots.slots], selecting: this.permanentSlots.selecting, candidates: this.permanentSlots.candidates.map((c) => ({ ...c })) };
   }
 
   getHeavenlyUpgrades(): HeavenlyUpgradeInfo[] {

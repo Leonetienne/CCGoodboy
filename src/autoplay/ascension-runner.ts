@@ -1,6 +1,7 @@
 import { AchievementDumpAction } from '../actions/achievement-dump';
 import { storeScrollJob } from '../actions/store-visit';
 import { DragTreeAction, WaitWhileAction } from '../actions/ascension';
+import { ScrollIntoViewAction } from '../actions/buildings-view';
 import { DragonClickAction } from '../actions/krumblor';
 import { WrinklerPopAction } from '../actions/wrinkler-pop';
 import { sayCant, sayYay } from '../core/console-voice';
@@ -12,6 +13,10 @@ import {
   getAscendCancelButton,
   getAscendConfirmButton,
   getHeavenlyCrate,
+  getPermanentCancelButton,
+  getPermanentConfirmButton,
+  getPermanentPickBox,
+  getPermanentPickCrate,
   getLegacyButton,
   getReincarnateButton,
   getReincarnateConfirmButton,
@@ -31,7 +36,8 @@ import type { AscensionPlanner } from './ascension';
 import { ASC_FINAL_SEC, cookiesForLevel, levelForCookies, luckyMinDigit, luckyWindowLevels } from './ascension-strategy';
 import { luckyWindowEnd, nextLuckyTarget } from './heavenly-shopping';
 import { autoFmtTime } from './shopping';
-import { nextAscensionStep, type AscendCrate, type AscendState, type AscendStep } from './ascension-steps';
+import { nextAscensionStep, type AscendCrate, type AscendSlot, type AscendState, type AscendStep } from './ascension-steps';
+import { nextSlotTask, PERMANENT_SLOTS } from './permanent-slots';
 
 /** A step whose element doesn't show up for this long pauses the module. */
 const STUCK_MS = 5000;
@@ -384,6 +390,37 @@ export class AscensionRunner {
       stocks,
       dump: dump ? { name: dump.name, id: dump.id, target: dump.target, count: dump.count } : null,
       toBuy: onScreen && this.runtime.ascendOurs ? this.toBuy() : [],
+      slot: onScreen && this.runtime.ascendOurs ? this.slotTask() : null,
+    };
+  }
+
+  /** ASC-16: the next permanent upgrade slot that doesn't hold its goal yet, or null. */
+  private slotTask(): AscendSlot | null {
+    if (Date.now() - this.runtime.ascendOursAt > MAX_HEAVEN_MS) return null;
+
+    const info = this.game.getPermanentSlots();
+    const t = nextSlotTask(info, this.game.getHeavenlyUpgrades(), this.runtime.ascendSkip);
+    if (!t) return null;
+    // An open picker belongs to the slot the paw clicked (or bought): any other one is cancelled.
+    if (openPromptId() === 'PickPermaUpgrade' && t.crateId !== this.runtime.ascendSlotPrompt) return null;
+
+    const el = getHeavenlyCrate(t.crateId);
+    const dragged = (this.runtime.ascendPans.get(t.crateId) || 0) >= MAX_PANS;
+    const pick = getPermanentPickCrate(t.want);
+    const box = getPermanentPickBox();
+    const pickRect = visibleRect(pick);
+    const boxRect = box ? box.getBoundingClientRect() : null;
+    // inside the prompt's scrolling list, not cut off by its edges
+    const pickVisible = !!pickRect && (!boxRect || (pickRect.top >= boxRect.top - 1 && pickRect.bottom <= boxRect.bottom + 1));
+
+    return {
+      crateId: t.crateId,
+      name: t.name,
+      clickable: crateClickable(el) || (dragged && !!visibleRect(el)),
+      want: t.want,
+      wantName: t.wantName,
+      selecting: info.selecting,
+      pickVisible,
     };
   }
 
@@ -663,6 +700,9 @@ export class AscensionRunner {
       case 'buy': {
         const price = this.game.getHeavenlyUpgrades().find((u) => u.id === s.id)?.price ?? 0;
 
+        // Buying a permanent upgrade slot opens its picker at once (ASC-16).
+        const onBuyClick = PERMANENT_SLOTS.includes(s.name) ? () => void (this.runtime.ascendSlotPrompt = s.id) : undefined;
+
         return click(
           `buy ${s.name}`,
           s.name,
@@ -680,8 +720,70 @@ export class AscensionRunner {
             if (fails >= MAX_BUY_FAILS) this.skip(s.name, 'buying it did not work');
             else this.block(3000, `buying ${s.name} did not work`);
           },
+          onBuyClick,
         );
       }
+
+      case 'open-slot': {
+        const slotFail = (why: string) => {
+          const fails = (this.runtime.ascendFails.get(s.id) || 0) + 1;
+          this.runtime.ascendFails.set(s.id, fails);
+          if (fails >= MAX_BUY_FAILS) this.skip(s.name, why);
+          else this.block(3000, why);
+        };
+
+        return click(
+          `open ${s.name}`,
+          s.name,
+          () => getHeavenlyCrate(s.id),
+          () => openPromptId() === 'PickPermaUpgrade',
+          (ok) => {
+            if (!ok) slotFail(`${s.name} did not open its picker`);
+          },
+          () => {
+            this.runtime.ascendSlotPrompt = s.id;
+          },
+        );
+      }
+
+      case 'scroll-slot':
+        return {
+          action: new ScrollIntoViewAction({
+            label: 'scroll the permanent upgrade list',
+            element: () => getPermanentPickCrate(s.id),
+            container: getPermanentPickBox,
+            abortIf: () => !stillWanted(),
+            onDone: (inView) => {
+              if (!inView) this.cancelSlot(`${s.name} is not in the permanent upgrade list`);
+            },
+            hud: { action: 'ascend', target: `looking for ${s.name}` },
+          }),
+          priority: JOB_PRIORITY.AUTO_SHOP,
+          key,
+        };
+
+      case 'pick-slot':
+        return click(`pick ${s.name}`, s.name, () => getPermanentPickCrate(s.id), () => this.game.getPermanentSlots().selecting === s.id, (ok) => {
+          if (!ok) this.cancelSlot(`picking ${s.name} did not work`);
+        });
+
+      case 'confirm-slot': {
+        const before = this.game.getPermanentSlots().slots;
+
+        return click(
+          `make ${s.name} permanent`,
+          '"Confirm"',
+          getPermanentConfirmButton,
+          () => !this.game.isPromptOpen() && this.game.getPermanentSlots().slots.includes(s.id),
+          (ok) => {
+            if (!ok) return this.cancelSlot(`confirming ${s.name} did not work`);
+            this.log.log('heavenly upgrade', `made ${s.name} permanent`, { before });
+          },
+        );
+      }
+
+      case 'cancel-slot':
+        return click('cancel the permanent upgrade', '"Cancel"', getPermanentCancelButton, () => !this.game.isPromptOpen(), orFail('the permanent upgrade prompt did not close', () => {}));
 
       case 'reincarnate':
         return click('reincarnate', 'the Reincarnate button', getReincarnateButton, () => openPromptId() === 'Reincarnate', orFail('Reincarnate did not ask "Yes"', () => {}));
@@ -701,6 +803,13 @@ export class AscensionRunner {
     }
 
     return null;
+  }
+
+  /** ASC-16: the open slot's pick went wrong: gives up on that slot for this ascension (the
+   * prompt is then cancelled, since no slot task is left for it). */
+  private cancelSlot(why: string): void {
+    const t = nextSlotTask(this.game.getPermanentSlots(), this.game.getHeavenlyUpgrades(), this.runtime.ascendSkip);
+    if (t) this.skip(t.name, why);
   }
 
   /** Gives up on one heavenly upgrade for this ascension. */

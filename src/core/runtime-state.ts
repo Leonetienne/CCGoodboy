@@ -143,6 +143,9 @@ export class RuntimeState {
   ascendSkip = new Set<string>();
   ascendFails = new Map<number, number>();
   ascendPans = new Map<number, number>();
+  /** ASC-16: the slot crate whose "Pick an upgrade to make permanent" prompt the paw opened
+   * (clicking it, or buying it, which opens the prompt too); -1: none. */
+  ascendSlotPrompt = -1;
   /** ASC-13: when the selling/spending before an ascension started (0: not yet). */
   ascendDumpSince = 0;
   /** ASC-12: the locked target of a committed ascension (null: none). The routine ascends once
@@ -227,6 +230,7 @@ export class RuntimeState {
     this.ascendSkip.clear();
     this.ascendFails.clear();
     this.ascendPans.clear();
+    this.ascendSlotPrompt = -1;
     this.ascendDumpSince = 0;
     this.ascendPrepDone = false;
     this.ascendTarget = null;
