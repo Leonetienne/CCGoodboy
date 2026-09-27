@@ -72,6 +72,9 @@ export interface Stats {
   /** Seeds the paw planted and mature plants it harvested in the garden (GARDEN-8). */
   gardenPlants: number;
   gardenHarvests: number;
+  /** How far Krumblor is trained this run (KRUMB-1): the run's start date (Game.startDate) and
+   * the highest stage it unlocked, so it survives a reload. Null until the first check. */
+  krumblorRun: { start: number; stage: 1 | 2 | 3 } | null;
   /** Cookies the garden made (+) or cost (-): its CpS bonus over time, harvest payouts, minus
    * the seeds the paw planted (GARDEN-10). */
   gardenProfit: number;
@@ -185,6 +188,7 @@ export const DEFAULTS: PersistedState = {
     stockBasis: {},
     gardenPlants: 0,
     gardenHarvests: 0,
+    krumblorRun: null,
     gardenProfit: 0,
   },
   hourly: {},

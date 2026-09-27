@@ -335,6 +335,16 @@ describe('WrinklerPopper', () => {
     expect(popper.job()!.key).toBe('wrinkler-pop:1');
   });
 
+  it('pops for Krumblor\'s next batch (KRUMB-2) before any purchase, the fewest fattest', () => {
+    const { runtime, popper, decideWithExtraBank } = setup({ buy: null });
+    runtime.krumblorWrinklerNeed = 100;
+
+    const plan = popper.plan();
+    expect(plan!.ids).toEqual([1]);
+    expect(plan!.forName).toBe('Krumblor');
+    expect(decideWithExtraBank).not.toHaveBeenCalled();
+  });
+
   it('pops nothing when the bank already covers the purchase, or nothing is bought', () => {
     expect(setup({ buy: { name: 'Portal', cost: 500 } }).popper.plan()).toBeNull();
     expect(setup({ buy: null }).popper.plan()).toBeNull();

@@ -66,7 +66,7 @@ export class WrinklerPopper {
 
   /** The current pop plan (re-planned at most once a second), or null. A forced debug pop
    * plans the fattest attached normal wrinkler, skipping WRINK-2/3 (maturity, a purchase
-   * needing it). */
+   * needing it). Krumblor's next batch (KRUMB-2) asks before any purchase does. */
   plan(): WrinklerPopPlan | null {
     if (!this.allowed()) return null;
 
@@ -91,6 +91,14 @@ export class WrinklerPopper {
     try {
       const mature = this.mature();
       if (!mature.length) return null;
+
+      // Krumblor's next batch of sacrifices waits for these cookies (KRUMB-2).
+      const dragon = this.runtime.krumblorWrinklerNeed;
+      const forDragon = dragon > 0 ? pickWrinklersToPop(mature, dragon) : null;
+      if (forDragon) {
+        this.runtime.wrinklerPlan = { ids: forDragon.map((w) => w.id), yield: stashOf(forDragon), forName: 'Krumblor', cost: dragon };
+        return this.runtime.wrinklerPlan;
+      }
 
       const r = this.autoPlay.decideWithExtraBank(stashOf(mature));
       const buy = r && r.decision.buy;

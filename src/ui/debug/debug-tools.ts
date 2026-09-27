@@ -49,7 +49,7 @@ export class DebugTools {
         label: 'Spawn Elder Frenzy Cookie (wrath)',
         run: () => this.spawnGolden('elder frenzy cookie (wrath)', { wrath: true, force: 'blood frenzy' }),
       },
-      { label: 'Grant 1 quadrillion cookies', run: () => this.grantCookies(1e15, '1 quadrillion cookies') },
+      { label: 'Grant 1 quattuordecillion cookies', run: () => this.grantCookies(1e45, '1 quattuordecillion cookies') },
       { label: 'Fill Up Mana', run: () => this.fillMana() },
       { label: 'Reset Filling Up Mana cooldown', run: () => this.resetRefillCooldown() },
       { label: 'Clear LOCK_A (bot refill lock)', run: () => this.clearLockA() },

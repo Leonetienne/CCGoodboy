@@ -102,11 +102,16 @@ const gardener = Gardener.create(runtime, data, game, log, stats, buildingsView,
 const farmUnlock = new FarmUnlocker(runtime, data, game, log, gardener.view, () => autoPlay.shoppingInterrupted());
 const krumblor = new KrumblorTrainer(runtime, data, game, log, () => autoPlay.shoppingInterrupted());
 const santa = new SantaTrainer(runtime, data, game, log, () => autoPlay.shoppingInterrupted());
-const butterBiscuit = new ButterBiscuitHunter(runtime, data, game, log, () => autoPlay.shoppingInterrupted());
+const butterBiscuit = new ButterBiscuitHunter(runtime, data, game, log, () => autoPlay.shoppingInterrupted(), (id) => krumblor.holds(id));
 const ascension = new AscensionPlanner(data, game);
 const wrinklerPopper = new WrinklerPopper(runtime, data, game, log, stats, autoPlay);
 const ascensionRunner = new AscensionRunner(runtime, data, game, log, stats, ascension, () => autoPlay.shoppingInterrupted(), stockTrader);
 stockTrader.holdBuys = () => ascensionRunner.armed();
+// KRUMB-2: a batch of sacrifices the bank can't pay for yet may be paid by the stock market's
+// loss-free wins and the mature wrinklers (only while popping is on).
+krumblor.stockFunds = () => stockTrader.cashOutPreview().cookies;
+krumblor.wrinklerFunds = () => (data.config.autoPopWrinklers === false ? 0 : wrinklerPopper.mature().reduce((sum, w) => sum + w.yield, 0));
+krumblor.cashStocks = (why) => stockTrader.startCashOut(why);
 // STOCK-4: a smaller stock budget while auto play saves up for a purchase.
 stockTrader.saving = () => data.config.autoPlay === true && !!(runtime.autoPlan && runtime.autoPlan.save);
 ascension.leadSec = () => ascensionRunner.leadSec();

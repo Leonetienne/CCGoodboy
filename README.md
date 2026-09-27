@@ -52,11 +52,16 @@ default and remembers your choice.
 - Takes the Grandmapocalypse to stage 1 for wrinklers **if you want to**, and **never** further.
   It pops fat wrinklers when it needs their cookies for a purchase. Shiny
   wrinklers are yours; it won't touch them.
-- Raises Krumblor, the cookie dragon, once you have the crumbly egg: it pays
-  the egg levels when they're pocket change, sacrifices 100 of each building
-  from cursors to shipments (selling the extras first and buying them back
-  after, which is much cheaper) and puts on the **Dragonflight** aura. It never swaps out an aura you picked
-  yourself. Switch it off with **Auto: train Krumblor**.
+- Raises Krumblor, the cookie dragon, once you have the crumbly egg, in
+  three stages: **Dragon Cursor** right away, **Dragonflight** once you own
+  150 shipments, and fully trained with **Radiant Appetite + Dragonflight**
+  once you own 220 "You". It does the sacrifices in batches, each one only
+  once the bank pays for the buildings it's missing (cashing in stock
+  market wins and popping mature wrinklers if that makes it enough): it buys
+  whatever is missing, sells the
+  extras (much cheaper than losing the priciest copies), sacrifices level
+  after level, and then buys everything back in one go. It never swaps out an
+  aura you picked yourself. Switch it off with **Auto: train Krumblor**.
 - Unlocks the butter biscuits (+10% CpS each). You get one for owning 100 (then 150, 200, ...)
   of **every** building at once, and Wizard towers are held at 57, so it buys them up to
   the milestone for a moment and sells them back once the biscuit is unlocked. It only does this
@@ -119,7 +124,7 @@ The panel's rarely needed rows (buffs, LOCK_A, click cooldown, background) are f
 ### Debug tools
 
 Switch them on under **Settings → Advanced → Show debug tools**; the button then shows up under **More...**.
-These spawn golden cookies of any kind, hand you a quadrillion cookies, fill
+These spawn golden cookies of any kind, hand you a quattuordecillion (1e45) cookies, fill
 your mana, give you sugar lumps, ripen your current lump, spawn wrinklers, unlock Krumblor or the
 Christmas upgrades and so on. They exist so you can watch the bot react without waiting hours for the
 right cookie to show up.

@@ -191,6 +191,18 @@ export class StockTrader {
     this.log.log('stock market', `cashing out ${p.goods.join(', ') || 'nothing'}`, { cookies: Math.round(p.cookies) });
   }
 
+  /** Starts the cash-out on behalf of another module (Krumblor's batch, KRUMB-2); nothing
+   * while it runs or while nothing is cashable. */
+  startCashOut(forWhat: string): void {
+    if (this.cashingOut()) return;
+
+    const p = this.cashOutPreview();
+    if (!p.shown || !p.goods.length) return;
+
+    this.runtime.marketCashOutUntil = Date.now() + CASH_OUT_MS;
+    this.log.log('stock market', `cashing out ${p.goods.join(', ')} for ${forWhat}`, { cookies: Math.round(p.cookies) });
+  }
+
   private endCashOut(why: string): void {
     this.runtime.marketCashOutUntil = 0;
     this.log.log('stock market', `cash out ${why}`);

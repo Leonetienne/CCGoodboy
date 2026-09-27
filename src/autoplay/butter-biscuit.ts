@@ -10,13 +10,11 @@ import type { GameBuilding } from '../game/types';
 import type { LogStore } from '../stats/log';
 import { autoUnbuffedCps } from './building-valuation';
 import { BUTTER_BISCUITS, BUTTER_MAX_BANK_SHARE, nextButterStep, type ButterState, type ButterStep } from './butter-biscuit-strategy';
-import { DRAGON_SACRIFICE_BUILDINGS, DRAGON_SACRIFICE_FIRST } from './krumblor-strategy';
 
 const TOWER = 'Wizard tower';
 /** A top-up that didn't unlock its biscuit pauses the module this long (each costs ~75%). */
 const UNLOCK_FAIL_BLOCK_MS = 10 * 60 * 1000;
 /** Krumblor's dragon level whose training sacrifices 100 Wizard towers. */
-const KRUMBLOR_TOWER_LEVEL = DRAGON_SACRIFICE_FIRST + DRAGON_SACRIFICE_BUILDINGS.indexOf(TOWER);
 
 /** Auto play: unlocks the butter biscuits (BUTTER-*) by buying Wizard towers past their target
  * up to the next "N of everything" milestone for a moment, then selling them back. Both are
@@ -29,6 +27,8 @@ export class ButterBiscuitHunter {
     private readonly game: IGameAdapter,
     private readonly log: LogStore,
     private readonly shoppingInterrupted: () => boolean,
+    /** Krumblor still needs this building for its training (KrumblorTrainer.holds). */
+    private readonly krumblorHolds: (id: number) => boolean = () => false,
   ) {}
 
   /** Allowed right now: auto play on, not paused after a failure, the AUTO-7 safety gates
@@ -72,7 +72,7 @@ export class ButterBiscuitHunter {
       buyCost: (n) => (b.getSumPrice ? Number(b.getSumPrice(n)) : Infinity),
       spendable: this.game.getCookies() - Math.max(0, Number(this.data.config.autoReserveSec) || 0) * cps,
       maxCost: BUTTER_MAX_BANK_SHARE * this.game.getCookies(),
-      krumblorBusy: krumblorOn && (this.game.getDragonLevel() === KRUMBLOR_TOWER_LEVEL || (this.runtime.krumblorRebuy > 0 && this.runtime.krumblorRebuyId === b.id)),
+      krumblorBusy: krumblorOn && this.krumblorHolds(Number(b.id)),
       topUp: this.runtime.butterTopUp,
       now: Date.now(),
     };

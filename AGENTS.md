@@ -93,7 +93,7 @@ BUTTER-\*).
 | stage | `Game.elderWrath`, the Grandmapocalypse stage: 0 calm, 1 awoken (One mind), 2 displeased (Communal brainsweep), 3 angered (Elder Pact). Stage 1 turns 1 in 3 golden cookies into wrath cookies and lets wrinklers spawn. |
 | wrinkler | a creature attached to the big cookie from stage 1 on (max 10, 12 with Elder spice). n attached wrinklers each digest n × 5% of CpS (n² × 5% together) while the bank only gets CpS × (1 − n × 5%); popping one returns what it digested × 1.1 (more with upgrades, × 3 for a shiny one). 10 wrinklers ≈ 6× the income, but only once popped. |
 | respawn time | how long an emptied wrinkler slot takes to digest again: `1 / (spawn chance per frame × fps) + 10s` crawl (~56 min at stage 1: 0.00001 per frame). |
-| Krumblor | the cookie dragon, unlocked by the upgrade "A crumbly egg" (in the store once the heavenly upgrade "How to bake your dragon" is owned and 1M cookies are baked). `Game.dragonLevel` 0-4 are egg levels paid in cookies (1M × 2^level), training from each level 5-13 sacrifices 100 of one building (`Game.ObjectsById[level − 5]`: cursors for Dragon Cursor, grandmas, farms, mines, factories, banks, temples, wizard towers, shipments for Dragonflight); aura `id` is known from level `id + 4`. |
+| Krumblor | the cookie dragon, unlocked by the upgrade "A crumbly egg" (in the store once the heavenly upgrade "How to bake your dragon" is owned and 1M cookies are baked). `Game.dragonLevel` 0-4 are egg levels paid in cookies (1M × 2^level), training from each level 5-24 sacrifices 100 of one building (`Game.ObjectsById[level − 5]`: cursors for Dragon Cursor, grandmas ... shipments for Dragonflight, Alchemy labs ... You); aura `id` is known from level `id + 4`. Level 25 sacrifices 50 of every building ("Bake dragon cookie"), level 26 200 of every building ("Train secondary aura"); level 27 is fully trained with a second aura slot (`Game.dragonAura2`). The dragon starts over at level 0 with every ascension. |
 | Santa | the Christmas special, unlocked by the upgrade "A festive hat" (in the store during Christmas season once 25 cookies are baked). `Game.santaLevel` 0 (Festive test tube) to 14 (Final Claus); evolving from level `l` costs `(l+1)^(l+1)` cookies and unlocks one Santa gift (`Game.santaDrops`), which costs `2525 × 3^santaLevel`. |
 | prestige level | `Game.prestige`; each level is +1% CpS (at full heavenly potential) and one heavenly chip. Ascending sets it to `floor(((cookiesReset + cookiesEarned) / 1e12)^(1/3))`, the game's `Game.HowMuchPrestige` (`Game.HCfactor` = 3). |
 | pending level | the prestige level ascending right now would give; pending − current = the levels (and chips) gained. |
@@ -471,8 +471,8 @@ the paw clicks.
   Frenzy, Cookie Chain (a real chain: spawn lead + forced `chain cookie`),
   Cookie Storm, Lucky, Cookie Storm Drop, Sweet (lump), Elder Frenzy
   (wrath), via `Game.shimmer('golden', ...)` / `.force`.
-- **DBG-2** Grant 1 quadrillion cookies (`Game.Earn`, so it counts as
-  earned).
+- **DBG-2** Grant 1 quattuordecillion (1e45) cookies (`Game.Earn`, so it
+  counts as earned).
 - **DBG-3** Fill Up Mana (mana = max).
 - **DBG-4** Reset Filling Up Mana cooldown = reset the game's 15-minute
   lump-refill timer (falls back to overriding `Game.canRefillLump` until
@@ -588,8 +588,10 @@ action log (UI-6); nothing here is stored.
 - **CON-1** Happy lines (`sayYay`, `console.log`): GC-8's catch message,
   one short, personal greeting when the bot starts (`Bootstrap.start()`),
   `"Popped a stinky wrinkler! Yuckies!"` after each successful pop
-  (WRINK-6), `"Krumblor wears Dragonflight now, zoomy clicky ^w^"`
-  once the aura is on (KRUMB-5), and `"Santa is Final Claus now, ho ho ho
+  (WRINK-6), `"Krumblor wears Dragon Cursor now, clicky paws ^w^"`,
+  `"Krumblor wears Dragonflight now, zoomy clicky ^w^"` and `"Krumblor
+  wears Radiant Appetite now, double cookies nom nom ^w^"` once each aura
+  is on (KRUMB-5), and `"Santa is Final Claus now, ho ho ho
   ^w^"` once Santa reaches his last level (XMAS-4); a caught reindeer
   says `"Caught a reindeer!! Ho ho ho, gewd boy :3"` (XMAS-6); an
   automatic ascension says `"Ascending!! See you on the other side, cookies
@@ -726,7 +728,7 @@ action log (UI-6); nothing here is stored.
   score (BUY-2).
   (A) insignificant cost (<= `autoInsignificantShare` × the spendable
   bank, default 0.1%) is only a label now (the "why" in the log, the junk
-  spree AUTO-18, Krumblor's and Santa's cookie costs); it is decided like
+  spree AUTO-18, Santa's cookie costs); it is decided like
   everything else.
   (B) preferred candidates — the Bingo center (WRINK-1), golden cookie
   upgrades, the click power upgrades — "mouse and cursors twice as
@@ -1038,7 +1040,8 @@ action log (UI-6); nothing here is stored.
   (`autoWrinklerMaturity`, default 5, so a slot spends >= ~83% of its time
   digesting). Never a shiny one. Never while nothing respawns (stage 0:
   a pop would lose the slot for good).
-- **WRINK-3** Only when a purchase needs it: auto play is asked what it
+- **WRINK-3** Only when a purchase, or Krumblor's next batch of sacrifices
+  (KRUMB-2, `runtime.krumblorWrinklerNeed`, asked first), needs it: auto play is asked what it
   would buy with the mature wrinklers' cookies added to the bank
   (`AutoPlayEngine.decideWithExtraBank()`, the unchanged `autoDecide()`).
   If that purchase is not affordable from the bank alone, the fewest mature
@@ -1072,30 +1075,58 @@ action log (UI-6); nothing here is stored.
 
 ### 3.18 Krumblor, the cookie dragon (auto play)
 
-- **KRUMB-1** With auto play and "Auto: train Krumblor (Dragonflight)"
-  (`config.autoKrumblor`, DEFAULT ON) on, the bot raises Krumblor up to
-  the Dragonflight aura and no further: it buys "A crumbly egg" once it
-  is in the store, pays the egg levels (1M, 2M, 4M, 8M, 16M cookies:
-  "Chip it" ×3, "Hatch it", "Train Breath of Milk"), trains levels 5 → 14
-  (Dragon Cursor ... Dragonflight), each sacrificing 100 of one building
-  in `Game.ObjectsById` order (cursors, grandmas, farms, mines,
-  factories, banks, temples, wizard towers, shipments;
-  `DRAGON_SACRIFICE_BUILDINGS`), and puts Dragonflight on. No aura is put
-  on along the way. Nothing without
-  the egg (it needs the heavenly upgrade "How to bake your dragon").
-- **KRUMB-2** Cookie costs (the egg, each egg level, buildings bought to
-  reach 100) are only paid when they are insignificant (AUTO-4 A: <=
-  `autoInsignificantShare` × the spendable bank) and leave the reserve (AUTO-6) alone, so
-  the dragon never competes with real purchases. Every building is
-  treated alike: right before its sacrifice every copy above 100 is sold
-  (the 25% given back for the priciest ones pays for far more than
-  rebuying the cheapest ones), and after it the sold ones are bought back
-  before the next level (`runtime.krumblorRebuy`/`krumblorRebuyId`, as
-  many as the bank pays; the rest is left to shopping). Fewer than 100:
-  the missing ones are bought first (Wizard towers too, past
-  `autoWizardTowerTarget`; after the sacrifice shopping rebuys them up to
-  the target). Buying never happens while the store
-  is in sell mode (the game's `buy()` sells then).
+- **KRUMB-1** With auto play and "Auto: train Krumblor" (`config.autoKrumblor`,
+  DEFAULT ON) on, the bot raises Krumblor in three stages
+  (`KRUMBLOR_STAGE_LEVEL`), each unlocked by what the run owns
+  (`krumblorStageFor()`):
+  (1) Dragon Cursor, level 6, as soon as there is a dragon: it buys "A
+  crumbly egg" once it is in the store, pays the egg levels (1M, 2M, 4M,
+  8M, 16M cookies: "Chip it" ×3, "Hatch it", "Train Breath of Milk") and
+  sacrifices 100 cursors;
+  (2) Dragonflight, level 14, once the run owns 150 shipments
+  (`KRUMBLOR_STAGE2_SHIPMENTS`): 100 each of grandmas ... shipments;
+  (3) fully trained, level 27, once it owns 220 "You"
+  (`KRUMBLOR_STAGE3_YOU`): 100 each of Alchemy labs ... You (levels
+  14-24), then 50 (level 25, "Bake dragon cookie") and 200 (level 26,
+  "Train secondary aura") of EVERY building (`dragonSacrificePlan()`).
+  The highest stage a run reached is kept per run in `stats.krumblorRun`
+  (keyed by `Game.startDate`: it survives a reload, the sacrifices dropping
+  the counts again don't undo it, and the next ascension starts over at
+  stage 1, as the game resets the dragon); a new stage is logged. Nothing
+  without the egg (it needs the heavenly upgrade "How to bake your dragon").
+- **KRUMB-2** Sacrifices go in batches (`krumblorBatchEnd()`,
+  `dragonBatchNeeds()`, `krumblorBatchCost()`): the longest run of the
+  stage's next levels whose missing buildings the spendable bank (bank minus
+  the reserve, AUTO-6) pays for together; a batch never starts before it
+  does (the egg and the egg levels are paid the same way; no pocket-money
+  limit). When the bank can't, but the stock market's loss-free wins
+  (STOCK-9's cash-out value) plus the mature wrinklers' stash (WRINK-2, only
+  with "Auto: pop wrinklers for purchases" on) would pay for a batch (or a
+  longer one), the step is `raise-funds`: the trader cashes its wins in
+  (`StockTrader.startCashOut()`), and the wrinkler popper pops the fewest
+  fattest mature wrinklers for what is still missing
+  (`runtime.krumblorWrinklerNeed`, asked before any purchase, WRINK-3), both
+  at their own tier with their own clicks; stocks first, since they lose
+  nothing. Logged "raising cookies for dragon levels A-B". For a batch the
+  paw (a) buys every missing copy (Wizard
+  towers too, past `autoWizardTowerTarget`), (b) sells every copy above what
+  the whole batch takes (the 25% given back for the priciest copies pays for
+  far more than rebuying the cheapest ones), (c) trains through the batch
+  level after level, (d) buys the sold copies back, all of them, only after
+  the batch (`runtime.krumblorRebuy`, as many as the bank pays; the rest is
+  left to shopping). A building the batch has enough of is never bought,
+  only sold down to what it takes; one it is short of is bought up to
+  exactly that. When the next batch can start right away the buy-back waits
+  until after it, so nothing is bought back only to be sold again. So the stage-2 run is "buy the missing grandmas, farms,
+  ...; sell their extras; sacrifice grandmas, farms, ...; buy them all back",
+  not one round trip per level. The batch is fixed from its first sale or
+  training on (`runtime.krumblorBatchEnd`, logged "sacrificing for dragon
+  levels A-B"); one that can't go on (the player sold a building it needs)
+  is dropped, and its sales are bought back. When the rest of the stage is
+  too dear the batch is shorter and the next one waits for the cookies (and
+  shopping) to catch up; stage 3 in one batch needs 350 "You" (100 + 50 +
+  200). Buying never happens while the store is in sell mode (the game's
+  `buy()` sells then).
 - **KRUMB-3** Like a human, one step per scheduler tick, re-derived from
   the live game each time (`nextKrumblorStep()`,
   `src/autoplay/krumblor-strategy.ts`), so a preempted step is simply
@@ -1116,10 +1147,16 @@ action log (UI-6); nothing here is stored.
   run only logs "would do". Priority: tier 5, after the Grimoire unlock,
   before wrinkler pops and shopping; a due step interrupts hammering and
   idle play like a due purchase (AUTO-8).
-- **KRUMB-5** The aura goes into slot 0 only while slot 0 is "No aura"
-  or Dragon Cursor (what versions before 5.8.16 put on): any other aura
-  the player picked is never replaced. Switching costs 1 of the
-  highest building owned (the game's rule). Every step is logged
+- **KRUMB-5** Auras (`nextAuraGoal()`), independent of the stage: the dragon
+  wears the best auras it knows of Radiant Appetite (all cookie production
+  ×2) > Dragonflight > Dragon Cursor (`KRUMBLOR_AURAS`), one per slot the bot
+  may fill: a slot holding "No aura" or one of those three (slot 1 only
+  exists at level 27). So Dragon Cursor after stage 1, Dragonflight after
+  stage 2, and after stage 3 Dragonflight stays in slot 0 and Radiant
+  Appetite goes into slot 1 (the game won't put one aura in both slots). An
+  aura the player picked is never replaced. Auras only change between
+  batches (KRUMB-2): switching costs 1 of the highest building owned (the
+  game's rule), which a batch may still need. Every step is logged
   (`"krumblor"`). Debug: DBG-15.
 
 ### 3.19 Easter eggs (auto play)
@@ -1523,7 +1560,8 @@ the module in `src/autoplay/butter-biscuit.ts` (`ButterBiscuitHunter`).
   with the paw visiting the Wizard tower row (scrolled into view first) and
   pulsing (NFR-8 b, `DragonStoreAction`); never in the store's sell mode.
   Same gates as AUTO-7; dry run only logs "would buy/sell". Not while
-  Krumblor needs the towers (dragon level 12 or its tower rebuy, KRUMB-2).
+  Krumblor's batch under way or its rebuy needs the towers
+  (`KrumblorTrainer.holds()`, KRUMB-2).
   Priority: tier 5 after a Santa step, before a stock trade. Logged as
   `"butter biscuit"`; an unlock says so in the console (CON-1).
 
@@ -1663,7 +1701,9 @@ was read for every rule below.
   stops; a second click stops it early, and it gives up after 2 minutes
   (`runtime.marketCashOutUntil`). Its tooltip names the goods and what they
   bring back right now (`marketCashOutValue()`, `cashOutPreview()`); it is
-  greyed out when nothing qualifies. Same gates, clicks, logs and profit
+  greyed out when nothing qualifies. Krumblor starts the same cash-out when
+  its next batch needs the cookies (KRUMB-2, `startCashOut()`). Same gates,
+  clicks, logs and profit
   bookkeeping as any sale (STOCK-5/6); the start, end and pauses are logged
   (`"stock market"`).
 
@@ -1863,7 +1903,7 @@ saved (see `normalizeSetting()` in
 | `autoWrinklerMaturity` | Auto: pop a wrinkler after (x its respawn time) | 5 | 1-50 |
 | `autoGrandmapocalypse` | Auto: grandmapocalypse stage 1 (wrinklers) [checkbox] | true | – |
 | `autoPopWrinklers` | Auto: pop wrinklers for purchases [checkbox] | true | – |
-| `autoKrumblor` | Auto: train Krumblor (Dragonflight) [checkbox] | true | – |
+| `autoKrumblor` | Auto: train Krumblor [checkbox] (KRUMB-1) | true | – |
 | `autoAscend` | Auto: ascend (and buy heavenly upgrades) [checkbox] (ASC-10) | true | – |
 | `ascendDumpBank` | Auto: spend the bank on achievements before ascending [checkbox] (ASC-13) | true | – |
 
@@ -2205,6 +2245,51 @@ mouse while the bot runs and confirm the "+N" number follows your cursor,
 not the paw's).
 
 ## 12. Changelog
+
+- **5.8.37** Krumblor (KRUMB-2): the pocket-money limit is gone; a batch of
+  sacrifices starts as soon as the spendable bank pays for all the
+  buildings it is missing, never before. When the bank alone can't but the
+  stock market's loss-free wins and the mature wrinklers would, those are
+  cashed in first (new step `raise-funds`; `StockTrader.startCashOut()`,
+  `runtime.krumblorWrinklerNeed`, which `WrinklerPopper.plan()` serves
+  before any purchase). New `krumblorBatchCost()`; `KrumblorState` swaps
+  `insignificant` for `funds`. Unit tests in `tests/unit/krumblor.test.ts`
+  and `tests/unit/wrinklers.test.ts`.
+
+- **5.8.36** Krumblor (KRUMB-2): when another batch of sacrifices can start
+  right after one, the sold copies are no longer bought back in between
+  (the next batch sold them again, at 25%); the buy-back comes once no
+  batch can start. Unit tests in `tests/unit/krumblor.test.ts` also pin that
+  a batch only buys the copies it is short of and sells every building
+  down to what it takes.
+
+- **5.8.35** Krumblor rethought (KRUMB-\*), replacing 5.8.34's endgame
+  add-on: three stages, each unlocked by the run (Dragon Cursor at once,
+  Dragonflight at 150 shipments, fully trained with Radiant Appetite +
+  Dragonflight at 220 "You"), kept per run in `stats.krumblorRun`. The
+  sacrifices go in batches: every missing building bought first, all
+  extras sold, the dragon trained through the batch, then everything bought
+  back, instead of a buy/sacrifice/rebuy round trip per level; the levels
+  that take every building use the same sell/rebuy as the others. Auras
+  follow what the dragon knows (best of Radiant Appetite > Dragonflight >
+  Dragon Cursor, one per slot) and change only between batches. New
+  `dragonSacrificePlan()`, `dragonBatchNeeds()`, `krumblorBatchEnd()`,
+  `nextAuraGoal(level, auras)`, `KrumblorTrainer.stage()`/`holds()`,
+  `runtime.krumblorRebuy` (per building) and `krumblorBatchEnd`;
+  `runtime.krumblorEndgame`/`krumblorRebuyId` are gone. The butter biscuit
+  top-up asks `holds()`. The setting reads "Auto: train Krumblor". Unit
+  tests in `tests/unit/krumblor.test.ts`.
+
+- **5.8.34** Endgame Krumblor (KRUMB-6): once a run owns 200 of its top
+  building, auto play trains the dragon fully (100 of each further building
+  up to You, then 50 and 200 of every building) and puts Radiant Appetite
+  in the second aura slot next to Dragonflight. Auras now go into the first
+  free slot (`nextAuraGoal()`, KRUMB-5); the aura steps carry their slot and
+  aura. New `DRAGON_ALL_SACRIFICES`, `DRAGON_FULL_LEVEL`,
+  `RADIANT_APPETITE_AURA`, `runtime.krumblorEndgame`; the butter biscuit
+  top-up also waits during levels 25 and 26. The cookie debug tool (DBG-2)
+  grants 1 quattuordecillion (1e45) instead of 1 quadrillion. Unit tests in
+  `tests/unit/krumblor.test.ts`.
 
 - **5.8.33** The HUD row "Wrinklers" (WRINK-7) shows what they hold with
   the same short units as everything else ("~1.2Qa") instead of exponent

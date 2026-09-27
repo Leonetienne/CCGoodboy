@@ -9,6 +9,9 @@ import { getWrinklerCanvas } from './wrinkler-dom';
 export const DRAGON_CURSOR_AURA = 2;
 /** Aura id of "Dragonflight" (Game.dragonAuras[10]), known from dragonLevel 14 on. */
 export const DRAGONFLIGHT_AURA = 10;
+/** Aura id of "Radiant Appetite" (Game.dragonAuras[15], all cookie production x2), known
+ * from dragonLevel 19 on. */
+export const RADIANT_APPETITE_AURA = 15;
 
 /** Canvas point of a special tab: Game.UpdateSpecial stacks the tabs at x 24, from
  * y = canvas height - 24 - 48 x tab count, 48px apart, and hit-tests +-24px around that
@@ -70,7 +73,8 @@ export function getSantaEvolveButton(): Element | null {
   return withHandler(getSpecialPopup(), 'a.option', 'Game.UpgradeSanta(');
 }
 
-/** The popup's aura slot crate (slot 0 = the primary aura, top right of the popup). */
+/** The popup's aura slot crate (slot 0 = the primary aura, top right of the popup; slot 1
+ * = the secondary one left of it, shown from dragonLevel 27 on). */
 export function getDragonAuraSlot(slot: 0 | 1): Element | null {
   return withHandler(getSpecialPopup(), '.crate', `Game.SelectDragonAura(${slot})`);
 }

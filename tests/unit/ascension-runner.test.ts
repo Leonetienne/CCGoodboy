@@ -475,7 +475,7 @@ describe('RuntimeState.resetForNewRun (ASC-10)', () => {
   it('forgets the old run and holds the scheduler while the game settles', () => {
     const runtime = new RuntimeState();
     runtime.lockA = true;
-    runtime.krumblorRebuy = 40;
+    runtime.krumblorRebuy = [{ id: 0, n: 40 }];
     runtime.ascendOurs = true;
     runtime.ascendSkip.add('X');
     runtime.ascendTarget = { level: 1, end: 1, sevens: 0, lockedAt: 0 };
@@ -484,7 +484,7 @@ describe('RuntimeState.resetForNewRun (ASC-10)', () => {
     runtime.resetForNewRun(ASCEND_SETTLE_MS, 1000);
 
     expect(runtime.lockA).toBe(false);
-    expect(runtime.krumblorRebuy).toBe(0);
+    expect(runtime.krumblorRebuy).toEqual([]);
     expect(runtime.ascendOurs).toBe(false);
     expect(runtime.ascendSkip.size).toBe(0);
     expect(runtime.ascendTarget).toBeNull();
