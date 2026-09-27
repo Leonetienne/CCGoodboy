@@ -349,6 +349,9 @@ export class AscensionRunner {
 
     // Back in a normal game without its prompt: whatever it started is over.
     if (!onScreen && !intro && prompt !== 'Ascend' && prompt !== 'Reincarnate') this.runtime.ascendOurs = false;
+    // An ascension it didn't start (the player's, or one it lost track of in a reload): it takes
+    // over, buys the shopping list and reincarnates. A prompt the player left open is left alone.
+    if ((onScreen || intro) && !prompt && !this.runtime.ascendOurs) this.adopt(intro);
 
     const normal = !onScreen && !intro;
     if (normal) {
@@ -392,6 +395,22 @@ export class AscensionRunner {
       toBuy: onScreen && this.runtime.ascendOurs ? this.toBuy() : [],
       slot: onScreen && this.runtime.ascendOurs ? this.slotTask() : null,
     };
+  }
+
+  /** ASC-10: takes over an ascension on screen that it didn't start itself. Only with auto
+   * ascension on and not in a dry run. */
+  private adopt(intro: boolean): void {
+    if (!this.enabled() || this.data.config.autoDryRun === true) return;
+
+    this.runtime.ascendOurs = true;
+    this.runtime.ascendOursAt = Date.now();
+    this.runtime.ascendTarget = null;
+    this.runtime.ascendStuckSince = 0;
+    this.runtime.ascendSkip.clear();
+    this.runtime.ascendFails.clear();
+    this.runtime.ascendPans.clear();
+    this.runtime.ascendSlotPrompt = -1;
+    this.log.log('ascend', `took over an ascension it didn't start (${intro ? 'animation' : 'ascension screen'})`, { prestige: this.game.getPrestige(), chips: this.game.getHeavenlyChips() });
   }
 
   /** ASC-16: the next permanent upgrade slot that doesn't hold its goal yet, or null. */
@@ -471,7 +490,10 @@ export class AscensionRunner {
 
     if (this.game.onAscendScreen() || this.game.isAscendIntro()) {
       if (this.runtime.ascendOurs) return 'Paw: buying the pink ones, then reincarnating';
-      return "Paw: you ascended yourself, so the buying is up to you";
+      if (c.autoPlay !== true) return 'Paw: auto play is off, so the buying is up to you';
+      if (c.autoAscend === false) return 'Paw: "Auto: ascend" is off, so the buying is up to you';
+      if (c.autoDryRun === true) return 'Paw: dry run, so the buying is up to you';
+      return 'Paw: will take over once the open prompt is closed';
     }
 
     const p = this.planner.plan();

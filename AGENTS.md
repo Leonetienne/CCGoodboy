@@ -1400,8 +1400,9 @@ ascend", on by default) the bot also ascends by itself (ASC-10). Pure logic in `
   achievements (X to N)", "Paw: ready at Legacy, waiting for level L (now
   R), no golden cookies meanwhile", then "Paw: ascending now"; on the
   ascension screen "Paw: buying the pink ones, then reincarnating" for its
-  own ascension, else "Paw: you ascended yourself, so the buying is up to
-  you".
+  own ascension (also one it took over), else why not (auto play or "Auto:
+  ascend" off, dry run: "... so the buying is up to you"; a prompt the player
+  left open: "Paw: will take over once the open prompt is closed").
 - **ASC-10** Auto ascension: with auto play and "Auto: ascend"
   (`config.autoAscend`, DEFAULT ON; auto play itself is off by default), the bot
   acts on the "would ascend now" / "WAIT: ascend at level L" verdicts
@@ -1439,7 +1440,11 @@ ascend", on by default) the bot also ascends by itself (ASC-10). Pure logic in `
   shopping's (`autoBlockUntil`, which shopping sets whenever a re-plan is
   refused). Once committed none of these hold it back any more (a prompt
   it didn't open only makes it wait). It only ever finishes an ascension it
-  started (a reload on the ascension screen leaves it to the player). A
+  started, except that it takes over one it didn't start: an ascension the
+  player started by hand (or one it lost track of in a reload) is adopted
+  the moment the animation or the ascension screen is there and no prompt
+  is open (`AscensionRunner.adopt()`, logged "took over ..."), and steps
+  3-6 run as for its own (not counted in `stats.ascensions`). A
   click that didn't do its job pauses it 3s, an element that doesn't show
   up for 5s pauses it 10s (nothing else runs meanwhile). Dry run never
   commits and only logs "would ascend". Priority: steps 1-2 above
@@ -2110,7 +2115,7 @@ file.**
 
 Three layers, each catching a different class of bug:
 
-1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 643 tests
+1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 647 tests
    across 55 files. Pure functions (route planner, `autoDecide`, the chart
    engine, `normalizeSetting`) are tested directly with plain data; the
    cursor queue/actions have their own fake mover/timing tests. Classes
@@ -2229,8 +2234,8 @@ an assertion — hence the visual suite instead.
 - Auto play does not click the big cookie for you (combine with Hammer
   mode), does not buy kittens/mouse upgrades/dragon/seasonal switches, and
   ascends by itself unless "Auto: ascend" is off (ASC-10). Auto
-  ascension never picks a challenge mode, and a page reload on the ascension screen leaves that ascension to the
-  player.
+  ascension never picks a challenge mode; with auto ascension on it also finishes an ascension the player
+  started (ASC-10).
 - Grandmapocalypse stage 1 is on by default (WRINK-1) and cannot be undone
   by the bot. Its cost: 1 in 3 golden cookies becomes a wrath cookie that
   the bot ignores (GC-1), and the visible CpS drops by n × 5% while n
@@ -2301,6 +2306,24 @@ mouse while the bot runs and confirm the "+N" number follows your cursor,
 not the paw's).
 
 ## 12. Changelog
+
+- **5.8.44** Fixed: the whole game froze on the ascension screen at a
+  level with four 7s. Once a lucky upgrade was on the shopping list
+  (ASC-9) every further wish needed the 7s too, and a chain priced past
+  2^53 chips (the Unshackled upgrades, ~1e16) sent the lucky level search
+  counting up a level where `level + 1 === level`, forever. The search
+  (`nextLevelWithSevens()`, `luckyWindowEnd()`, `nextLuckyTarget()`) now
+  gives up past `Number.MAX_SAFE_INTEGER`. It ran with auto play off too
+  (the HUD's Ascension row plans the list). Unit tests in
+  `tests/unit/heavenly-shopping.test.ts` and `tests/unit/ascension.test.ts`.
+
+- **5.8.43** Fixed: auto play sat idle on the ascension screen when the
+  player ascended by hand (or after a reload there), since it only ever
+  finished an ascension it started. It now takes over at once (ASC-10,
+  `AscensionRunner.adopt()`): sits out the animation, buys the heavenly
+  shopping list, fills the permanent slots and reincarnates. A prompt the
+  player left open is left alone. Unit tests in
+  `tests/unit/ascension-runner.test.ts`.
 
 - **5.8.42** The heavenly shopping list (ASC-9) goes by impact instead of a
   fixed order: a hardcoded value per heavenly upgrade (`HEAVENLY_VALUE`,

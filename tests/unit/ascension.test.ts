@@ -64,6 +64,10 @@ describe('countSevens / nextLevelWithSevens (lucky upgrades showIf)', () => {
     expect(nextLevelWithSevens(7, 1)).toBe(7);
     expect(nextLevelWithSevens(8, 1)).toBe(17);
     expect(nextLevelWithSevens(100, 2)).toBe(177);
+    // past 2^53 a level can't be counted up any more: none rather than an endless loop
+    expect(nextLevelWithSevens(2e16, 4)).toBeNull();
+    expect(nextLuckyTarget(2e16, 4)).toBeNull();
+    expect(luckyWindowEnd(7777e15, 4, 15)).toBeGreaterThan(0);
     expect(nextLevelWithSevens(1000, 4)).toBe(7777);
     expect(nextLevelWithSevens(7778, 4)).toBe(17777);
     expect(nextLevelWithSevens(1_000_000_000, 4)).toBe(1_000_007_777);

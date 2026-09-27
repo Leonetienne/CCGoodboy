@@ -507,9 +507,41 @@ describe('AscensionRunner (ASC-10/12)', () => {
       shopNow = { items: [{ name: 'Heavenly cookies', price: 3 }] } as unknown as HeavenlyShopPlan;
     });
 
-    it('leaves an ascension it did not start alone', () => {
+    it('takes over an ascension it did not start and buys the list', () => {
       runtime.ascendOurs = false;
+      runtime.ascendOursAt = 0;
+      runtime.ascendSkip.add('Heavenly cookies');
+      place('heavenlyUpgrade5', ON);
+      expect(runner.step()).toEqual({ kind: 'buy', id: 5, name: 'Heavenly cookies' });
+      expect(runtime.ascendOurs).toBe(true);
+      expect(data.logs.some((l) => /took over/.test(String(l.meta)))).toBe(true);
+    });
+
+    it('takes over during the animation of an ascension it did not start', () => {
+      runtime.ascendOurs = false;
+      game.ascendScreen = false;
+      game.ascendIntro = true;
+      expect(runner.step()).toEqual({ kind: 'intro' });
+      expect(runtime.ascendOurs).toBe(true);
+    });
+
+    it('leaves a prompt the player opened alone', () => {
+      runtime.ascendOurs = false;
+      const box = place('promptContent', ON);
+      place('promptContentReincarnate', ON, box);
+      game.promptOpen = true;
       expect(runner.step()).toBeNull();
+      expect(runtime.ascendOurs).toBe(false);
+    });
+
+    it('does not take over with auto ascension off or in a dry run', () => {
+      runtime.ascendOurs = false;
+      data.config.autoAscend = false;
+      expect(runner.step()).toBeNull();
+      data.config.autoAscend = true;
+      data.config.autoDryRun = true;
+      runner.step();
+      expect(runtime.ascendOurs).toBe(false);
     });
 
     it('drags the tree to a crate off screen, then buys it', () => {

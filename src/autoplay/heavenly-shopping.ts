@@ -39,8 +39,12 @@ export function countSevensFrom(level: number, minDigit: number): number {
 export function nextLevelWithSevens(from: number, sevens: number, minDigit = 0): number | null {
   const unit = Math.pow(10, Math.max(0, minDigit));
   const start = Math.max(0, Math.ceil(from));
+  const q0 = Math.floor(start / unit);
 
-  for (let q = Math.floor(start / unit); q <= Math.floor(start / unit) + MAX_LEVEL_SEARCH; q++) {
+  // Past 2^53 `q + 1 === q` (a chain of Unshackled upgrades costs ~1e16 chips): no level there.
+  for (let i = 0; i <= MAX_LEVEL_SEARCH; i++) {
+    const q = q0 + i;
+    if (!Number.isSafeInteger(q) || !Number.isSafeInteger(q * unit)) return null;
     if (countSevens(q) >= sevens) return Math.max(start, q * unit);
   }
 
@@ -56,7 +60,7 @@ export function luckyWindowEnd(level: number, sevens: number, minDigit = 0): num
   const unit = Math.pow(10, Math.max(0, minDigit));
   let last = countSevensFrom(level, minDigit) >= sevens ? (Math.floor(level / unit) + 1) * unit - 1 : level;
   const limit = last + 1000;
-  while (last < limit && countSevens(last + 1) >= sevens) last++;
+  while (last < limit && Number.isSafeInteger(last + 1) && countSevens(last + 1) >= sevens) last++;
   return last;
 }
 
@@ -69,6 +73,7 @@ export function nextLuckyTarget(from: number, sevens: number, minDigit = 0, minL
   for (let i = 0; at != null && i < 1000; i++) {
     const end = luckyWindowEnd(at, sevens, minDigit);
     if (end - at + 1 >= minLevels) return at;
+    if (!Number.isSafeInteger(end + 1)) return null;
     at = nextLevelWithSevens(end + 1, sevens, minDigit);
   }
 

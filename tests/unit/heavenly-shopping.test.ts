@@ -135,4 +135,21 @@ describe('planHeavenlyShopping (ASC-9)', () => {
     for (const n of ['Sound test', 'Label printer', 'Classic dairy selection']) expect(HEAVENLY_VALUE[n]).toBe(0);
     expect(Math.max(...Object.values(HEAVENLY_VALUE))).toBe(HEAVENLY_VALUE.Legacy);
   });
+
+  it('returns on the ascension screen with 4 sevens and a chain priced past 2^53 (no endless 7s search)', () => {
+    // Once Lucky payout is on the list every further wish needs the 7s too; the Unshackled
+    // upgrades cost ~2e16 chips, a level past Number.MAX_SAFE_INTEGER where level + 1 === level.
+    const heavenly = [up('Lucky payout', 77777777), up('Unshackled you', 2e16)];
+    const p = planHeavenlyShopping({
+      heavenly,
+      prestige: 7777123,
+      heavenlyChips: 1e9,
+      fromLevel: 7777123,
+      etaTo: (level) => (level <= 7777123 ? 0 : Infinity),
+      shopWaitSec: 0,
+      luckyWaitSec: 0,
+      values: { 'Lucky payout': 2, 'Unshackled you': 5 },
+    });
+    expect(p.items.map((i) => i.name)).toEqual(['Lucky payout']);
+  });
 });
