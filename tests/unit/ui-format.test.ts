@@ -50,6 +50,15 @@ describe('formatShort', () => {
     expect(formatShort(2.5e15)).toBe('2.5Qa');
   });
 
+  it('names every tier up to 1e300 like the game does', () => {
+    expect(formatShort(6.3e43)).toBe('63TrD');
+    expect(formatShort(1e33)).toBe('1Dc');
+    expect(formatShort(1e36)).toBe('1UnD');
+    expect(formatShort(1e63)).toBe('1V');
+    expect(formatShort(1e66)).toBe('1UnV');
+    expect(formatShort(1e300)).toBe('1NoN');
+  });
+
   it('shows a dash for non-numbers', () => {
     expect(formatShort(NaN)).toBe('—');
   });

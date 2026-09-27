@@ -23,8 +23,24 @@ export function formatNum(n: unknown): string {
   return (Math.round(v * 10) / 10).toString();
 }
 
-/** Suffixes of formatShort(): thousand, million, billion, trillion, quadrillion, ... */
-const SHORT_SUFFIXES = ['', 'K', 'M', 'B', 'T', 'Qa', 'Qi', 'Sx', 'Sp', 'Oc', 'No', 'Dc'];
+/** Suffixes of formatShort(): thousand, million, billion, trillion, quadrillion, ...,
+ * decillion, then the game's own short names up to 1e300 ("UnD", "DoD", ..., "V", "UnV", ...;
+ * `main.js` 2.058: a prefix Un/Do/Tr/... on the tens D/V/T/Qa/Qi/Sx/Sp/O/N). */
+const SHORT_SUFFIXES = (() => {
+  const list = ['', 'K', 'M', 'B', 'T', 'Qa', 'Qi', 'Sx', 'Sp', 'Oc', 'No'];
+  const prefixes = ['', 'Un', 'Do', 'Tr', 'Qa', 'Qi', 'Sx', 'Sp', 'Oc', 'No'];
+  const tens = ['D', 'V', 'T', 'Qa', 'Qi', 'Sx', 'Sp', 'O', 'N'];
+
+  for (const ten of tens) {
+    for (const prefix of prefixes) {
+      list.push(prefix + ten);
+    }
+  }
+
+  list[11] = 'Dc';
+
+  return list;
+})();
 
 /** Compact number for tight overlay labels ("777", "77.8K", "77.8M"); 3 significant digits. */
 export function formatShort(n: unknown): string {

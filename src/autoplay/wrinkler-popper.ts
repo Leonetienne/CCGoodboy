@@ -7,6 +7,7 @@ import { WrinklerPopAction } from '../actions/wrinkler-pop';
 import { wrinklerPokeCanvasPoint } from '../game/wrinkler-dom';
 import type { LogStore } from '../stats/log';
 import type { StatsRecorder } from '../stats/stats';
+import { formatShort } from '../ui/format';
 import type { AutoPlayEngine } from './shopping';
 import { matureWrinklers, pickWrinklersToPop, stashOf, type MatureWrinkler, type WrinklerPopPlan, type WrinklerView } from './wrinkler-strategy';
 
@@ -210,12 +211,4 @@ export class WrinklerPopper {
     const giveUp = this.runtime.wrinklerForcePopUntil > 0 && this.runtime.wrinklerForcePopUntil < this.runtime.wrinklerBlockUntil;
     sayCant(`Wanted to pop a wrinkler, but ${why}, ${giveUp ? 'giving up for now' : `trying again in ${Math.round(ms / 1000)}s`} :c`);
   }
-}
-
-/** 1.2e15 style for the HUD (wrinkler stashes are huge numbers). */
-function formatShort(n: number): string {
-  if (!Number.isFinite(n)) return '—';
-  if (Math.abs(n) < 1e6) return String(Math.round(n));
-
-  return n.toExponential(2).replace('e+', 'e');
 }

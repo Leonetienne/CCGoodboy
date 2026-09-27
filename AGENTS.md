@@ -2206,6 +2206,16 @@ not the paw's).
 
 ## 12. Changelog
 
+- **5.8.33** The HUD row "Wrinklers" (WRINK-7) shows what they hold with
+  the same short units as everything else ("~1.2Qa") instead of exponent
+  notation ("1.20e15"): its own formatter is gone, it uses `formatShort()`.
+
+- **5.8.32** Fixed: compact numbers stopped at "Dc" (decillion), so late
+  game values read like "+63353703627Dc cookies". `formatShort()` now names
+  every tier up to 1e300 like the game does ("UnD", "DoD", ..., "V",
+  "UnV", ..., "NoN"). Unit tests in
+  `tests/unit/ui-format.test.ts`.
+
 - **5.8.31** Fixed: the "never at a loss" check of the stock trader and
   "Cash stock market wins" (STOCK-2/9) priced a unit at the game's "last
   bought at" × TODAY's overhead. Brokers hired after a buy lowered it, and
