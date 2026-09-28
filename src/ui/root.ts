@@ -173,6 +173,11 @@ export class UiRoot {
       this.panelUpdater.update();
     });
 
+    document.getElementById('ccsb-pop-all')!.addEventListener('click', () => {
+      wrinklerPopper.togglePopAll();
+      this.panelUpdater.update();
+    });
+
     document.getElementById('ccsb-save-settings')!.addEventListener('click', () => this.settingsPanel.save());
 
     document.getElementById('ccsb-minimize')!.addEventListener('click', () => {

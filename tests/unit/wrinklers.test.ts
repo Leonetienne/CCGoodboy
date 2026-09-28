@@ -569,3 +569,61 @@ describe('wrinkler poke point (WRINK-5)', () => {
     expect(wrinklerPokeCanvasPoint(w, [detached, w])).toEqual({ x: 200, y: 390 });
   });
 });
+
+describe('"Pop all wrinklers" (WRINK-8)', () => {
+  beforeEach(() => localStorage.clear());
+
+  function setup(wrinklers: GameWrinkler[]) {
+    const runtime = new RuntimeState();
+    const data = new PersistedData(); // auto play OFF
+    data.config.autoDryRun = true; // asked for by hand: pops anyway
+    const game = new FakeGameAdapter();
+    game.wrinklers = wrinklers;
+
+    const decideWithExtraBank = vi.fn();
+    const autoPlay = { decideWithExtraBank, shoppingInterrupted: () => false } as unknown as AutoPlayEngine;
+    const popper = new WrinklerPopper(runtime, data, game, new LogStore(data), new StatsRecorder(data), autoPlay);
+
+    return { runtime, game, popper, decideWithExtraBank };
+  }
+
+  it('pops every attached normal wrinkler holding cookies, fattest first, never a shiny, crawling or empty one', () => {
+    const { runtime, game, popper, decideWithExtraBank } = setup([
+      wrinkler(0, 10),
+      wrinkler(1, 500, { type: 1 }),
+      wrinkler(2, 50),
+      wrinkler(3, 900, { phase: 1 }),
+      wrinkler(4, 0),
+    ]);
+    game.rawBuffs = { f: { name: 'Frenzy', multCpS: 7, time: 100 } }; // doesn't wait for a buff
+
+    const p = popper.popAllPreview();
+    expect(p).toMatchObject({ shown: true, count: 2, shiny: 1 });
+
+    popper.togglePopAll();
+    expect(popper.pending()).toBe(true);
+    expect(runtime.wrinklerPlan!.ids).toEqual([2, 0]);
+    expect(popper.job()!.key).toBe('wrinkler-pop:2');
+    expect(decideWithExtraBank).not.toHaveBeenCalled();
+  });
+
+  it('ends by itself once none is left, and a second click stops it', () => {
+    const { runtime, game, popper } = setup([wrinkler(2, 50)]);
+
+    popper.togglePopAll();
+    popper.togglePopAll();
+    expect(popper.poppingAll()).toBe(false);
+
+    popper.togglePopAll();
+    game.wrinklers[0]!.phase = 0;
+    game.wrinklers[0]!.sucked = 0;
+    runtime.wrinklerNextEvalAt = 0;
+    expect(popper.pending()).toBe(false);
+    expect(popper.poppingAll()).toBe(false);
+  });
+
+  it('the button is only shown while a wrinkler is there', () => {
+    expect(setup([wrinkler(0, 0, { phase: 0 })]).popper.popAllPreview().shown).toBe(false);
+    expect(setup([wrinkler(0, 0, { phase: 1 })]).popper.popAllPreview()).toMatchObject({ shown: true, count: 0 });
+  });
+});

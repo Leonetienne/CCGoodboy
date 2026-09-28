@@ -58,7 +58,8 @@ Market" button, the market's buy/sell buttons and its "Hire" (broker)
 button (STOCK-\*), with "Tend the garden" the "View Garden" button, the
 garden's plot tiles, seeds and soils (GARDEN-\*), and — in auto play only —
 the Wizard tower's "lvl" button (AUTO-13), the Bank's "lvl" button
-(AUTO-16), the Farm's "lvl" button (AUTO-17), mature wrinklers (WRINK-5), Krumblor's tab,
+(AUTO-16), the Farm's "lvl" button (AUTO-17), mature wrinklers (WRINK-5; every wrinkler holding cookies after
+the "Pop all wrinklers" button, WRINK-8, with or without auto play), Krumblor's tab,
 popup and aura picker (KRUMB-3) and Santa's tab, "Evolve" button and popup
 "x" (XMAS-4), and with "Auto: ascend" the Legacy button, the "Ascend" /
 "Reincarnate" prompts, heavenly upgrade crates, a permanent upgrade slot's
@@ -465,7 +466,7 @@ the paw clicks.
   and Background, then the statistics.
 - **UI-3** Buttons: Pause/Resume, Hammer cookie, Auto play, "Pause
   investments" and "Cash stock market wins" (STOCK-9, only when they
-  apply), Settings, "More..."; "More..." toggles a second row (session-only, closed at start)
+  apply), "Pop all wrinklers" (WRINK-8, only while wrinklers are there), Settings, "More..."; "More..." toggles a second row (session-only, closed at start)
   with Graphs, Logs and Debug tools. The Debug tools button only shows with
   the Advanced setting "Show debug tools (cheats)" (`showDebugTools`, OFF by
   default); switching it off also closes the debug frame.
@@ -1122,6 +1123,27 @@ action log (UI-6); nothing here is stored.
   wrinkler is around): attached/max, the cookies they would give now, how
   many are mature, and a shiny one if present.
   Debug: DBG-12.
+- **WRINK-8** "Pop all wrinklers": a main panel button next to "Cash stock
+  market wins", shown only while a wrinkler is there (crawling in or
+  attached), with or without auto play. Clicked, the paw pops every
+  attached normal wrinkler that holds cookies, fattest first, one real
+  poke job per wrinkler (WRINK-5), then stops; a second click stops it
+  early, and it gives up after 2 minutes (`runtime.wrinklerPopAllUntil`,
+  `POP_ALL_MS`). None of them is popped at a loss: with n attached, each
+  wrinkler digests n × 5% of the CpS while the bank only loses 5% per
+  wrinkler, and a pop pays back what it digested × at least 1.1 (the
+  game's `main.js` 2.058). Left out (`popAllTargets()`,
+  `src/autoplay/wrinkler-strategy.ts`): shiny ones (WRINK-2; the tooltip
+  says it stays), ones still crawling in, and empty ones (they give nothing
+  and only lose their slot for a respawn time). Asked for by hand, it skips
+  WRINK-2/3 (maturity, a purchase needing it), the auto play switches, the
+  dry run and the CpS buff gate; the other WRINK-4 gates (golden cookie
+  ready, Click Frenzy, storm/chain, FTHOF/refill pending, ascending, a
+  prompt open, paused) still hold it back. Greyed out when nothing
+  qualifies; the tooltip says how many it pops and what they bring back
+  (`WrinklerPopper.popAllPreview()`/`togglePopAll()`/`poppingAll()`).
+  Logged as `"pop wrinkler"` (start, end and each pop, "for "Pop all
+  wrinklers"").
 
 ### 3.18 Krumblor, the cookie dragon (auto play)
 
@@ -2358,6 +2380,14 @@ mouse while the bot runs and confirm the "+N" number follows your cursor,
 not the paw's).
 
 ## 12. Changelog
+
+- **5.8.48** New main panel button "Pop all wrinklers" (WRINK-8), next to
+  "Cash stock market wins" and only while wrinklers are there: the paw pops
+  every attached normal wrinkler that holds cookies (never at a loss; not
+  the shiny one, crawling or empty ones), with or without auto play. New
+  `popAllTargets()`, `POP_ALL_MS`, `WrinklerPopper.popAllPreview()`/
+  `togglePopAll()`/`poppingAll()`, `runtime.wrinklerPopAllUntil`. Unit tests
+  in `tests/unit/wrinklers.test.ts`.
 
 - **5.8.47** Fixed: auto play and the "how good is a buy" overlay misjudged
   synergies (AUTO-3). The synergy upgrades (Synergies Vol. I/II) were

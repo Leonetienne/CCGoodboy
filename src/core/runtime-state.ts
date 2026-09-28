@@ -109,6 +109,8 @@ export class RuntimeState {
   wrinklerBlockUntil = 0;
   /** Debug tool "Pop a wrinkler": force one pop through the normal pipeline until then. */
   wrinklerForcePopUntil = 0;
+  /** "Pop all wrinklers" (WRINK-8) is popping until then (0 = off). */
+  wrinklerPopAllUntil = 0;
   /** Krumblor (KRUMB-*): a pause after a failure, copies sold before a sacrifice that are
    * still to be bought back (per building), whether the paw
    * opened the dragon's popup / aura picker (it only closes / answers its own), and since when
@@ -213,6 +215,7 @@ export class RuntimeState {
     this.marketPeaks.clear();
     this.marketCashOutUntil = 0;
     this.wrinklerNextEvalAt = 0;
+    this.wrinklerPopAllUntil = 0;
     this.krumblorRebuy = [];
     this.krumblorBatchEnd = null;
     this.krumblorWrinklerNeed = 0;

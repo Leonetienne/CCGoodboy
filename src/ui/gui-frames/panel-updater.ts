@@ -133,6 +133,21 @@ export class PanelUpdater {
         ? `Sells every stock that is not at a loss (${cash.goods.join(', ')}): you get back about ${formatShort(cash.cookies)} cookies`
         : 'Nothing to cash out: no stock is above what it cost';
 
+    // WRINK-8: "Pop all wrinklers", only while wrinklers are there
+    const pop = this.wrinklerPopper.popAllPreview();
+    const popping = this.wrinklerPopper.poppingAll();
+    const popBtn = el<HTMLButtonElement>('ccsb-pop-all')!;
+    const shinyNote = pop.shiny ? ` The shiny one stays (pop it by hand if you want it).` : '';
+    popBtn.style.display = pop.shown || popping ? '' : 'none';
+    popBtn.textContent = popping ? 'Popping wrinklers... owo' : 'Pop all wrinklers :3';
+    popBtn.classList.toggle('active', popping);
+    popBtn.disabled = !popping && !pop.count;
+    popBtn.title = popping
+      ? 'The paw is popping every wrinkler that holds cookies. Click to stop.'
+      : pop.count
+        ? `Pops ${pop.count} wrinkler(s): you get back about ${formatShort(pop.cookies)} cookies. None of them is popped at a loss.${shinyNote}`
+        : `Nothing to pop yet: no wrinkler holds cookies.${shinyNote}`;
+
     const autoBtn = el('ccsb-auto-toggle')!;
     autoBtn.textContent = this.data.config.autoPlay === true ? 'Auto play ON ^w^' : 'Auto play :3';
     autoBtn.classList.toggle('active', this.data.config.autoPlay === true);
