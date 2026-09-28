@@ -708,7 +708,8 @@ action log (UI-6); nothing here is stored.
 - **AUTO-2** Scope. It may buy ONLY: buildings; building upgrades that
   make a building "twice as efficient"; grandma "cofactor" upgrades
   (grandmas twice as efficient + 1% CpS of a building per N grandmas, also
-  recognised by their description); KITTEN upgrades; the Fortune upgrades
+  recognised by their description); the synergy upgrades (Synergies Vol.
+  I/II: two buildings boosting each other); KITTEN upgrades; the Fortune upgrades
   (FORTUNE-3); ALL cookie (biscuit)
   upgrades; every other flat "Cookie production multiplier +N%." upgrade
   (Wrinkler ambergris, Dragon scale, the eggs, ...); golden cookie upgrades (Lucky day, Serendipity, Get lucky,
@@ -728,8 +729,13 @@ action log (UI-6); nothing here is stored.
   brainsweep, Elder Pact, Elder Pledge/Covenant or anything else that pushes
   the Grandmapocalypse past stage 1, and nothing it cannot classify.
 - **AUTO-3** Value model per option: cost; approximate CpS gain `dCps`
-  (buildings: per-building CpS × global multiplier; "twice as efficient":
-  that building's CpS; biscuit: its power % of CpS, evaluated when the game
+  (buildings: per-building CpS × global multiplier, plus what the extra
+  copy adds to other buildings through bought upgrades: a grandma to every
+  building of a bought grandma upgrade, either side of a bought synergy
+  upgrade to its partner; "twice as efficient": that building's CpS;
+  synergy upgrade: the cheaper building's CpS × 5% × the pricier one's
+  count + the pricier one's CpS × 0.1% × the cheaper one's count, the
+  game's `Game.GetTieredCpsMult`; biscuit: its power % of CpS, evaluated when the game
   gives it as a function, like the heart biscuits' 2%/3% with Starlove; golden upgrades: an
   assumed share of CpS; CLICKING upgrades are valued in cookies/s at the
   hammer rate × the Click Frenzy factor: click power × clicks per second ×
@@ -2352,6 +2358,16 @@ mouse while the bot runs and confirm the "+N" number follows your cursor,
 not the paw's).
 
 ## 12. Changelog
+
+- **5.8.47** Fixed: auto play and the "how good is a buy" overlay misjudged
+  synergies (AUTO-3). The synergy upgrades (Synergies Vol. I/II) were
+  valued like grandma upgrades (the pricier building "twice as efficient",
+  the cheaper one +1% per copy / (id − 1)) instead of +5% / +0.1% CpS per
+  copy of the partner, type `synergy` now; buying a grandma never counted
+  the grandma upgrades' boost to their buildings (the game ties them
+  through `buildingTie`, not `buildingTie1`); and a building on either side
+  of a bought synergy upgrade now counts what it adds to its partner. Unit
+  tests in `tests/unit/synergies.test.ts`.
 
 - **5.8.46** Clicking the news fortunes (FORTUNE-1) can be switched off:
   new basic setting "Click fortune cookies in the news" (`fortunes`, on by

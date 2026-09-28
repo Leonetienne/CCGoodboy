@@ -37,6 +37,8 @@ export function biscuitPower(up: GameUpgrade): number {
  *   golden   golden cookie upgrades (AUTO_GOLDEN_UPGRADES)
  *   grandma  grandma "cofactor" upgrades: grandmas twice as efficient + 1% CpS of a building
  *            per N grandmas (recognised by the game's own list OR by the description text)
+ *   synergy  synergy upgrades (Synergies Vol. I/II): two buildings boosting each other by
+ *            +5% / +0.1% CpS per copy of the other
  *   kitten   "Kitten helpers/workers/..." and Fortune #103 (CpS multiplier growing with the milk)
  *   fortune  Fortune #001-#017 (a building 7% more efficient and 7% cheaper) and Fortune #102
  *            (nominal); #100/#101 are multipliers, #104 a mouse upgrade (FORTUNE-3)
@@ -90,12 +92,28 @@ export function autoUpgradeGain(game: IGameAdapter, up: GameUpgrade, ctx: Upgrad
   // "Grandmas are twice as efficient. Farms gain +1% CpS per grandma."  /  "... per 2 grandmas."
   const gm = gdesc.match(/grandmas are twice as efficient\.?\s*(.+?)\s+gain\s*\+?\s*(\d+(?:\.\d+)?)\s*%\s*cps per\s*(?:(\d+)\s*)?grandma/);
 
-  const isGrandma = !!gm || game.getGrandmaSynergyNames().includes(name) || !!(up.buildingTie1 && up.buildingTie2);
+  // synergy upgrades (Synergies Vol. I/II, Game.SynergyUpgrade): the cheaper building
+  // (buildingTie1) gains +5% CpS per copy of the pricier one (buildingTie2), which gains +0.1%
+  // per copy of the cheaper one; both multiply the building's CpS (Game.GetTieredCpsMult)
+  if (!gm && up.buildingTie1 && up.buildingTie2) {
+    const b1 = up.buildingTie1;
+    const b2 = up.buildingTie2;
+
+    return {
+      gain:
+        ctx.mult *
+        ((Number(b1.storedTotalCps) || 0) * 0.05 * (Number(b2.amount) || 0) +
+          (Number(b2.storedTotalCps) || 0) * 0.001 * (Number(b1.amount) || 0)),
+      type: 'synergy',
+    };
+  }
+
+  const isGrandma = !!gm || game.getGrandmaSynergyNames().includes(name);
 
   if (isGrandma) {
-    const g = up.buildingTie2 || game.getBuildingByName('Grandma');
+    const g = game.getBuildingByName('Grandma');
 
-    let b = up.buildingTie1 || null;
+    let b = up.buildingTie || up.buildingTie1 || null;
 
     if (!b && gm) {
       // find the building by the plural name used in the description ("farms", "wizard towers")

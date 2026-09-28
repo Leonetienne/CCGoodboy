@@ -1,5 +1,5 @@
 import type { IGameAdapter } from '../game/game-adapter';
-import type { GameBuilding } from '../game/types';
+import type { GameBuilding, GameUpgrade } from '../game/types';
 import { AUTO_CLICK_FRENZY_CHANCE, AUTO_CLICK_VALUE_MIN, AUTO_FINGER_STEPS, AUTO_GOLDEN_INTERVAL_SEC } from './valuation-tables';
 
 /** Product of all active CpS buff multipliers (Frenzy x7, Clot x0.5, ...); 1 without buffs. */
@@ -30,28 +30,57 @@ export function autoUnbuffedCps(game: IGameAdapter): number {
 
 export interface BuildingGainCtx {
   mult: number;
+  /** The bought synergy upgrades (Synergies Vol. I/II), filled on first use per collect. */
+  synergies?: GameUpgrade[];
+}
+
+/** The bought synergy upgrades (Game.SynergyUpgrade: both buildingTie1 and buildingTie2 set;
+ * buildingTie1 is the cheaper building). */
+function boughtSynergies(game: IGameAdapter, ctx: BuildingGainCtx): GameUpgrade[] {
+  if (!ctx.synergies) {
+    ctx.synergies = game.getUpgrades().filter((u) => !!(u && u.bought && u.buildingTie1 && u.buildingTie2));
+  }
+
+  return ctx.synergies;
 }
 
 /** Approximate CpS gained by buying ONE more of a building: its per-building production times
- * the global multiplier. For Grandmas the synergy of already bought grandma upgrades is added
- * (each extra grandma boosts the linked buildings by 1% per N grandmas). Returns 0 if it
+ * the global multiplier, plus what the extra copy adds to other buildings through bought
+ * upgrades (the game's Game.GetTieredCpsMult): for Grandmas the grandma upgrades (each linked
+ * building x(1 + 1% x grandmas / (its id - 1))), and for either side of a bought synergy
+ * upgrade the partner (the cheaper building x(1 + 5% x the pricier one's count), the pricier
+ * one x(1 + 0.1% x the cheaper one's count)). Each boost is the partner's total CpS x the step
+ * of its factor / the factor now, since storedTotalCps already includes it. Returns 0 if it
  * cannot be estimated. */
 export function autoBuildingGain(game: IGameAdapter, me: GameBuilding, ctx: BuildingGainCtx): number {
   const per = Number(me.storedCps);
   if (!(per > 0)) return 0;
 
   let gain = per * ctx.mult;
+  const partnerBoost = (b: GameBuilding | null | undefined, step: number, count: number): number =>
+    ((Number(b && b.storedTotalCps) || 0) * ctx.mult * step) / (1 + step * count);
 
   if (me.name === 'Grandma') {
+    const grandmas = Number(me.amount) || 0;
+
     for (const n of game.getGrandmaSynergyNames()) {
       const up = game.getUpgradeByName(n);
-      const b = up && up.bought ? up.buildingTie1 : null;
+      // Game.GrandmaSynergy ties the upgrade to its building through buildingTie
+      const b = up && up.bought ? up.buildingTie || up.buildingTie1 : null;
 
       if (b) {
         const N = Math.max(1, Number(b.id) - 1);
-        gain += ((Number(b.storedTotalCps) || 0) * ctx.mult * 0.01) / N;
+        gain += partnerBoost(b, 0.01 / N, grandmas);
       }
     }
+  }
+
+  for (const syn of boughtSynergies(game, ctx)) {
+    const b1 = syn.buildingTie1!;
+    const b2 = syn.buildingTie2!;
+
+    if (b2.name === me.name) gain += partnerBoost(b1, 0.05, Number(b2.amount) || 0);
+    else if (b1.name === me.name) gain += partnerBoost(b2, 0.001, Number(b1.amount) || 0);
   }
 
   return gain;
