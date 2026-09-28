@@ -9,7 +9,7 @@ import type { LogStore } from '../stats/log';
 import type { StatsRecorder } from '../stats/stats';
 import { formatShort } from '../ui/format';
 import type { AutoPlayEngine } from './shopping';
-import { matureWrinklers, pickWrinklersToPop, POP_ALL_MS, stashOf, type MatureWrinkler, type WrinklerPopPlan, type WrinklerView } from './wrinkler-strategy';
+import { matureWrinklers, pickWrinklersToPop, POP_ALL_MS, poppableWrinklers, stashOf, wrinklerPopButtons, type WrinklerPopMode, type MatureWrinkler, type WrinklerPopPlan, type WrinklerView } from './wrinkler-strategy';
 
 /** Auto play: pops mature wrinklers when auto play needs their cookies for a purchase
  * (WRINK-2..6). Planning is throttled to once a second; the plan names the fewest mature
@@ -51,63 +51,85 @@ export class WrinklerPopper {
     return Date.now() < this.runtime.wrinklerForcePopUntil;
   }
 
-  /** WRINK-8: the "Pop all wrinklers" button is popping until runtime.wrinklerPopAllUntil;
-   * ends by itself after POP_ALL_MS. */
-  poppingAll(): boolean {
-    if (!this.runtime.wrinklerPopAllUntil) return false;
-    if (Date.now() < this.runtime.wrinklerPopAllUntil) return true;
+  /** WRINK-8: the button mode running ("Pop ripe wrinklers" / "Pop all wrinklers"), or null;
+   * a mode ends by itself after POP_ALL_MS. */
+  popMode(): WrinklerPopMode | null {
+    if (!this.runtime.wrinklerPopUntil) return null;
+    if (Date.now() < this.runtime.wrinklerPopUntil) return this.runtime.wrinklerPopMode;
 
-    this.endPopAll('gave up after 2 minutes');
-    return false;
+    this.endPop('gave up after 2 minutes');
+    return null;
   }
 
-  /** WRINK-8: the button is shown while any wrinkler is there (crawling in or attached); what
-   * it would pop (every mature one, WRINK-2) and bring back right now. */
-  popAllPreview(): { shown: boolean; count: number; cookies: number; shiny: number; attached: number } {
+  /** WRINK-8: what each button would pop and bring back right now, and which buttons to show. */
+  popPreview(): {
+    ripe: { count: number; cookies: number };
+    all: { count: number; cookies: number };
+    shiny: number;
+    show: { ripe: boolean; all: boolean };
+  } {
     const views = this.views();
     const mature = this.mature();
+    const all = poppableWrinklers(views);
+    const mult = this.game.getWrinklerPopMult(false);
 
     return {
-      shown: this.game.getWrinklers().some((w) => !!w && w.phase > 0),
-      count: mature.length,
-      cookies: stashOf(mature),
+      ripe: { count: mature.length, cookies: stashOf(mature) },
+      all: { count: all.length, cookies: all.reduce((s, w) => s + w.sucked * mult, 0) },
       shiny: views.filter((w) => w.attached && w.shiny).length,
-      attached: views.filter((w) => w.attached && !w.shiny).length,
+      show: wrinklerPopButtons(mature.length, all.length, this.popMode()),
     };
   }
 
-  /** Starts popping every mature wrinkler, or stops it when it runs. */
-  togglePopAll(): void {
-    if (this.runtime.wrinklerPopAllUntil) {
-      this.endPopAll('stopped');
+  /** The ids a button mode pops right now, fattest first. */
+  private popTargets(mode: WrinklerPopMode): { ids: number[]; yield: number } {
+    if (mode === 'ripe') {
+      const mature = this.mature();
+      return { ids: mature.map((w) => w.id), yield: stashOf(mature) };
+    }
+
+    const all = poppableWrinklers(this.views());
+    const mult = this.game.getWrinklerPopMult(false);
+    return { ids: all.map((w) => w.id), yield: all.reduce((s, w) => s + w.sucked * mult, 0) };
+  }
+
+  /** A button: starts popping in its mode, or stops the mode running (the other button
+   * switches to its own mode). */
+  togglePop(mode: WrinklerPopMode): void {
+    const running = this.popMode();
+
+    if (running === mode) {
+      this.endPop('stopped');
       return;
     }
 
-    const p = this.popAllPreview();
-    this.runtime.wrinklerPopAllUntil = Date.now() + POP_ALL_MS;
+    const t = this.popTargets(mode);
+    this.runtime.wrinklerPopMode = mode;
+    this.runtime.wrinklerPopUntil = Date.now() + POP_ALL_MS;
     this.runtime.wrinklerNextEvalAt = 0;
-    this.log.log('pop wrinkler', `popping all: ${p.count} wrinkler(s)`, { cookies: Math.round(p.cookies) });
+    this.log.log('pop wrinkler', `popping ${mode}: ${t.ids.length} wrinkler(s)`, { cookies: Math.round(t.yield) });
   }
 
-  private endPopAll(why: string): void {
-    this.runtime.wrinklerPopAllUntil = 0;
+  private endPop(why: string): void {
+    const mode = this.runtime.wrinklerPopMode;
+    this.runtime.wrinklerPopUntil = 0;
     this.runtime.wrinklerNextEvalAt = 0;
-    this.log.log('pop wrinkler', `pop all ${why}`);
+    this.log.log('pop wrinkler', `pop ${mode} ${why}`);
   }
 
-  /** Popping allowed right now: auto play and popping on (or a forced debug pop, or the "Pop
-   * all wrinklers" button), not paused after a failure, the AUTO-7 safety gates clear, and no
+  /** Popping allowed right now: auto play and popping on (or a forced debug pop, or a "Pop
+   * ... wrinklers" button), not paused after a failure, the AUTO-7 safety gates clear, and no
    * CpS buff running (wrinklers digest the buffed CpS, so that is exactly when they must stay
    * attached; the button, asked for now, doesn't wait for the buff). */
   private allowed(): boolean {
-    const all = this.poppingAll();
-    if (!all && !this.forced() && (this.data.config.autoPlay !== true || this.data.config.autoPopWrinklers === false)) return false;
+    const manual = this.popMode() != null;
+    if (!manual && !this.forced() && (this.data.config.autoPlay !== true || this.data.config.autoPopWrinklers === false)) return false;
     if (!this.game.isReady() || this.game.isAscending() || this.game.isPromptOpen()) return false;
 
     const now = Date.now();
     if (now < this.runtime.wrinklerBlockUntil || now < this.runtime.autoBlockUntil) return false;
 
-    return !this.autoPlay.shoppingInterrupted() && (all || this.game.positiveCpsBuffs().length === 0);
+    return !this.autoPlay.shoppingInterrupted() && (manual || this.game.positiveCpsBuffs().length === 0);
   }
 
   /** The current pop plan (re-planned at most once a second), or null. A forced debug pop
@@ -134,13 +156,15 @@ export class WrinklerPopper {
       return this.runtime.wrinklerPlan;
     }
 
-    if (this.poppingAll()) {
-      const mature = this.mature();
+    const mode = this.popMode();
 
-      if (mature.length) {
-        this.runtime.wrinklerPlan = { ids: mature.map((w) => w.id), yield: stashOf(mature), forName: '"Pop all wrinklers"', cost: 0 };
+    if (mode) {
+      const t = this.popTargets(mode);
+
+      if (t.ids.length) {
+        this.runtime.wrinklerPlan = { ids: t.ids, yield: t.yield, forName: `"Pop ${mode} wrinklers"`, cost: 0 };
       } else {
-        this.endPopAll('done: no mature one left');
+        this.endPop('done: none left');
       }
 
       return this.runtime.wrinklerPlan;
@@ -175,9 +199,9 @@ export class WrinklerPopper {
   }
 
   /** A pop is due (the scheduler, PendingWork and hammering use it). A dry run only logs; the
-   * "Pop all wrinklers" button, asked for by hand, pops anyway. */
+   * "Pop ... wrinklers" buttons, asked for by hand, pop anyway. */
   pending(): boolean {
-    return (this.data.config.autoDryRun !== true || this.poppingAll()) && this.plan() != null;
+    return (this.data.config.autoDryRun !== true || this.popMode() != null) && this.plan() != null;
   }
 
   /** Job that pops the fattest wrinkler of the plan, or null. */
@@ -185,7 +209,7 @@ export class WrinklerPopper {
     const plan = this.plan();
     if (!plan) return null;
 
-    if (this.data.config.autoDryRun === true && !this.poppingAll()) {
+    if (this.data.config.autoDryRun === true && this.popMode() == null) {
       const now = Date.now();
       const last = this.runtime.autoWouldLog.get('wrinkler pop') || 0;
 

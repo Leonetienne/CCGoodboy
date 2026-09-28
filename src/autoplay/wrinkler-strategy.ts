@@ -97,5 +97,25 @@ export function pickWrinklersToPop(mature: MatureWrinkler[], need: number): Matu
   return null;
 }
 
-/** WRINK-8: the "Pop all wrinklers" button gives up after this long. */
+/** WRINK-8: a "Pop ... wrinklers" button gives up after this long. */
 export const POP_ALL_MS = 120000;
+
+/** WRINK-8: "ripe" pops the mature wrinklers (WRINK-2), "all" every one holding cookies. */
+export type WrinklerPopMode = 'ripe' | 'all';
+
+/** WRINK-8: what "Pop all wrinklers" pops, fattest first: every attached normal wrinkler
+ * holding cookies. Never a shiny one (WRINK-2) nor one still crawling in (nothing inside). */
+export function poppableWrinklers(wrinklers: WrinklerView[]): WrinklerView[] {
+  return wrinklers.filter((w) => w.attached && !w.shiny && w.sucked > 0).sort((a, b) => b.sucked - a.sucked || a.id - b.id);
+}
+
+/** WRINK-8: which buttons make sense. "Pop ripe wrinklers" only while ripe and unripe ones
+ * are there together (otherwise it would pop the same as "all", or nothing); "Pop all
+ * wrinklers" while any is poppable; none without a poppable wrinkler. A running mode keeps its
+ * button, so it can be stopped. */
+export function wrinklerPopButtons(ripe: number, poppable: number, running: WrinklerPopMode | null): { ripe: boolean; all: boolean } {
+  return {
+    ripe: running === 'ripe' || (ripe > 0 && poppable > ripe),
+    all: running === 'all' || poppable > 0,
+  };
+}

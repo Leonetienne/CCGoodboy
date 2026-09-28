@@ -8,7 +8,7 @@ import { chainStepGain, stage1Gain } from '../../src/autoplay/grandmapocalypse-v
 import { WrinklerPopper } from '../../src/autoplay/wrinkler-popper';
 import { autoDecide } from '../../src/autoplay/strategy';
 import { AUTO_PREF_BINGO, AUTO_PREF_GOLDEN, AUTO_PREF_WIZARD } from '../../src/autoplay/valuation-tables';
-import { matureWrinklers, pickWrinklersToPop, wrinklerRespawnSec, type WrinklerMaturityInput } from '../../src/autoplay/wrinkler-strategy';
+import { matureWrinklers, pickWrinklersToPop, wrinklerPopButtons, wrinklerRespawnSec, type WrinklerMaturityInput } from '../../src/autoplay/wrinkler-strategy';
 import { PersistedData } from '../../src/core/persisted-data';
 import { RuntimeState } from '../../src/core/runtime-state';
 import type { CursorJobContext } from '../../src/cursor/types';
@@ -570,7 +570,7 @@ describe('wrinkler poke point (WRINK-5)', () => {
   });
 });
 
-describe('"Pop all wrinklers" (WRINK-8)', () => {
+describe('"Pop ripe/all wrinklers" (WRINK-8)', () => {
   beforeEach(() => localStorage.clear());
 
   function setup(wrinklers: GameWrinkler[]) {
@@ -591,42 +591,62 @@ describe('"Pop all wrinklers" (WRINK-8)', () => {
     return { runtime, game, popper, decideWithExtraBank };
   }
 
-  it('pops every mature normal wrinkler, fattest first; never a young, shiny or crawling one', () => {
-    const { runtime, game, popper, decideWithExtraBank } = setup([
-      wrinkler(0, fed(6 * STAGE1_RESPAWN)),
-      wrinkler(1, fed(20 * STAGE1_RESPAWN), { type: 1 }),
-      wrinkler(2, fed(10 * STAGE1_RESPAWN)),
-      wrinkler(3, fed(20 * STAGE1_RESPAWN), { phase: 1 }),
-      wrinkler(4, fed(STAGE1_RESPAWN)), // young: keeps digesting
-    ]);
+  const mixed = () => [
+    wrinkler(0, fed(6 * STAGE1_RESPAWN)),
+    wrinkler(1, fed(20 * STAGE1_RESPAWN), { type: 1 }),
+    wrinkler(2, fed(10 * STAGE1_RESPAWN)),
+    wrinkler(3, fed(20 * STAGE1_RESPAWN), { phase: 1 }),
+    wrinkler(4, fed(STAGE1_RESPAWN)), // young
+  ];
+
+  it('"ripe" pops the mature normal ones, fattest first; never a young, shiny or crawling one', () => {
+    const { runtime, game, popper, decideWithExtraBank } = setup(mixed());
     game.rawBuffs = { f: { name: 'Frenzy', multCpS: 7, time: 100 } }; // doesn't wait for a buff
 
-    expect(popper.popAllPreview()).toMatchObject({ shown: true, count: 2, shiny: 1, attached: 3 });
+    expect(popper.popPreview()).toMatchObject({ ripe: { count: 2 }, all: { count: 3 }, shiny: 1 });
 
-    popper.togglePopAll();
+    popper.togglePop('ripe');
     expect(popper.pending()).toBe(true);
     expect(runtime.wrinklerPlan!.ids).toEqual([2, 0]);
     expect(popper.job()!.key).toBe('wrinkler-pop:2');
     expect(decideWithExtraBank).not.toHaveBeenCalled();
   });
 
-  it('ends by itself once no mature one is left, and a second click stops it', () => {
+  it('"all" pops the young ones too, still never a shiny or crawling one', () => {
+    const { runtime, popper } = setup(mixed());
+
+    popper.togglePop('all');
+    expect(popper.pending()).toBe(true);
+    expect(runtime.wrinklerPlan!.ids).toEqual([2, 0, 4]);
+  });
+
+  it('ends by itself once none is left; its own button stops it, the other switches mode', () => {
     const { runtime, game, popper } = setup([wrinkler(2, fed(10 * STAGE1_RESPAWN)), wrinkler(3, fed(STAGE1_RESPAWN))]);
 
-    popper.togglePopAll();
-    popper.togglePopAll();
-    expect(popper.poppingAll()).toBe(false);
+    popper.togglePop('ripe');
+    popper.togglePop('all');
+    expect(popper.popMode()).toBe('all');
+    popper.togglePop('all');
+    expect(popper.popMode()).toBeNull();
 
-    popper.togglePopAll();
+    popper.togglePop('ripe');
     game.wrinklers[0]!.phase = 0;
     game.wrinklers[0]!.sucked = 0;
     runtime.wrinklerNextEvalAt = 0;
     expect(popper.pending()).toBe(false);
-    expect(popper.poppingAll()).toBe(false);
+    expect(popper.popMode()).toBeNull();
   });
 
-  it('the button is only shown while a wrinkler is there', () => {
-    expect(setup([wrinkler(0, 0, { phase: 0 })]).popper.popAllPreview().shown).toBe(false);
-    expect(setup([wrinkler(0, 0, { phase: 1 })]).popper.popAllPreview()).toMatchObject({ shown: true, count: 0 });
+  it('shows "ripe" only with ripe and unripe ones together, "all" with any, neither without', () => {
+    expect(setup(mixed()).popper.popPreview().show).toEqual({ ripe: true, all: true });
+    expect(setup([wrinkler(0, fed(6 * STAGE1_RESPAWN))]).popper.popPreview().show).toEqual({ ripe: false, all: true });
+    expect(setup([wrinkler(0, fed(STAGE1_RESPAWN))]).popper.popPreview().show).toEqual({ ripe: false, all: true });
+    expect(setup([wrinkler(0, 0, { phase: 1 }), wrinkler(1, 500, { type: 1 })]).popper.popPreview().show).toEqual({ ripe: false, all: false });
+    expect(setup([]).popper.popPreview().show).toEqual({ ripe: false, all: false });
+  });
+
+  it('a running mode keeps its button, so it can be stopped', () => {
+    expect(wrinklerPopButtons(0, 0, 'ripe')).toEqual({ ripe: true, all: false });
+    expect(wrinklerPopButtons(0, 0, 'all')).toEqual({ ripe: false, all: true });
   });
 });

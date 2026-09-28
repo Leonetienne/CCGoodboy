@@ -173,8 +173,13 @@ export class UiRoot {
       this.panelUpdater.update();
     });
 
+    document.getElementById('ccsb-pop-ripe')!.addEventListener('click', () => {
+      wrinklerPopper.togglePop('ripe');
+      this.panelUpdater.update();
+    });
+
     document.getElementById('ccsb-pop-all')!.addEventListener('click', () => {
-      wrinklerPopper.togglePopAll();
+      wrinklerPopper.togglePop('all');
       this.panelUpdater.update();
     });
 

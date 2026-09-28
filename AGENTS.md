@@ -58,8 +58,8 @@ Market" button, the market's buy/sell buttons and its "Hire" (broker)
 button (STOCK-\*), with "Tend the garden" the "View Garden" button, the
 garden's plot tiles, seeds and soils (GARDEN-\*), and — in auto play only —
 the Wizard tower's "lvl" button (AUTO-13), the Bank's "lvl" button
-(AUTO-16), the Farm's "lvl" button (AUTO-17), mature wrinklers (WRINK-5; with the "Pop all wrinklers" button,
-WRINK-8, also without auto play), Krumblor's tab,
+(AUTO-16), the Farm's "lvl" button (AUTO-17), mature wrinklers (WRINK-5; with the "Pop ripe/all wrinklers"
+buttons, WRINK-8, also without auto play, and young ones too after "Pop all"), Krumblor's tab,
 popup and aura picker (KRUMB-3) and Santa's tab, "Evolve" button and popup
 "x" (XMAS-4), and with "Auto: ascend" the Legacy button, the "Ascend" /
 "Reincarnate" prompts, heavenly upgrade crates, a permanent upgrade slot's
@@ -466,7 +466,8 @@ the paw clicks.
   and Background, then the statistics.
 - **UI-3** Buttons: Pause/Resume, Hammer cookie, Auto play, "Pause
   investments" and "Cash stock market wins" (STOCK-9, only when they
-  apply), "Pop all wrinklers" (WRINK-8, only while wrinklers are there), Settings, "More..."; "More..." toggles a second row (session-only, closed at start)
+  apply), "Pop ripe wrinklers" / "Pop all wrinklers" (WRINK-8, only when they make
+  sense), Settings, "More..."; "More..." toggles a second row (session-only, closed at start)
   with Graphs, Logs and Debug tools. The Debug tools button only shows with
   the Advanced setting "Show debug tools (cheats)" (`showDebugTools`, OFF by
   default); switching it off also closes the debug frame.
@@ -1123,29 +1124,33 @@ action log (UI-6); nothing here is stored.
   wrinkler is around): attached/max, the cookies they would give now, how
   many are mature, and a shiny one if present.
   Debug: DBG-12.
-- **WRINK-8** "Pop all wrinklers": a main panel button next to "Cash stock
-  market wins", shown only while a wrinkler is there (crawling in or
-  attached), with or without auto play. Clicked, the paw pops every MATURE
+- **WRINK-8** Two main panel buttons next to "Cash stock market wins",
+  with or without auto play: "Pop ripe wrinklers" pops every MATURE
   wrinkler (WRINK-2: normal, attached, digested for >= "Auto: pop a
-  wrinkler after" × its respawn time; `WrinklerPopper.mature()`), fattest
-  first, one real poke job per wrinkler (WRINK-5), then stops; a second
-  click stops it early, and it gives up after 2 minutes
-  (`runtime.wrinklerPopAllUntil`, `POP_ALL_MS`). No pop loses cookies (with
-  n attached, each wrinkler digests n × 5% of the CpS while the bank only
-  loses 5% per wrinkler, and a pop pays back what it digested × at least
-  1.1, the game's `main.js` 2.058), but a young one popped would leave its
-  slot empty for a respawn time it could have spent digesting far more, so
-  the younger ones keep digesting; shiny ones are never popped (the tooltip
-  says it stays), nor ones crawling in, nor anything at stage 0 (nothing
-  respawns). Asked for by hand, it skips WRINK-3 (a purchase needing it),
-  the auto play switches, the dry run and the CpS buff gate; the other
-  WRINK-4 gates (golden cookie ready, Click Frenzy, storm/chain,
-  FTHOF/refill pending, ascending, a prompt open, paused) still hold it
-  back. Greyed out when no wrinkler is mature; the tooltip says how many of
-  the attached ones it pops and what they bring back
-  (`WrinklerPopper.popAllPreview()`/`togglePopAll()`/`poppingAll()`).
-  Logged as `"pop wrinkler"` (start, end and each pop, "for "Pop all
-  wrinklers"").
+  wrinkler after" × its respawn time; `WrinklerPopper.mature()`), "Pop all
+  wrinklers" every attached normal wrinkler holding cookies, young ones too
+  (`poppableWrinklers()`). Neither pops a shiny one (the tooltip says it
+  stays) or one still crawling in; "ripe" pops nothing at stage 0 (nothing
+  respawns). Shown only when they make sense (`wrinklerPopButtons()`):
+  "Pop ripe wrinklers" only while ripe and unripe ones are there together
+  (otherwise it would pop the same as "all", or nothing), "Pop all
+  wrinklers" while any is poppable, neither without a poppable wrinkler; a
+  running mode keeps its button. Clicked, the paw pops them fattest first,
+  one real poke job per wrinkler (WRINK-5), then stops; its button again
+  stops it early, the other button switches the mode, and it gives up after
+  2 minutes (`runtime.wrinklerPopUntil`/`wrinklerPopMode`, `POP_ALL_MS`).
+  No pop loses cookies (with n attached, each wrinkler digests n × 5% of
+  the CpS while the bank only loses 5% per wrinkler, and a pop pays back
+  what it digested × at least 1.1, the game's `main.js` 2.058), but a young
+  one popped leaves its slot empty for a respawn time it could have spent
+  digesting far more: that is what "ripe" avoids. Asked for by hand, both
+  skip WRINK-3 (a purchase needing it), the auto play switches, the dry run
+  and the CpS buff gate; the other WRINK-4 gates (golden cookie ready,
+  Click Frenzy, storm/chain, FTHOF/refill pending, ascending, a prompt open,
+  paused) still hold them back. The tooltips say how many each pops and
+  what they bring back (`WrinklerPopper.popPreview()`/`togglePop(mode)`/
+  `popMode()`). Logged as `"pop wrinkler"` (start, end and each pop, "for
+  "Pop ripe wrinklers"" / "for "Pop all wrinklers"").
 
 ### 3.18 Krumblor, the cookie dragon (auto play)
 
@@ -2382,6 +2387,17 @@ mouse while the bot runs and confirm the "+N" number follows your cursor,
 not the paw's).
 
 ## 12. Changelog
+
+- **5.8.50** Two wrinkler buttons instead of one (WRINK-8): "Pop ripe
+  wrinklers" (the mature ones, as 5.8.49's "Pop all wrinklers" did) and "Pop
+  all wrinklers" (every one holding cookies, young ones too; never a shiny or
+  crawling one). "ripe" is only shown while ripe and unripe ones are there
+  together, "all" while any is poppable, neither without wrinklers. New
+  `poppableWrinklers()`, `wrinklerPopButtons()`, `WrinklerPopMode`,
+  `WrinklerPopper.popPreview()`/`togglePop(mode)`/`popMode()`,
+  `runtime.wrinklerPopUntil`/`wrinklerPopMode` (replacing
+  `popAllPreview()`/`togglePopAll()`/`poppingAll()`/`wrinklerPopAllUntil`).
+  Unit tests in `tests/unit/wrinklers.test.ts`.
 
 - **5.8.49** "Pop all wrinklers" (WRINK-8) pops only the mature wrinklers
   (WRINK-2, the auto popping's rule) instead of every one holding cookies:

@@ -133,20 +133,30 @@ export class PanelUpdater {
         ? `Sells every stock that is not at a loss (${cash.goods.join(', ')}): you get back about ${formatShort(cash.cookies)} cookies`
         : 'Nothing to cash out: no stock is above what it cost';
 
-    // WRINK-8: "Pop all wrinklers", only while wrinklers are there
-    const pop = this.wrinklerPopper.popAllPreview();
-    const popping = this.wrinklerPopper.poppingAll();
-    const popBtn = el<HTMLButtonElement>('ccsb-pop-all')!;
-    const shinyNote = pop.shiny ? ` The shiny one stays (pop it by hand if you want it).` : '';
-    popBtn.style.display = pop.shown || popping ? '' : 'none';
-    popBtn.textContent = popping ? 'Popping wrinklers... owo' : 'Pop all wrinklers :3';
-    popBtn.classList.toggle('active', popping);
-    popBtn.disabled = !popping && !pop.count;
-    popBtn.title = popping
-      ? 'The paw is popping every mature wrinkler. Click to stop.'
-      : pop.count
-        ? `Pops the ${pop.count} mature wrinkler(s) of ${pop.attached}: you get back about ${formatShort(pop.cookies)} cookies. The younger ones keep digesting.${shinyNote}`
-        : `Nothing to pop yet: no wrinkler is mature (digested for ${Number(this.data.config.autoWrinklerMaturity) || 5}x its respawn time).${shinyNote}`;
+    // WRINK-8: "Pop ripe wrinklers" only while ripe and unripe ones are there together,
+    // "Pop all wrinklers" while any is poppable, neither without wrinklers
+    const pop = this.wrinklerPopper.popPreview();
+    const popMode = this.wrinklerPopper.popMode();
+    const shinyNote = pop.shiny ? ' The shiny one stays (pop it by hand if you want it).' : '';
+    const maturity = Number(this.data.config.autoWrinklerMaturity) || 5;
+
+    const ripeBtn = el<HTMLButtonElement>('ccsb-pop-ripe')!;
+    ripeBtn.style.display = pop.show.ripe ? '' : 'none';
+    ripeBtn.textContent = popMode === 'ripe' ? 'Popping ripe wrinklers... owo' : 'Pop ripe wrinklers :3';
+    ripeBtn.classList.toggle('active', popMode === 'ripe');
+    ripeBtn.title =
+      popMode === 'ripe'
+        ? 'The paw is popping every ripe wrinkler. Click to stop.'
+        : `Pops the ${pop.ripe.count} ripe wrinkler(s) (digested for ${maturity}x their respawn time): you get back about ${formatShort(pop.ripe.cookies)} cookies. The ${pop.all.count - pop.ripe.count} younger one(s) keep digesting.${shinyNote}`;
+
+    const allBtn = el<HTMLButtonElement>('ccsb-pop-all')!;
+    allBtn.style.display = pop.show.all ? '' : 'none';
+    allBtn.textContent = popMode === 'all' ? 'Popping all wrinklers... owo' : 'Pop all wrinklers :3';
+    allBtn.classList.toggle('active', popMode === 'all');
+    allBtn.title =
+      popMode === 'all'
+        ? 'The paw is popping every wrinkler. Click to stop.'
+        : `Pops all ${pop.all.count} wrinkler(s), young ones too: you get back about ${formatShort(pop.all.cookies)} cookies. No pop loses cookies, but a young one's slot then stays empty for a respawn time.${shinyNote}`;
 
     const autoBtn = el('ccsb-auto-toggle')!;
     autoBtn.textContent = this.data.config.autoPlay === true ? 'Auto play ON ^w^' : 'Auto play :3';
