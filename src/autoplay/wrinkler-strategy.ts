@@ -99,13 +99,3 @@ export function pickWrinklersToPop(mature: MatureWrinkler[], need: number): Matu
 
 /** WRINK-8: the "Pop all wrinklers" button gives up after this long. */
 export const POP_ALL_MS = 120000;
-
-/** WRINK-8: what "Pop all wrinklers" pops, fattest first: every attached normal wrinkler that
- * holds cookies. None of them is popped at a loss: with n attached, each digests n x 5% of the
- * CpS while the bank only loses 5% per wrinkler, and a pop pays back what it digested x >= 1.1
- * (the game's main.js 2.058). Left out: shiny ones (never popped by the bot, WRINK-2; pop them
- * by hand), ones still crawling in, and an empty one (it gives nothing and only loses its slot
- * for a respawn time). */
-export function popAllTargets(wrinklers: WrinklerView[]): WrinklerView[] {
-  return wrinklers.filter((w) => w.attached && !w.shiny && w.sucked > 0).sort((a, b) => b.sucked - a.sucked);
-}

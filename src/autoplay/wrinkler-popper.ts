@@ -9,7 +9,7 @@ import type { LogStore } from '../stats/log';
 import type { StatsRecorder } from '../stats/stats';
 import { formatShort } from '../ui/format';
 import type { AutoPlayEngine } from './shopping';
-import { matureWrinklers, pickWrinklersToPop, POP_ALL_MS, popAllTargets, stashOf, type MatureWrinkler, type WrinklerPopPlan, type WrinklerView } from './wrinkler-strategy';
+import { matureWrinklers, pickWrinklersToPop, POP_ALL_MS, stashOf, type MatureWrinkler, type WrinklerPopPlan, type WrinklerView } from './wrinkler-strategy';
 
 /** Auto play: pops mature wrinklers when auto play needs their cookies for a purchase
  * (WRINK-2..6). Planning is throttled to once a second; the plan names the fewest mature
@@ -62,20 +62,21 @@ export class WrinklerPopper {
   }
 
   /** WRINK-8: the button is shown while any wrinkler is there (crawling in or attached); what
-   * it would pop and bring back right now. */
-  popAllPreview(): { shown: boolean; count: number; cookies: number; shiny: number } {
+   * it would pop (every mature one, WRINK-2) and bring back right now. */
+  popAllPreview(): { shown: boolean; count: number; cookies: number; shiny: number; attached: number } {
     const views = this.views();
-    const targets = popAllTargets(views);
+    const mature = this.mature();
 
     return {
       shown: this.game.getWrinklers().some((w) => !!w && w.phase > 0),
-      count: targets.length,
-      cookies: targets.reduce((s, w) => s + w.sucked * this.game.getWrinklerPopMult(false), 0),
+      count: mature.length,
+      cookies: stashOf(mature),
       shiny: views.filter((w) => w.attached && w.shiny).length,
+      attached: views.filter((w) => w.attached && !w.shiny).length,
     };
   }
 
-  /** Starts popping every wrinkler popAllTargets() names, or stops it when it runs. */
+  /** Starts popping every mature wrinkler, or stops it when it runs. */
   togglePopAll(): void {
     if (this.runtime.wrinklerPopAllUntil) {
       this.endPopAll('stopped');
@@ -134,13 +135,12 @@ export class WrinklerPopper {
     }
 
     if (this.poppingAll()) {
-      const targets = popAllTargets(this.views());
+      const mature = this.mature();
 
-      if (targets.length) {
-        const mult = this.game.getWrinklerPopMult(false);
-        this.runtime.wrinklerPlan = { ids: targets.map((w) => w.id), yield: targets.reduce((s, w) => s + w.sucked * mult, 0), forName: '"Pop all wrinklers"', cost: 0 };
+      if (mature.length) {
+        this.runtime.wrinklerPlan = { ids: mature.map((w) => w.id), yield: stashOf(mature), forName: '"Pop all wrinklers"', cost: 0 };
       } else {
-        this.endPopAll('done: none left to pop');
+        this.endPopAll('done: no mature one left');
       }
 
       return this.runtime.wrinklerPlan;

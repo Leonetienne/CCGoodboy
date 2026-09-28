@@ -578,6 +578,10 @@ describe('"Pop all wrinklers" (WRINK-8)', () => {
     const data = new PersistedData(); // auto play OFF
     data.config.autoDryRun = true; // asked for by hand: pops anyway
     const game = new FakeGameAdapter();
+    game.elderWrath = 1;
+    game.cookiesPs = 100;
+    game.cpsSucked = 0.5;
+    game.wrinklerSpawnChance = STAGE1_CHANCE;
     game.wrinklers = wrinklers;
 
     const decideWithExtraBank = vi.fn();
@@ -587,18 +591,17 @@ describe('"Pop all wrinklers" (WRINK-8)', () => {
     return { runtime, game, popper, decideWithExtraBank };
   }
 
-  it('pops every attached normal wrinkler holding cookies, fattest first, never a shiny, crawling or empty one', () => {
+  it('pops every mature normal wrinkler, fattest first; never a young, shiny or crawling one', () => {
     const { runtime, game, popper, decideWithExtraBank } = setup([
-      wrinkler(0, 10),
-      wrinkler(1, 500, { type: 1 }),
-      wrinkler(2, 50),
-      wrinkler(3, 900, { phase: 1 }),
-      wrinkler(4, 0),
+      wrinkler(0, fed(6 * STAGE1_RESPAWN)),
+      wrinkler(1, fed(20 * STAGE1_RESPAWN), { type: 1 }),
+      wrinkler(2, fed(10 * STAGE1_RESPAWN)),
+      wrinkler(3, fed(20 * STAGE1_RESPAWN), { phase: 1 }),
+      wrinkler(4, fed(STAGE1_RESPAWN)), // young: keeps digesting
     ]);
     game.rawBuffs = { f: { name: 'Frenzy', multCpS: 7, time: 100 } }; // doesn't wait for a buff
 
-    const p = popper.popAllPreview();
-    expect(p).toMatchObject({ shown: true, count: 2, shiny: 1 });
+    expect(popper.popAllPreview()).toMatchObject({ shown: true, count: 2, shiny: 1, attached: 3 });
 
     popper.togglePopAll();
     expect(popper.pending()).toBe(true);
@@ -607,8 +610,8 @@ describe('"Pop all wrinklers" (WRINK-8)', () => {
     expect(decideWithExtraBank).not.toHaveBeenCalled();
   });
 
-  it('ends by itself once none is left, and a second click stops it', () => {
-    const { runtime, game, popper } = setup([wrinkler(2, 50)]);
+  it('ends by itself once no mature one is left, and a second click stops it', () => {
+    const { runtime, game, popper } = setup([wrinkler(2, fed(10 * STAGE1_RESPAWN)), wrinkler(3, fed(STAGE1_RESPAWN))]);
 
     popper.togglePopAll();
     popper.togglePopAll();

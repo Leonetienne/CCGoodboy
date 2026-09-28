@@ -143,10 +143,10 @@ export class PanelUpdater {
     popBtn.classList.toggle('active', popping);
     popBtn.disabled = !popping && !pop.count;
     popBtn.title = popping
-      ? 'The paw is popping every wrinkler that holds cookies. Click to stop.'
+      ? 'The paw is popping every mature wrinkler. Click to stop.'
       : pop.count
-        ? `Pops ${pop.count} wrinkler(s): you get back about ${formatShort(pop.cookies)} cookies. None of them is popped at a loss.${shinyNote}`
-        : `Nothing to pop yet: no wrinkler holds cookies.${shinyNote}`;
+        ? `Pops the ${pop.count} mature wrinkler(s) of ${pop.attached}: you get back about ${formatShort(pop.cookies)} cookies. The younger ones keep digesting.${shinyNote}`
+        : `Nothing to pop yet: no wrinkler is mature (digested for ${Number(this.data.config.autoWrinklerMaturity) || 5}x its respawn time).${shinyNote}`;
 
     const autoBtn = el('ccsb-auto-toggle')!;
     autoBtn.textContent = this.data.config.autoPlay === true ? 'Auto play ON ^w^' : 'Auto play :3';
