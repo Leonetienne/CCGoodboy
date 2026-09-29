@@ -24,6 +24,7 @@ import type { GrimoireView } from '../../src/hunting/grimoire-view';
 import type { WrinklerPopper } from '../../src/autoplay/wrinkler-popper';
 import type { KrumblorTrainer } from '../../src/autoplay/krumblor';
 import type { SantaTrainer } from '../../src/autoplay/santa';
+import type { DragonPetter } from '../../src/autoplay/dragon-pet';
 import type { ButterBiscuitHunter } from '../../src/autoplay/butter-biscuit';
 
 function makeDeps(overrides: Partial<PriorityDeps> = {}): PriorityDeps {
@@ -336,6 +337,23 @@ describe('selectJobRequest', () => {
       job: vi.fn().mockReturnValue({ action: { label: 'krumblor' }, priority: JOB_PRIORITY.AUTO_SHOP, key: 'krumblor:train' }),
     } as unknown as KrumblorTrainer;
     expect(selectJobRequest(makeDeps({ krumblor, santa }))?.key).toBe('krumblor:train');
+  });
+
+  it('pets Krumblor after a Santa step, before a butter biscuit top-up (DRAGON-PET-2)', () => {
+    const dragonPet = {
+      pending: () => true,
+      job: vi.fn().mockReturnValue({ action: { label: 'pet' }, priority: JOB_PRIORITY.AUTO_SHOP, key: 'dragon-pet:pet' }),
+    } as unknown as DragonPetter;
+    const butterBiscuit = { pending: () => true, job: vi.fn() } as unknown as ButterBiscuitHunter;
+
+    expect(selectJobRequest(makeDeps({ dragonPet, butterBiscuit }))?.key).toBe('dragon-pet:pet');
+    expect(butterBiscuit.job).not.toHaveBeenCalled();
+
+    const santa = {
+      pending: () => true,
+      job: vi.fn().mockReturnValue({ action: { label: 'santa' }, priority: JOB_PRIORITY.AUTO_SHOP, key: 'santa:evolve' }),
+    } as unknown as SantaTrainer;
+    expect(selectJobRequest(makeDeps({ santa, dragonPet }))?.key).toBe('santa:evolve');
   });
 
   it('tops Wizard towers up for a butter biscuit after Santa, before a stock trade and auto-shop', () => {

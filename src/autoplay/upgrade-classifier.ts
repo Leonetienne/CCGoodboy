@@ -1,9 +1,9 @@
 import type { IGameAdapter } from '../game/game-adapter';
 import type { GameBuilding, GameUpgrade } from '../game/types';
-import { autoFingerGain } from './building-valuation';
+import { autoFingerGain, autoPerClick } from './building-valuation';
 import { wrinklerRespawnSec } from './wrinkler-strategy';
 import { chainStepGain } from './grandmapocalypse-valuation';
-import { AUTO_CURSOR_DOUBLERS, AUTO_FINGER_STEPS, AUTO_FORTUNE_NOMINAL, AUTO_FORTUNE_NOMINAL_SHARE, AUTO_RESEARCH, autoKittenFactor, AUTO_STAGE1_CHAIN, autoStripHtml } from './valuation-tables';
+import { AUTO_DRAGON_DROP_NOMINAL, AUTO_DRAGON_FANG_GOLDEN_SHARE, AUTO_CURSOR_DOUBLERS, AUTO_FINGER_STEPS, AUTO_FORTUNE_NOMINAL, AUTO_FORTUNE_NOMINAL_SHARE, AUTO_RESEARCH, autoKittenFactor, AUTO_STAGE1_CHAIN, autoStripHtml } from './valuation-tables';
 import { AUTO_GOLDEN_UPGRADES, AUTO_HEAVENLY_UNLOCKS } from './valuation-tables';
 
 export interface UpgradeClassifyCtx {
@@ -50,6 +50,8 @@ export function biscuitPower(up: GameUpgrade): number {
  *   fingers  Thousand/Million/... fingers (bonus per non-cursor building for cursors/clicks)
  *   click    mouse upgrades ("Clicking gains +1% of your CpS")
  *   heavenly the prestige potential unlocks (Heavenly chip secret ... Heavenly key)
+ *   dragon   Krumblor's pet drops (DRAGON-PET-4): Dragon claw (clicks +3%), Dragon fang (golden
+ *            cookies +3%), Dragon teddy bear (nominal); Dragon scale is a plain multiplier
  * Clicking gains are valued at ctx.clicksPerSec (the hammer rate x the Click Frenzy factor). Anything
  * else returns null and is never bought. `ctx.biscuitBase` is filled in lazily (mutated) so it
  * is computed at most once per autoCollect() pass. */
@@ -72,6 +74,17 @@ export function autoUpgradeGain(game: IGameAdapter, up: GameUpgrade, ctx: Upgrad
     }
 
     return { gain: (ctx.cps * p * AUTO_HEAVENLY_UNLOCKS[name]!) / (1 + p * owned), type: 'heavenly' };
+  }
+
+  // Krumblor's pet drops (DRAGON-PET-4); Dragon scale's "+3%" is caught as a multiplier below
+  if (name === 'Dragon claw' || name === 'Dragon fang' || name === 'Dragon teddy bear') {
+    const nominal = ctx.cps * AUTO_DRAGON_DROP_NOMINAL;
+    let gain = nominal;
+
+    if (name === 'Dragon claw') gain = autoPerClick(game) * ctx.clicksPerSec * 0.03;
+    else if (name === 'Dragon fang') gain = ctx.cps * AUTO_DRAGON_FANG_GOLDEN_SHARE * 0.03;
+
+    return { gain: Math.max(nominal, gain), type: 'dragon' };
   }
 
   const gdesc = autoStripHtml(up.desc);

@@ -110,6 +110,11 @@ export interface IGameAdapter {
   getSpecialTabs(): string[];
   /** Game.specialTab: the tab whose popup (#specialPopup) is open, '' if none. */
   getSpecialTab(): string;
+  /** The order of the four dragon drops for this save (DRAGON-PET-1): the game shuffles them
+   * with Math.seedrandom(Game.seed + '/dragonTime') on every pet and picks the one of the
+   * current quarter hour (Game.ClickSpecialPic, main.js 2.058). Cached per seed; null when
+   * the game's seeded random isn't there. */
+  getDragonDropOrder(): string[] | null;
 
   // ---- Christmas (XMAS-*) ----
   /** Game.santaLevel: 0 Festive test tube ... 14 Final Claus. */
@@ -691,6 +696,33 @@ export class GameAdapter implements IGameAdapter {
   getSpecialTab(): string {
     const Game = window.Game;
     return Game && typeof Game.specialTab === 'string' ? Game.specialTab : '';
+  }
+
+  private dragonDropCache: { seed: string; order: string[] } | null = null;
+
+  getDragonDropOrder(): string[] | null {
+    const Game = window.Game;
+    const w = window as unknown as { shuffle?: (a: string[]) => string[] };
+    const M = Math as unknown as { seedrandom?: (seed?: string) => void };
+    if (!Game || typeof Game.seed !== 'string' || typeof M.seedrandom !== 'function' || typeof w.shuffle !== 'function') return null;
+
+    if (this.dragonDropCache && this.dragonDropCache.seed === Game.seed) return this.dragonDropCache.order;
+
+    try {
+      M.seedrandom(Game.seed + '/dragonTime');
+      const order = w.shuffle(['Dragon scale', 'Dragon claw', 'Dragon fang', 'Dragon teddy bear']);
+      this.dragonDropCache = { seed: Game.seed, order };
+      return order;
+    } catch {
+      return null;
+    } finally {
+      // back to an unseeded random, like the game does after a pet
+      try {
+        M.seedrandom();
+      } catch {
+        /* ignore */
+      }
+    }
   }
 
   getSantaLevel(): number {

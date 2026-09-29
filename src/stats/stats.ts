@@ -35,6 +35,11 @@ export class StatsRecorder {
     this.data.scheduleSave();
   }
 
+  recordDragonDrop(): void {
+    this.data.stats.dragonDrops = (this.data.stats.dragonDrops || 0) + 1;
+    this.data.scheduleSave();
+  }
+
   recordLumpHarvest(): void {
     this.data.stats.lumpHarvests += 1;
     this.data.scheduleSave();

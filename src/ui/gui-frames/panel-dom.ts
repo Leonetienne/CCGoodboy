@@ -143,6 +143,10 @@ function panelBodyHtml(version: string): string {
             <input id="ccsb-fortunes" type="checkbox">
             Click fortune cookies in the news :3
         </label>
+        <label style="display:flex;gap:6px;align-items:center;margin-top:5px" title="With the heavenly upgrade &quot;Pet the dragon&quot; and Krumblor at level 8 or more, petting him sometimes drops Dragon scale, claw, fang or teddy bear into the store. Only one of them can drop per quarter hour, so the paw only pets him while that one is still missing, and stops once he has nothing left to drop. Works with or without auto play.">
+            <input id="ccsb-pet-dragon" type="checkbox">
+            Pet Krumblor for dragon drops :3
+        </label>
         <div class="ccsb-setting">
             <span>Happy dance length (ms, 0 = off)</span>
             <input data-setting="happyDanceMs" type="number" min="0" max="10000" step="100">

@@ -131,6 +131,12 @@ export class RuntimeState {
   santaBlockUntil = 0;
   santaMenuOurs = false;
   santaStuckSince = 0;
+  /** Petting Krumblor (DRAGON-PET-*): a pause after a failure or a long petting session,
+   * whether the paw opened the dragon's popup for it (it only closes its own), and since when
+   * a step's element can't be found. */
+  petBlockUntil = 0;
+  petMenuOurs = false;
+  petStuckSince = 0;
   /** Butter biscuits (BUTTER-*): a pause after a failure, and the Wizard tower top-up still to
    * be sold back (null: none). */
   butterBlockUntil = 0;
@@ -225,6 +231,8 @@ export class RuntimeState {
     this.krumblorStuckSince = 0;
     this.santaMenuOurs = false;
     this.santaStuckSince = 0;
+    this.petMenuOurs = false;
+    this.petStuckSince = 0;
     this.butterTopUp = null;
     this.autoHammerState = freshAutoHammerState();
 

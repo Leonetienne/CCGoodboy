@@ -7,6 +7,7 @@ import type { AscensionRunner } from '../autoplay/ascension-runner';
 import type { GrimoireUnlocker } from '../autoplay/grimoire-unlock';
 import type { KrumblorTrainer } from '../autoplay/krumblor';
 import type { SantaTrainer } from '../autoplay/santa';
+import type { DragonPetter } from '../autoplay/dragon-pet';
 import type { ButterBiscuitHunter } from '../autoplay/butter-biscuit';
 import type { BankUnlocker } from '../autoplay/bank-unlock';
 import type { FarmUnlocker } from '../autoplay/farm-unlock';
@@ -44,6 +45,8 @@ export interface PriorityDeps {
   farmUnlock: FarmUnlocker;
   krumblor: KrumblorTrainer;
   santa: SantaTrainer;
+  /** Petting Krumblor for his drops (DRAGON-PET-*). */
+  dragonPet?: DragonPetter;
   butterBiscuit: ButterBiscuitHunter;
   stockTrader: StockTrader;
   gardener: Gardener;
@@ -69,7 +72,7 @@ export interface PriorityDeps {
  *   5 a started buildings-view recipe / "Show grimoire" debug goal, then the auto hammer's
  *     kick-off after the Heavenly key (AUTO-19: HammerAction), then auto play: ascend
  *     (ASC-10), unlock the Grimoire, unlock the stock market, unlock the garden, train
- *     Krumblor, evolve Santa, top Wizard towers up for a butter biscuit (BUTTER-*); then a stock market trade (STOCK-*) and a garden step
+ *     Krumblor, evolve Santa, pet Krumblor for his drops (DRAGON-PET-*, not tied to auto play), top Wizard towers up for a butter biscuit (BUTTER-*); then a stock market trade (STOCK-*) and a garden step
  *     (GARDEN-*), both not tied to auto play; then auto play again: pop
  *     a wrinkler for a purchase, then shopping
  *                            -> MenuButtonAction / ScrollIntoViewAction / MinigameButtonAction /
@@ -86,7 +89,7 @@ export interface PriorityDeps {
  * still falls through to lump harvest/auto-shop/hammer/dance/idle below it, exactly as the
  * original did. */
 export function selectJobRequest(deps: PriorityDeps): JobRequest | null {
-  const { queue, buffs, runtime, data, game, clickGolden, clickBigCookie, fthof, lumpHarvest, fortune, grimoireView, ascension, grimoireUnlock, bankUnlock, farmUnlock, krumblor, santa, butterBiscuit, stockTrader, gardener, autoPlay, wrinklerPopper, happyDance, idleBehavior, hammerActive, hammerKick } = deps;
+  const { queue, buffs, runtime, data, game, clickGolden, clickBigCookie, fthof, lumpHarvest, fortune, grimoireView, ascension, grimoireUnlock, bankUnlock, farmUnlock, krumblor, santa, dragonPet, butterBiscuit, stockTrader, gardener, autoPlay, wrinklerPopper, happyDance, idleBehavior, hammerActive, hammerKick } = deps;
 
   let job: JobRequest | null = null;
 
@@ -190,6 +193,12 @@ export function selectJobRequest(deps: PriorityDeps): JobRequest | null {
   // Auto play: evolve Santa up to Final Claus (XMAS-*).
   if (!job && !kick && santa.pending()) {
     job = santa.job();
+  }
+
+  // Pet Krumblor while the quarter hour's drop is still missing (DRAGON-PET-*). Its own
+  // setting, with or without auto play.
+  if (!job && !kick && dragonPet && dragonPet.pending()) {
+    job = dragonPet.job();
   }
 
   // Auto play: Wizard towers up to the next "N of everything" milestone and back down, for

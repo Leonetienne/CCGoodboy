@@ -85,6 +85,7 @@ export function moodText(action: string): string {
     'wrinkler-pop': 'popping a wrinkler owo',
     krumblor: 'training Krumblor ^w^',
     santa: 'evolving Santa ho ho ^w^',
+    'dragon-pet': 'petting Krumblor, good dragon ^w^',
     'butter-biscuit': 'wizard towers for a butter biscuit ^w^',
     ascend: 'ascending to cookie heaven ^w^',
     'stock-market': 'playing the stock market, stonks ^w^',

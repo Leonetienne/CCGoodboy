@@ -384,6 +384,11 @@ export class FakeGameAdapter implements IGameAdapter {
     return this.specialTabs;
   }
 
+  dragonDropOrder: string[] | null = ['Dragon scale', 'Dragon claw', 'Dragon fang', 'Dragon teddy bear'];
+  getDragonDropOrder(): string[] | null {
+    return this.dragonDropOrder;
+  }
+
   getSpecialTab(): string {
     return this.specialTab;
   }

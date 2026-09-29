@@ -56,7 +56,9 @@ Options/Stats menu buttons and the "View Grimoire" button needed to get the
 FTHOF spell on screen (FT-8), with "Play the stock market" the "View Stock
 Market" button, the market's buy/sell buttons and its "Hire" (broker)
 button (STOCK-\*), with "Tend the garden" the "View Garden" button, the
-garden's plot tiles, seeds and soils (GARDEN-\*), and — in auto play only —
+garden's plot tiles, seeds and soils (GARDEN-\*), with "Pet Krumblor for
+dragon drops" Krumblor's tab, his picture and the popup "x" (DRAGON-PET-\*),
+and — in auto play only —
 the Wizard tower's "lvl" button (AUTO-13), the Bank's "lvl" button
 (AUTO-16), the Farm's "lvl" button (AUTO-17), mature wrinklers (WRINK-5; with the "Pop ripe/all wrinklers"
 buttons, WRINK-8, also without auto play, and young ones too after "Pop all"), Krumblor's tab,
@@ -323,8 +325,9 @@ run). Read from the game's `main.js` 2.058 (`getNewTicker`, the
      Heavenly key (AUTO-19), then auto play: an ascension under way on the
      ascension screen (ASC-10), then the Grimoire unlock (AUTO-13), then the
      stock market unlock (AUTO-16), then the garden unlock (AUTO-17),
-     then a Krumblor step (KRUMB-\*), then a Santa step (XMAS-4), then a
-     butter biscuit top-up (BUTTER-\*), then a stock market trade (STOCK-\*, its own setting, with or without auto
+     then a Krumblor step (KRUMB-\*), then a Santa step (XMAS-4), then
+     petting Krumblor (DRAGON-PET-\*, its own setting, with or without auto
+     play), then a butter biscuit top-up (BUTTER-\*), then a stock market trade (STOCK-\*, its own setting, with or without auto
      play), then a garden step (GARDEN-\*, likewise), then popping a wrinkler for a purchase (WRINK-3), then shopping
      (only when a purchase is due, AUTO-8)
   6. hammer mode (manual button, or the auto hammer, AUTO-11)
@@ -475,8 +478,8 @@ the paw clicks.
   settings" (or Enter) validates, clamps, applies and stores them at once.
 - **UI-11** Settings are split into "Basic" (what a nontechnical player
   would touch: the on/off switches for overlays, the hunting show, idle
-  play, keep-alive, FTHOF, lumps, the stock market, the garden and the
-  news fortunes, the stock budget,
+  play, keep-alive, FTHOF, lumps, the stock market, the garden, the
+  news fortunes and petting Krumblor, the stock budget,
   the dance length and the two opacities) and an "Advanced" section
   (timings, speeds, click rates, history/log sizes, the ascension tuning),
   a `<details>` collapsed by default. The auto play settings are split the
@@ -634,7 +637,8 @@ action log (UI-6); nothing here is stored.
   (WRINK-6), `"Krumblor wears Dragon Cursor now, clicky paws ^w^"`,
   `"Krumblor wears Dragonflight now, zoomy clicky ^w^"` and `"Krumblor
   wears Radiant Appetite now, double cookies nom nom ^w^"` once each aura
-  is on (KRUMB-5), and `"Santa is Final Claus now, ho ho ho
+  is on (KRUMB-5), `"Petted Krumblor and he dropped a Dragon claw!! good dragon
+  ^w^"` for a pet drop (DRAGON-PET-3), and `"Santa is Final Claus now, ho ho ho
   ^w^"` once Santa reaches his last level (XMAS-4); a caught reindeer
   says `"Caught a reindeer!! Ho ho ho, gewd boy :3"` (XMAS-6); an
   automatic ascension says `"Ascending!! See you on the other side, cookies
@@ -1237,6 +1241,55 @@ action log (UI-6); nothing here is stored.
   batches (KRUMB-2): switching costs 1 of the highest building owned (the
   game's rule), which a batch may still need. Every step is logged
   (`"krumblor"`). Debug: DBG-15.
+
+### 3.18a Petting Krumblor (dragon drops)
+
+With the heavenly upgrade "Pet the dragon" the dragon's picture in its popup
+(`#specialPic`) can be clicked (`Game.ClickSpecialPic`, `main.js` 2.058).
+From `Game.dragonLevel` 8 on each pet has a 1 in 20 chance to unlock a drop
+into the store. There are exactly four: Dragon scale (+3% CpS), Dragon claw
+(clicks +3%), Dragon fang (golden cookies +3%, Dragon harvest/Dragonflight
++10%) and Dragon teddy bear (random drops +3%), each costing 30 minutes of
+unbuffed CpS (3 with a fully trained dragon). Only ONE can drop at a time:
+the game shuffles the four with `Math.seedrandom(Game.seed + '/dragonTime')`
+and picks by the clock, `drops[floor(minutes / 60 × 4)]`, so every quarter
+hour offers one fixed drop; one already owned or unlocked gives nothing.
+Pure logic in `src/autoplay/dragon-pet-strategy.ts`, the module in
+`src/autoplay/dragon-pet.ts` (`DragonPetter`), the pets in
+`src/actions/dragon-pet.ts` (`DragonPetAction`).
+
+- **DRAGON-PET-1** Basic setting "Pet Krumblor for dragon drops"
+  (`petDragon`, DEFAULT ON), with or without auto play. The paw pets only
+  while "Pet the dragon" is owned, the dragon is at level 8 or more and the
+  current quarter hour's drop (`IGameAdapter.getDragonDropOrder()`, the
+  game's shuffle, cached per `Game.seed`; `dragonDropAt()`) is neither owned
+  nor in the store. Otherwise it waits for the next window with a missing
+  drop (`nextDropWindowSec()`), and once all four are owned or in the store
+  it never touches the dragon again (`nextPetStep()`).
+- **DRAGON-PET-2** Like KRUMB-3, one step per scheduler tick re-derived from
+  the live game: the paw opens the popup through the dragon's tab on
+  `#backgroundLeftCanvas` (`DragonClickAction`), pets the picture (real
+  synthetic clicks on `#specialPic`, NFR-8 a, looked up per pet since the game
+  rebuilds the popup every 3s) at the Click Frenzy rate with its wiggle, a
+  few px apart, at most 40 pets per job (`PET_BURST`), until the drop is in
+  the store, then clicks the popup's "x". It only closes a popup it opened
+  (`runtime.petMenuOurs`); one the player or Krumblor's training opened is
+  used and left open. Safety: the AUTO-7 gates (golden cookie ready, Click
+  Frenzy, storm/chain, FTHOF/refill pending, paused; a prompt open,
+  ascending). A click that didn't work pauses petting 3s, an element that
+  doesn't show up for 5s pauses it 10s, 120 pets without a drop
+  (`PET_GIVE_UP`, 0.3% by chance) 60s (`runtime.petBlockUntil`). Priority:
+  tier 5 after a Santa step, before the butter biscuit; a due step
+  interrupts hammering and idle play (AUTO-8). Mood `dragon-pet`.
+- **DRAGON-PET-3** Every drop is counted (`stats.dragonDrops`, "Dragon drops"
+  in the HUD statistics once > 0), logged (`"dragon pet"`) and cheered in the
+  console (CON-1).
+- **DRAGON-PET-4** Auto play buys the drops like any upgrade (AUTO-2..4,
+  `autoUpgradeGain()`): Dragon scale as a +3% multiplier, Dragon claw as 3% of
+  the clicking income at the hammer rate (`autoPerClick()` × the click rate),
+  Dragon fang as 3% of golden cookies assumed worth 20% of CpS
+  (`AUTO_DRAGON_FANG_GOLDEN_SHARE`), Dragon teddy bear at the nominal 0.1% of
+  CpS (`AUTO_DRAGON_DROP_NOMINAL`); type `dragon`.
 
 ### 3.19 Easter eggs (auto play)
 
@@ -2031,6 +2084,7 @@ saved (see `normalizeSetting()` in
 | `stockInvest` | ("Pause investments" button, stored; STOCK-9) | true | – |
 | `garden` | Tend the garden [checkbox] (GARDEN-1) | true | – |
 | `fortunes` | Click fortune cookies in the news [checkbox] (FORTUNE-1) | true | – |
+| `petDragon` | Pet Krumblor for dragon drops [checkbox] (DRAGON-PET-1) | true | – |
 | `autoPlay` | (Auto play button, stored) | false | – |
 | `autoDryRun` | Auto play dry run (log only) [checkbox] | false | – |
 | `autoInsignificantShare` | Auto: insignificant cost (share of bank) | 0.001 | 0-1 |
@@ -2103,14 +2157,14 @@ gainLumps) — still guarded, still the only path to those `Game.*` calls.
 | Area | Path | Contents |
 |---|---|---|
 | Core state | `src/core/` | `constants.ts` (VERSION, clamp helpers), `console-voice.ts` (CON-\*), `persisted-data.ts`, `runtime-state.ts`, `state-machine.ts` |
-| Game facade | `src/game/` | `game-adapter.ts` (IGameAdapter + GameAdapter), `types.ts` (GameShimmer/RawBuff/CpsBuff/GrimoireMinigame/GameBuilding/GameUpgrade), `golden-cookie-model.ts` (fade curve, shimmer classification, GC-2/GC-3), `hurry-mode.ts` (HURRY-\*), `buffs-lock.ts` (LOCK_A, FT-6), `grimoire.ts` (FTHOF spell/cost lookup), `grimoire-dom.ts` (real Grimoire controls — FT-7), `market-dom.ts` (the stock market's trade and "Hire" buttons — STOCK-\*), `garden-dom.ts` (the garden's plot tiles, seeds and soils — GARDEN-\*), `lump-dom.ts` (`#lumps` control/centre — LUMP-\*), `ticker-dom.ts` (the news ticker's fortune — FORTUNE-1), `wrinkler-dom.ts` (`#backgroundLeftCanvas`, a wrinkler's body point — WRINK-5), `dragon-dom.ts` (the special tabs on the left canvas, `#specialPopup`, the aura picker, Santa's "Evolve" button — KRUMB-3/XMAS-4), `buildings-view-dom.ts` (`#centerArea`, menu buttons, building rows/level buttons, the Options/Stats/Stats recipe, `centeredScrollTop` — AUTO-13), `reindeer.ts` (a reindeer's predicted path and the paw's meeting point — XMAS-6), `ascension-dom.ts` (the Legacy button, the Ascend/Reincarnate prompts, heavenly crates, the Reincarnate button, how far to drag the tree — ASC-10; the permanent slot picker — ASC-16), `store-dom.ts` (the collapsible upgrade store sections, opened while the paw is there — AUTO-9), `dom-geometry.ts` (visibleRect/looseRect/clippedByAncestor — shared by every overlay box, GC-2/BUY-3) |
+| Game facade | `src/game/` | `game-adapter.ts` (IGameAdapter + GameAdapter), `types.ts` (GameShimmer/RawBuff/CpsBuff/GrimoireMinigame/GameBuilding/GameUpgrade), `golden-cookie-model.ts` (fade curve, shimmer classification, GC-2/GC-3), `hurry-mode.ts` (HURRY-\*), `buffs-lock.ts` (LOCK_A, FT-6), `grimoire.ts` (FTHOF spell/cost lookup), `grimoire-dom.ts` (real Grimoire controls — FT-7), `market-dom.ts` (the stock market's trade and "Hire" buttons — STOCK-\*), `garden-dom.ts` (the garden's plot tiles, seeds and soils — GARDEN-\*), `lump-dom.ts` (`#lumps` control/centre — LUMP-\*), `ticker-dom.ts` (the news ticker's fortune — FORTUNE-1), `wrinkler-dom.ts` (`#backgroundLeftCanvas`, a wrinkler's body point — WRINK-5), `dragon-dom.ts` (the special tabs on the left canvas, `#specialPopup`, the aura picker, Santa's "Evolve" button, the dragon's picture — KRUMB-3/XMAS-4), `buildings-view-dom.ts` (`#centerArea`, menu buttons, building rows/level buttons, the Options/Stats/Stats recipe, `centeredScrollTop` — AUTO-13), `reindeer.ts` (a reindeer's predicted path and the paw's meeting point — XMAS-6), `ascension-dom.ts` (the Legacy button, the Ascend/Reincarnate prompts, heavenly crates, the Reincarnate button, how far to drag the tree — ASC-10; the permanent slot picker — ASC-16), `store-dom.ts` (the collapsible upgrade store sections, opened while the paw is there — AUTO-9), `dom-geometry.ts` (visibleRect/looseRect/clippedByAncestor — shared by every overlay box, GC-2/BUY-3) |
 | Cursor (queue) | `src/cursor/` | `types.ts` (`JOB_PRIORITY`, `CursorAction`, `CursorJob`, `CursorJobContext`, `CursorMover`, `CursorClickTiming`, `JobRequest`), `cursor-manager.ts` (owns the priority queue + all cursor motion: click gap → travel → pre-click pause → `cursor_at_position`, dedup by key, preemption, single cursor writer) |
-| Actions | `src/actions/` | `click-element.ts` (ClickElementAction/MoveAction/VisualPressAction), `golden-cookie.ts` (GoldenCookieAction, `effectPrettyName`), `hammer.ts` (HammerAction + big-cookie point helpers, CF-\*), `fthof.ts` (FthofAction/RefillAction), `lump-harvest.ts` (LumpHarvestAction, LUMP-\*), `fortune.ts` (FortuneClickAction, FORTUNE-\*), `buildings-view.ts` (MenuButtonAction, ScrollIntoViewAction, MinigameButtonAction — FT-8/AUTO-13/DBG-9..11), `minigame-unlock.ts` (MinigameUnlockAction: a building's "lvl" click that unlocks its minigame), `grimoire-unlock.ts` (GrimoireUnlockAction, AUTO-13), `market.ts` (MarketClickAction: one click on a stock market button, STOCK-\*), `garden.ts` (GardenClickAction: one click on a garden tile, seed or soil, GARDEN-\*), `wrinkler-pop.ts` (WrinklerPopAction, WRINK-5), `krumblor.ts` (DragonClickAction/DragonStoreAction, KRUMB-3; Santa's and the ascension's clicks reuse DragonClickAction, XMAS-4/ASC-10), `ascension.ts` (WaitWhileAction, DragTreeAction — ASC-10), `achievement-dump.ts` (AchievementDumpAction: buying a building copy by copy for its achievement — ASC-13), `store-visit.ts` (`enterStoreElement`: the paw opening an upgrade's store section and moving onto the crate, AUTO-9), `dance.ts` (DanceAction + `danceEligible`/`anyGoldenPresent`/`getDanceMs`), `ponder.ts` (PonderAction), `idle.ts` (IdleWanderAction + `IDLE_SPOTS`/`pickIdleSpot`) |
+| Actions | `src/actions/` | `click-element.ts` (ClickElementAction/MoveAction/VisualPressAction), `golden-cookie.ts` (GoldenCookieAction, `effectPrettyName`), `hammer.ts` (HammerAction + big-cookie point helpers, CF-\*), `fthof.ts` (FthofAction/RefillAction), `lump-harvest.ts` (LumpHarvestAction, LUMP-\*), `fortune.ts` (FortuneClickAction, FORTUNE-\*), `buildings-view.ts` (MenuButtonAction, ScrollIntoViewAction, MinigameButtonAction — FT-8/AUTO-13/DBG-9..11), `minigame-unlock.ts` (MinigameUnlockAction: a building's "lvl" click that unlocks its minigame), `grimoire-unlock.ts` (GrimoireUnlockAction, AUTO-13), `market.ts` (MarketClickAction: one click on a stock market button, STOCK-\*), `garden.ts` (GardenClickAction: one click on a garden tile, seed or soil, GARDEN-\*), `wrinkler-pop.ts` (WrinklerPopAction, WRINK-5), `krumblor.ts` (DragonClickAction/DragonStoreAction, KRUMB-3; Santa's, the petting's and the ascension's clicks reuse DragonClickAction, XMAS-4/DRAGON-PET-2/ASC-10), `dragon-pet.ts` (DragonPetAction: petting Krumblor's picture, DRAGON-PET-2), `ascension.ts` (WaitWhileAction, DragTreeAction — ASC-10), `achievement-dump.ts` (AchievementDumpAction: buying a building copy by copy for its achievement — ASC-13), `store-visit.ts` (`enterStoreElement`: the paw opening an upgrade's store section and moving onto the crate, AUTO-9), `dance.ts` (DanceAction + `danceEligible`/`anyGoldenPresent`/`getDanceMs`), `ponder.ts` (PonderAction), `idle.ts` (IdleWanderAction + `IDLE_SPOTS`/`pickIdleSpot`) |
 | Hunting (modules) | `src/hunting/` | `click-golden.ts` (golden hunter: `jobFor` → GoldenCookieAction), `click-big-cookie.ts` (hammer module: `job` → HammerAction), `golden-queue.ts` (route caching, wraps route-planner), `fthof.ts` (FthofActions: `fthofOrRefillPending` + `castJob`/`refillJob`), `lump-harvest.ts` (LumpHarvestActions: `pending` + `harvestJob`), `fortune.ts` (FortuneCatcher: `pending` + `job`, FORTUNE-1), `happy-dance.ts` (HappyDance: `job` → DanceAction), `buildings-view.ts` (BuildingsViewNavigator: Options/Stats/Stats recipe + scroll-into-view steps, `PrepStep`), `minigame-view.ts` (MinigameView: step planner to a building's unlocked/open, on-screen minigame — shared by the Grimoire and the stock market), `grimoire-view.ts` (GrimoireView: the Wizard tower's MinigameView for FT-8/AUTO-13, plus the DBG-9..11 tools and their scheduler tier), `hitbox-overlay.ts` (GC-2) |
 | Routing | `src/routing/route-planner.ts` | `exactRoute` (Held-Karp DP, <= 11 cookies), `heuristicRoute` (nearest-neighbor + 2-opt/Or-opt + restarts), `planRoute` (GC-5) |
 | Idle | `src/idle/` | `idle-behavior.ts` (IdleBehavior module: `idleJob` → IdleWanderAction), `pending-work.ts` (conditions + queue state via `CursorManager.hasJobsAbove` — the shared "is anything more important pending?" predicate) |
 | Input synthesis | `src/input/` | `dispatch.ts` (dispatchMouse/dispatchMove — MOUSE-\*), `human-click.ts` (ClickTiming: delays, waitUntil, humanClick), `cursor-controller.ts` (CursorController: low-level PAW-4 arc/spline/warp travel, moveCursorTo/glideCursor — the only file that writes `runtime.cursor.x/y`), `background-clock.ts` (BackgroundClock: BG-1/BG-2 worker timer), `keep-alive.ts` (BG-3) |
-| Auto play | `src/autoplay/` | `valuation-tables.ts` (AUTO_BLOCKED_\*, AUTO_GOLDEN_UPGRADES, AUTO_KITTEN_POWER, AUTO_FINGER_STEPS, AUTO_BUILDING_CAPS — AUTO-2 data), `building-valuation.ts` + `upgrade-classifier.ts` (AUTO-3 gain math per candidate type), `collector.ts` (`autoCollect`: gathers candidates + ctx, AUTO-7 safety gates), `strategy.ts` (`autoDecide`: the pure insignificant/good/postpone/save decision, AUTO-4 — flagship unit-test target), `buy-streak.ts` (pure: whether the paw buys one more of the same building in its streak, AUTO-14), `achievement-milestones.ts` (pure: a building's value on its way to a count achievement, AUTO-15), `shopping.ts` (`AutoPlayEngine`: evaluate/shopJob/statusText, AUTO-1/8/9/10/12), `auto-hammer.ts` (AUTO-11), `grimoire-unlock.ts` (`GrimoireUnlocker`: AUTO-13 gating, steps from GrimoireView), `minigame-unlock.ts` (`MinigameUnlocker`: a minigame's level 1 unlock, gating and steps from its MinigameView), `bank-unlock.ts` (`BankUnlocker`: AUTO-16), `farm-unlock.ts` (`FarmUnlocker`: AUTO-17), `wrinkler-strategy.ts` (pure: respawn time, maturity, fewest-fattest pick — WRINK-2/3), `grandmapocalypse-valuation.ts` (pure: stage 1 gain, delay, chain-step dCps — WRINK-1), `wrinkler-popper.ts` (`WrinklerPopper`: WRINK-3/4 gating, plan, job, HUD text), `krumblor-strategy.ts` (pure: next Krumblor step — KRUMB-1/2/5), `krumblor.ts` (`KrumblorTrainer`: KRUMB-\* gating, state, jobs, the cursor sale/rebuy), `easter-eggs.ts` (pure-ish: egg values and order — EGG-\*), `christmas.ts` (pure-ish: Christmas upgrade values — XMAS-1..3), `santa-strategy.ts` (pure: next Santa step — XMAS-4), `santa.ts` (`SantaTrainer`: XMAS-4/5 gating, jobs), `butter-biscuit-strategy.ts` (pure: the next Wizard tower top-up / sell-back — BUTTER-\*), `butter-biscuit.ts` (`ButterBiscuitHunter`: BUTTER-\* gating, jobs), `ascension-strategy.ts` (pure: pending level, stagnation, boost gate, verdict — ASC-1..4/8), `heavenly-shopping.ts` (pure: the heavenly value table, lucky 7s, the shopping list and the level it needs — ASC-9), `permanent-slots.ts` (pure: what each permanent upgrade slot holds, the next slot to fill — ASC-16), `ascension-steps.ts` (pure: the next step of an automatic ascension — ASC-10/16), `achievement-dump.ts` (pure: the cheapest-first achievement plan for the bank before an ascension — ASC-13), `ascension-runner.ts` (`AscensionRunner`: ASC-10 gating, steps, jobs, the per-run reset), `ascension.ts` (`AscensionPlanner`: measured income, cached plan, HUD text — ASC-2/5), `ascension-overlay.ts` (Legacy button and heavenly tree boxes — ASC-6/7), `income-tracker.ts` (smoothed clicking income for AUTO-3's `income`), `buy-value-overlay.ts` (BUY-\*) |
+| Auto play | `src/autoplay/` | `valuation-tables.ts` (AUTO_BLOCKED_\*, AUTO_GOLDEN_UPGRADES, AUTO_KITTEN_POWER, AUTO_FINGER_STEPS, AUTO_BUILDING_CAPS — AUTO-2 data), `building-valuation.ts` + `upgrade-classifier.ts` (AUTO-3 gain math per candidate type), `collector.ts` (`autoCollect`: gathers candidates + ctx, AUTO-7 safety gates), `strategy.ts` (`autoDecide`: the pure insignificant/good/postpone/save decision, AUTO-4 — flagship unit-test target), `buy-streak.ts` (pure: whether the paw buys one more of the same building in its streak, AUTO-14), `achievement-milestones.ts` (pure: a building's value on its way to a count achievement, AUTO-15), `shopping.ts` (`AutoPlayEngine`: evaluate/shopJob/statusText, AUTO-1/8/9/10/12), `auto-hammer.ts` (AUTO-11), `grimoire-unlock.ts` (`GrimoireUnlocker`: AUTO-13 gating, steps from GrimoireView), `minigame-unlock.ts` (`MinigameUnlocker`: a minigame's level 1 unlock, gating and steps from its MinigameView), `bank-unlock.ts` (`BankUnlocker`: AUTO-16), `farm-unlock.ts` (`FarmUnlocker`: AUTO-17), `wrinkler-strategy.ts` (pure: respawn time, maturity, fewest-fattest pick — WRINK-2/3), `grandmapocalypse-valuation.ts` (pure: stage 1 gain, delay, chain-step dCps — WRINK-1), `wrinkler-popper.ts` (`WrinklerPopper`: WRINK-3/4 gating, plan, job, HUD text), `krumblor-strategy.ts` (pure: next Krumblor step — KRUMB-1/2/5), `krumblor.ts` (`KrumblorTrainer`: KRUMB-\* gating, state, jobs, the cursor sale/rebuy), `easter-eggs.ts` (pure-ish: egg values and order — EGG-\*), `christmas.ts` (pure-ish: Christmas upgrade values — XMAS-1..3), `santa-strategy.ts` (pure: next Santa step — XMAS-4), `santa.ts` (`SantaTrainer`: XMAS-4/5 gating, jobs), `dragon-pet-strategy.ts` (pure: the quarter hour's drop, the next petting step — DRAGON-PET-1), `dragon-pet.ts` (`DragonPetter`: DRAGON-PET-\* gating, jobs), `butter-biscuit-strategy.ts` (pure: the next Wizard tower top-up / sell-back — BUTTER-\*), `butter-biscuit.ts` (`ButterBiscuitHunter`: BUTTER-\* gating, jobs), `ascension-strategy.ts` (pure: pending level, stagnation, boost gate, verdict — ASC-1..4/8), `heavenly-shopping.ts` (pure: the heavenly value table, lucky 7s, the shopping list and the level it needs — ASC-9), `permanent-slots.ts` (pure: what each permanent upgrade slot holds, the next slot to fill — ASC-16), `ascension-steps.ts` (pure: the next step of an automatic ascension — ASC-10/16), `achievement-dump.ts` (pure: the cheapest-first achievement plan for the bank before an ascension — ASC-13), `ascension-runner.ts` (`AscensionRunner`: ASC-10 gating, steps, jobs, the per-run reset), `ascension.ts` (`AscensionPlanner`: measured income, cached plan, HUD text — ASC-2/5), `ascension-overlay.ts` (Legacy button and heavenly tree boxes — ASC-6/7), `income-tracker.ts` (smoothed clicking income for AUTO-3's `income`), `buy-value-overlay.ts` (BUY-\*) |
 | Stock market | `src/market/` | `market-strategy.ts` (pure: thresholds, trailing stop, budget, brokers, the next trade — STOCK-2..4), `stock-trader.ts` (`StockTrader`: STOCK-\* gating, peaks, jobs, HUD text; the Bank's `MinigameView`) |
 | Garden | `src/garden/` | `garden-strategy.ts` (pure: the crop, pests, payout crops, soil, the next step — GARDEN-2..6), `gardener.ts` (`Gardener`: GARDEN-\* gating, jobs, HUD text; the Farm's `MinigameView`) |
 | Scheduler | `src/scheduler/` | `priority.ts` (`selectJobRequest`: the SCHED-1 cascade as pure data), `scheduler.ts` (`Scheduler.tick()`: wrath logging, queue build, enqueues ONE job via CursorManager), `overlay-loop.ts` (`OverlayLoop`: the requestAnimationFrame draw loop — hunting show, hitboxes, buy-value overlay, ascension overlay, paw) |
@@ -2172,6 +2226,7 @@ target)`) instead of scattering direct field writes across every task.
 | `wrinkler-pop` | poking a mature wrinkler until it bursts (WRINK-5) | `WrinklerPopAction` |
 | `krumblor` | buying the crumbly egg, clicking Krumblor's tab/popup/aura picker, selling/buying buildings for the sacrifices (KRUMB-\*) | `DragonClickAction` / `DragonStoreAction` |
 | `santa` | clicking Santa's tab, "Evolve" button and popup "x" (XMAS-4) | `DragonClickAction` (from `SantaTrainer`) |
+| `dragon-pet` | opening Krumblor's popup, petting his picture for a drop, closing the popup (DRAGON-PET-\*) | `DragonClickAction` / `DragonPetAction` (from `DragonPetter`) |
 | `butter-biscuit` | buying Wizard towers up to a butter biscuit milestone and selling them back (BUTTER-\*) | `DragonStoreAction` (from `ButterBiscuitHunter`) |
 | `ascend` | getting ready for a committed ascension (ASC-12: selling, buying for achievements, holding at Legacy), clicking Legacy/"Ascend", waiting out the animation, dragging the heavenly tree, buying heavenly upgrades, Reincarnate/"Yes" (ASC-10) | `DragonClickAction` / `WaitWhileAction` / `DragTreeAction` (from `AscensionRunner`; the pops show `wrinkler-pop`) |
 | `auto-shop` | scrolling the store column to an item, visiting/buying it (AUTO-9) | auto-shop `CursorAction` from `AutoPlayEngine.shopJob()` |
@@ -2196,8 +2251,8 @@ file.**
 
 Three layers, each catching a different class of bug:
 
-1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 656 tests
-   across 56 files. Pure functions (route planner, `autoDecide`, the chart
+1. **Unit tests** (`tests/unit/`, Vitest + jsdom, `make test`). 679 tests
+   across 58 files. Pure functions (route planner, `autoDecide`, the chart
    engine, `normalizeSetting`) are tested directly with plain data; the
    cursor queue/actions have their own fake mover/timing tests. Classes
    that depend on the game are tested against `FakeGameAdapter`
@@ -2387,6 +2442,19 @@ mouse while the bot runs and confirm the "+N" number follows your cursor,
 not the paw's).
 
 ## 12. Changelog
+
+- **5.8.51** Petting Krumblor (DRAGON-PET-\*): with the heavenly upgrade "Pet
+  the dragon" and the dragon at level 8 or more, the paw opens his popup and
+  pets his picture until the quarter hour's drop (Dragon scale, claw, fang or
+  teddy bear, the game's seeded pick by the clock) lands in the store, then
+  closes the popup. It only pets while that drop is neither owned nor in the
+  store and stops for good once all four are, with or without auto play; new
+  basic setting "Pet Krumblor for dragon drops" (`petDragon`, on). Auto play
+  now values Dragon claw, fang and teddy bear (type `dragon`; Dragon scale was
+  already a multiplier). New `DragonPetter`, `DragonPetAction`,
+  `src/autoplay/dragon-pet-strategy.ts`, `IGameAdapter.getDragonDropOrder()`,
+  `getDragonPic()`, mood `dragon-pet`, stat "Dragon drops". Unit tests in
+  `tests/unit/dragon-pet.test.ts` and `tests/unit/priority.test.ts`.
 
 - **5.8.50** Two wrinkler buttons instead of one (WRINK-8): "Pop ripe
   wrinklers" (the mature ones, as 5.8.49's "Pop all wrinklers" did) and "Pop

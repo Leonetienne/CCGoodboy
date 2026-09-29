@@ -100,3 +100,9 @@ export function getAuraPickerConfirm(): Element | null {
   return getAuraPicker() ? document.getElementById('promptOption0') : null;
 }
 
+
+/** The dragon's picture in its popup (#specialPic): petted with "Pet the dragon"
+ * (DRAGON-PET-*). The game rebuilds the popup every 3s, so look it up for every click. */
+export function getDragonPic(): Element | null {
+  return getSpecialPopup() ? document.getElementById('specialPic') : null;
+}

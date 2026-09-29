@@ -30,6 +30,8 @@ export interface Config {
   garden: boolean;
   /** Click fortunes in the news ticker (FORTUNE-1). */
   fortunes: boolean;
+  /** Pet Krumblor for the dragon drops (DRAGON-PET-1). */
+  petDragon: boolean;
   ascendLuckyWaitSec: number;
   ascendMinBoost: number;
   ascendShopWaitSec: number;
@@ -63,6 +65,8 @@ export interface Stats {
   lumpHarvests: number;
   /** Fortunes clicked in the news ticker (FORTUNE-2). */
   fortunes: number;
+  /** Dragon drops unlocked by petting Krumblor (DRAGON-PET-3). */
+  dragonDrops: number;
   autoBuys: number;
   wrinklersPopped: number;
   ascensions: number;
@@ -155,6 +159,7 @@ export const DEFAULTS: PersistedState = {
     stockInvest: true,
     garden: true,
     fortunes: true,
+    petDragon: true,
     ascendLuckyWaitSec: 86400,
     ascendMinBoost: 2,
     ascendShopWaitSec: 21600,
@@ -186,6 +191,7 @@ export const DEFAULTS: PersistedState = {
     grimoireRefills: 0,
     lumpHarvests: 0,
     fortunes: 0,
+    dragonDrops: 0,
     autoBuys: 0,
     wrinklersPopped: 0,
     ascensions: 0,

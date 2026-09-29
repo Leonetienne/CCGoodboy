@@ -120,6 +120,12 @@ export function autoKittenFactor(name: unknown): number | null {
 export const AUTO_FORTUNE_NOMINAL = new Set(['Fortune #102']);
 export const AUTO_FORTUNE_NOMINAL_SHARE = 0.001;
 
+/** Krumblor's pet drops (DRAGON-PET-4): golden cookies are assumed worth this share of CpS
+ * (like Lucky day's valuation), so Dragon fang's "+3% golden cookie gains" is worth 3% of it;
+ * a drop worth less (Dragon teddy bear's drop rate) gets the nominal 0.1% of CpS. */
+export const AUTO_DRAGON_FANG_GOLDEN_SHARE = 0.2;
+export const AUTO_DRAGON_DROP_NOMINAL = 0.001;
+
 /** Upper limits per building for the auto player: it never buys more than this many of them.
  * 57 Wizard towers is the sweet spot for mana, more only makes spells pricier. The wizard
  * target is exposed as the setting `autoWizardTowerTarget`; this constant is only the fallback
